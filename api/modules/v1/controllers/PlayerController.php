@@ -37,14 +37,14 @@ class PlayerController extends ActiveController
   {
     $helper = Yii::$app->helper;
     $helper->record();
-    return 1;
+    return ['test'=>'actionSignUp'];
     
   }
   public function actionSignIn()
   {
     $helper = Yii::$app->helper;
     $helper->record();
-    return 2;
+    return  ['test'=>'actionSignIn'];
     
   }
 
