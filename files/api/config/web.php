@@ -7,6 +7,7 @@ $config = [
     'id' => 'restful',
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
+    'controllerNamespace' => 'app\controllers',
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
         '@npm'   => '@vendor/npm-asset',
@@ -51,6 +52,7 @@ $config = [
         'urlManager' => [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
+            'enableStrictParsing' => true,
             'rules' => [
                 
                 [
@@ -60,7 +62,8 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
-                    'controller' => 'v1/player'
+                    'controller' => ['v1/player', 'v1/helper'],
+                    'pluralize' => true,
                 ],
             ],
         ],
