@@ -44,7 +44,7 @@ class PlayerController extends ActiveController
   {
     $helper = Yii::$app->helper;
     $helper->record();
-    return ['post'=>Yii::$app->request->post(),'get'=>Yii::$app->request->get(),'headers'=>Yii::$app->request->headers];
+    return ['result'=>"success" + time()];
     
   }
 
