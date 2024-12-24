@@ -34,5 +34,19 @@ class HelperController extends ActiveController
       
       return $behaviors;
   }
+  public function actionTest()
+  {
+      $helper = Yii::$app->helper;
+      return $helper->record();
+    
+  }
+  public function actionPrint()
+  {
+
+    $helper = Yii::$app->helper;
+    return $helper->play();
+
+   
+  }
   
 }

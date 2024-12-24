@@ -25,6 +25,9 @@ $config = [
         'cache' => [
             'class' => 'yii\caching\FileCache',
         ],
+        'helper' => [
+            'class' => 'app\components\Helper',
+        ],
         'user' => [
             'identityClass' => 'app\models\User',
             'enableAutoLogin' => true,
@@ -62,8 +65,23 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
-                    'controller' => ['v1/player', 'v1/helper'],
-                    'pluralize' => true,
+                    'controller' => 'v1/player',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET sign-in' => 'sign-in',
+                        'GET sign-up' => 'sign-up',
+                        'POST sign-in' => 'sign-in',
+                        'POST sign-up' => 'sign-up',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v1/helper',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET print' => 'print',
+                        'GET test' => 'test',
+                    ],
                 ],
             ],
         ],
