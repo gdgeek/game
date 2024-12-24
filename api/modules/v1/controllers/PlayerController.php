@@ -44,7 +44,7 @@ class PlayerController extends ActiveController
   {
     $helper = Yii::$app->helper;
     $helper->record();
-    return ['result'=>"success" + time()];
+    return ['result'=>"success" .time()];
     
   }
 
