@@ -52,10 +52,9 @@ class PlayerController extends ActiveController
     }
     $params = json_decode($json, false);
 
-    echo $params->openId; 
-    echo $params->fingerprint;
-    echo $params->timestamp;
-
+    if(!isset($params->openId) || !isset($params->fingerprint) || !isset($params->timestamp)){
+      throw new \yii\web\HttpException(400, 'Missing parameters');
+    }
 
     $inputString = "geek.v0xe1.pa2ty.c0m". $params->timestamp . $params->openId;
     
