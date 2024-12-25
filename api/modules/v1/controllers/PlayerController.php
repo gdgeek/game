@@ -39,8 +39,35 @@ class PlayerController extends ActiveController
   {
     $helper = Yii::$app->helper;
     $helper->record();
-    return ['post'=>Yii::$app->request->post(),'get'=>Yii::$app->request->get(),'headers'=>Yii::$app->request->headers];
-    
+    $json = Yii::$app->request->post("parameters");
+    if(json_validate($json) == false){
+      throw new \yii\web\HttpException(400, 'Invalid JSON');
+    }
+    $params = json_decode($json, false);
+    if(!isset($params->tel) || !isset($params->openId) || !isset($params->fingerprint) || !isset($params->timestamp)){
+      throw new \yii\web\HttpException(400, 'Missing parameters');
+    }
+
+
+    $inputString = "geek.v0xe1.pa2ty.c0m". $params->timestamp . $params->openId;
+    if($params->fingerprint != md5($inputString)){
+      throw new \yii\web\HttpException(400, 'Invalid fingerprint');
+    }
+
+    $player = Player::find()->where(['openid'=>$params->openId])->one();
+    if($player != null){
+      
+      return ['time'=>time(), 'player'=> $player, 'result'=>"already signup"];
+    }
+    $player = new Player();
+    $player->tel = $params->tel;
+    $player->openid = $params->openId;
+    if($player->validate() == false){
+      throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($player->errors));
+    }
+    $player->save();
+    return ['time'=>time(), 'player'=> $player, 'result'=>"success"];
+
   }
   public function actionSignIn()
   {
@@ -64,10 +91,10 @@ class PlayerController extends ActiveController
     $player = Player::find()->where(['openid'=>$params->openId])->one();
     
     if($player == null){
-     return ['time'=>time(), 'player'=> null, 'result'=>"no signup"];
+      return ['time'=>time(), 'player'=> null, 'result'=>"no signup"];
     }
    
-    return ['time'=>time(), 'player'=> $player, 'result'=>"success", 'player'=>$player];
+    return ['time'=>time(), 'player'=> $player, 'result'=>"success", 'player'=> $player];
     
   }
 
