@@ -62,11 +62,12 @@ class PlayerController extends ActiveController
       throw new \yii\web\HttpException(400, 'Invalid fingerprint');
     }
     $player = Player::find()->where(['openid'=>$params->openId])->one();
+    
     if($player == null){
-     return ['time'=>time(),'result'=>"no signup"];
+     return ['time'=>time(), 'player'=> null, 'result'=>"no signup"];
     }
    
-    return ['time'=>time(), 'result'=>"success", 'player'=>$player];
+    return ['time'=>time(), 'player'=> $player, 'result'=>"success", 'player'=>$player];
     
   }
 
