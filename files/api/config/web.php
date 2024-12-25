@@ -83,6 +83,11 @@ $config = [
                         'GET test' => 'test',
                     ],
                 ],
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v1/device',
+                    'pluralize' => false,
+                ],
             ],
         ],
         
