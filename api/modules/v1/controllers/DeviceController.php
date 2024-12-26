@@ -2,6 +2,7 @@
 
 namespace app\modules\v1\controllers;
 use Yii;
+use app\modules\v1\helper\DeviceFingerprintAuth;
 use yii\rest\ActiveController;
 
 class DeviceController extends ActiveController
@@ -29,6 +30,10 @@ class DeviceController extends ActiveController
               ],
           ],
       ];
+      $behaviors['authenticator'] = [
+        'class' => DeviceFingerprintAuth::className(),
+      ];
+      
       return $behaviors;
   }
 

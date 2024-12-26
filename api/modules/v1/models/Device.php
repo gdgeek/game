@@ -30,7 +30,7 @@ class Device extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['shop_id'], 'required'],
+            
             [['shop_id', 'status'], 'integer'],
             [['shop_id'], 'exist', 'skipOnError' => true, 'targetClass' => Shop::class, 'targetAttribute' => ['shop_id' => 'id']],
         ];

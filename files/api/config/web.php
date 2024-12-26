@@ -76,6 +76,21 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v1/game',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET device' => 'device',
+                        'POST device' => 'device',
+                        'GET ready' => 'ready',
+                        'POST ready' => 'ready',
+                        'GET start' => 'start',
+                        'POST start' => 'start',
+                        'GET finish' => 'finish',
+                        'POST finish' => 'finish',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
                     'controller' => 'v1/helper',
                     'pluralize' => false,
                     'extraPatterns' => [
@@ -94,6 +109,22 @@ $config = [
     ],
     'params' => $params,
 ];
+/*
+
+  public function actionDeviceRegister(){
+    
+
+  }
+  public function actionGameReady(){
+
+  }
+  public function actionGameStart(){
+
+  }
+  public function actionGameOver(){
+
+    
+*/
 
 if (YII_ENV_DEV) {
     // configuration adjustments for 'dev' environment

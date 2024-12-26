@@ -3,8 +3,11 @@
 namespace app\modules\v1\controllers;
 use Yii;
 use yii\rest\ActiveController;
-
-class DeviceController extends ActiveController
+use app\modules\v1\models\Device;
+use app\modules\v1\helper\DeviceFingerprintAuth;
+use app\modules\v1\models\Game;
+use app\modules\v1\models\Award;
+class GameController extends ActiveController
 {
 
   public $modelClass = 'app\modules\v1\models\Device';
@@ -29,20 +32,44 @@ class DeviceController extends ActiveController
               ],
           ],
       ];
+
+      $behaviors['authenticator'] = [
+        'class' => DeviceFingerprintAuth::className(),
+      ];
+      
       return $behaviors;
   }
 
-  public function actionRegister(){
+  public function actionDevice(){
+    
+    $uuid = urldecode(Yii::$app->request->get('uuid'));
+    $device = Device::find()->where(['uuid'=>$uuid])->one();
+    if($device == null){
+      $device = new Device();
+      $device->uuid = $uuid;
+      $device->status = 0;
+      if($device->validate() == false){
+        throw new \yii\web\HttpException(400, 'Invalid device' . json_encode($device->errors));
+      }
+      $device->save();
+   
+      return Device::findOne($device->id);
+    }
+    return $device;
 
   }
   public function actionReady(){
 
+    return ["return" => true, "message"=>"Ready to play"];   
   }
   public function actionStart(){
 
-  }
-  public function actionOver(){
+    $game = new Game();
+    return $game;
 
+  }
+  public function actionFinish(){
+    return ["return"=>true, "message"=>"Game over"];   
     
   }
   

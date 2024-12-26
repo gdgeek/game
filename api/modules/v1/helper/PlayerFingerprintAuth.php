@@ -1,0 +1,35 @@
+<?php
+namespace app\modules\v1\helper;
+
+use Yii;
+use yii\filters\auth\AuthMethod;
+use yii\web\UnauthorizedHttpException;
+use app\modules\v1\models\Player;
+
+class PlayerFingerprintAuth extends AuthMethod
+{
+    
+    /**
+     * @inheritdoc
+     */
+    public function authenticate($user, $request, $response)
+    {
+      $data = \Yii::$app->request->get();
+      if(isset($data['openid']) && isset($data['timestamp']) && isset($data['fingerprint'])){
+        $openid =  urldecode($data['openid']);
+        $timestamp =  urldecode($data['timestamp']);
+        $fingerprint = urldecode($data['fingerprint']);
+        $inputString = "geek.v0xe1.pa2ty.c0m". $timestamp . $openid;
+        if($fingerprint == md5($inputString)){
+          $player = Player::find()->where(['openid'=>$openid])->one();
+          if($player != null){
+            return $player;
+          }
+        }
+      }
+     
+      return null;
+    }
+
+
+}

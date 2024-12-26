@@ -23,7 +23,7 @@ use yii\db\Migration;
             }
             $this->createTable('{{%device}}', [
                 'id' => $this->primaryKey(),
-                'shop_id' => $this->integer()->notNull(),
+                'shop_id' => $this->integer(),
                 'status' => $this->integer(),
             ], $tableOptions);
             
