@@ -3,8 +3,6 @@
 namespace app\modules\v1\models;
 
 use Yii;
-use yii\db\Expression;
-use yii\behaviors\TimestampBehavior;
 
 /**
  * This is the model class for table "player".
@@ -20,27 +18,13 @@ use yii\behaviors\TimestampBehavior;
  * @property string $created_at
  * @property string|null $updated_at
  * @property string|null $openid
+ * @property string|null $avatar
+ * @property string|null $info
  *
  * @property Record[] $records
  */
 class Player extends \yii\db\ActiveRecord
 {
-
-    public function behaviors()
-    {
-        return [
-            [
-                'class' => TimestampBehavior::class,
-                'attributes' => [
-                    \yii\db\ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at'],
-                    \yii\db\ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
-
-                ],
-                'value' => new Expression('NOW()'),
-            ],
-        ];
-    }
-
     /**
      * {@inheritdoc}
      */
@@ -55,11 +39,11 @@ class Player extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['tel'], 'required'],
+            [['tel', 'created_at'], 'required'],
             [['recharge', 'cost'], 'number'],
             [['times', 'grade', 'points'], 'integer'],
-            [['created_at', 'updated_at'], 'safe'],
-            [['tel', 'nickname', 'openid'], 'string', 'max' => 255],
+            [['created_at', 'updated_at', 'info'], 'safe'],
+            [['tel', 'nickname', 'openid', 'avatar'], 'string', 'max' => 255],
             [['tel'], 'unique'],
             [['openid'], 'unique'],
         ];
@@ -82,6 +66,8 @@ class Player extends \yii\db\ActiveRecord
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
             'openid' => 'Openid',
+            'avatar' => 'Avatar',
+            'info' => 'Info',
         ];
     }
 
