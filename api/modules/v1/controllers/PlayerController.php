@@ -66,7 +66,9 @@ class PlayerController extends ActiveController
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($player->errors));
     }
     $player->save();
-    return ['time'=>time(), 'player'=> $player, 'result'=>"success"];
+    
+
+    return ['time'=>time(), 'player'=> Player::findOne($player->id), 'result'=>"success"];
 
   }
   public function actionSignIn()
