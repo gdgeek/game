@@ -2,6 +2,8 @@
 
 namespace app\modules\v1\models;
 
+use yii\behaviors\TimestampBehavior;
+use yii\db\Expression;
 use Yii;
 
 /**
@@ -25,6 +27,21 @@ use Yii;
  */
 class Player extends \yii\db\ActiveRecord
 {
+
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => TimestampBehavior::class,
+                'attributes' => [
+                    \yii\db\ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at'],
+                    \yii\db\ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
+                ],
+                'value' => new Expression('NOW()'),
+            ]
+        ];
+    }
+    
     /**
      * {@inheritdoc}
      */
@@ -39,7 +56,7 @@ class Player extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['tel', 'created_at'], 'required'],
+            [['tel'], 'required'],
             [['recharge', 'cost'], 'number'],
             [['times', 'grade', 'points'], 'integer'],
             [['created_at', 'updated_at', 'info'], 'safe'],

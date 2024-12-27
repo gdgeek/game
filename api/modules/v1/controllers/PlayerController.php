@@ -40,6 +40,7 @@ class PlayerController extends ActiveController
     $helper = Yii::$app->helper;
     $helper->record();
     $json = Yii::$app->request->post("parameters");
+
     if(json_validate($json) == false){
       throw new \yii\web\HttpException(400, 'Invalid JSON');
     }
@@ -48,8 +49,8 @@ class PlayerController extends ActiveController
       throw new \yii\web\HttpException(400, 'Missing parameters');
     }
 
-
     $inputString = "geek.v0xe1.pa2ty.c0m". $params->timestamp . $params->openId;
+
     if($params->fingerprint != md5($inputString)){
       throw new \yii\web\HttpException(400, 'Invalid fingerprint');
     }
