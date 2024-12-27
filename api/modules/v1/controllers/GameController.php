@@ -60,7 +60,7 @@ class GameController extends ActiveController
   }
   public function actionReady(){
 
-    return ["return" => true, "message"=>"Ready to play"];   
+    return ["result" => true, "message"=>"Ready to play"];   
   }
   public function actionStart(){
 
@@ -69,7 +69,7 @@ class GameController extends ActiveController
 
   }
   public function actionFinish(){
-    return ["return"=>true, "message"=>"Game over"];   
+    return ["result"=>true, "message"=>"Game over"];   
     
   }
   
