@@ -21,10 +21,7 @@ class PlayerFingerprintAuth extends AuthMethod
         $fingerprint = urldecode($data['fingerprint']);
         $inputString = "geek.v0xe1.pa2ty.c0m". $timestamp . $openid;
         if($fingerprint == md5($inputString)){
-          $player = Player::find()->where(['openid'=>$openid])->one();
-          if($player != null){
-            return $player;
-          }
+         return true;
         }
       }
      
