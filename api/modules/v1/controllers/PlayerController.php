@@ -35,6 +35,9 @@ class PlayerController extends ActiveController
       return $behaviors;
   }
 
+  public function actionTest(){
+    return "test";
+  }
   public function actionSignUp()
   {
     $helper = Yii::$app->helper;

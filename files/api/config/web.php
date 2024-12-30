@@ -72,6 +72,8 @@ $config = [
                         'GET sign-up' => 'sign-up',
                         'POST sign-in' => 'sign-in',
                         'POST sign-up' => 'sign-up',
+                        'POST test' => 'test',
+                        'GET test' => 'test',
                     ],
                 ],
                 [
