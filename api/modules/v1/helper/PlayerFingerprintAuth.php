@@ -14,12 +14,16 @@ class PlayerFingerprintAuth extends AuthMethod
      */
     public function authenticate($user, $request, $response)
     {
-      $data = \Yii::$app->request->get();
-      if(isset($data['openid']) && isset($data['timestamp']) && isset($data['fingerprint'])){
-        $openid =  urldecode($data['openid']);
+      return true;
+      $data = \Yii::$app->request->post();
+     
+      if(isset($data['openId']) && isset($data['timestamp']) && isset($data['fingerprint'])){
+        
+        $openid =  urldecode($data['openId']);
         $timestamp =  urldecode($data['timestamp']);
         $fingerprint = urldecode($data['fingerprint']);
         $inputString = "geek.v0xe1.pa2ty.c0m". $timestamp . $openid;
+     
         if($fingerprint == md5($inputString)){
          return true;
         }

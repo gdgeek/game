@@ -88,6 +88,16 @@ class Player extends \yii\db\ActiveRecord
         ];
     }
 
+   /**
+    * Gets query for [[Managers]]. 
+    * 
+    * @return \yii\db\ActiveQuery 
+    */ 
+   public function getManager() 
+   { 
+       return $this->hasOne(Manager::class, ['player_id' => 'id']); 
+   } 
+
     /**
      * Gets query for [[Records]].
      *
