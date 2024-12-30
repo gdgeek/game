@@ -49,4 +49,13 @@ return array (
       '@yii/gii' => $vendorDir . '/yiisoft/yii2-gii/src',
     ),
   ),
+  'bizley/jwt' => 
+  array (
+    'name' => 'bizley/jwt',
+    'version' => '4.1.2.0',
+    'alias' => 
+    array (
+      '@bizley/jwt' => $vendorDir . '/bizley/jwt/src',
+    ),
+  ),
 );

@@ -39,6 +39,10 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         array (
             'cebe\\markdown\\' => 14,
         ),
+        'b' => 
+        array (
+            'bizley\\jwt\\' => 11,
+        ),
         'S' => 
         array (
             'Symfony\\Polyfill\\Mbstring\\' => 26,
@@ -67,11 +71,16 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
             'Psr\\Http\\Message\\' => 17,
             'Psr\\EventDispatcher\\' => 20,
             'Psr\\Container\\' => 14,
+            'Psr\\Clock\\' => 10,
             'PhpParser\\' => 10,
         ),
         'M' => 
         array (
             'Masterminds\\' => 12,
+        ),
+        'L' => 
+        array (
+            'Lcobucci\\JWT\\' => 13,
         ),
         'G' => 
         array (
@@ -129,6 +138,10 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         'cebe\\markdown\\' => 
         array (
             0 => __DIR__ . '/..' . '/cebe/markdown',
+        ),
+        'bizley\\jwt\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/bizley/jwt/src',
         ),
         'Symfony\\Polyfill\\Mbstring\\' => 
         array (
@@ -223,6 +236,10 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         array (
             0 => __DIR__ . '/..' . '/psr/container/src',
         ),
+        'Psr\\Clock\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/psr/clock/src',
+        ),
         'PhpParser\\' => 
         array (
             0 => __DIR__ . '/..' . '/nikic/php-parser/lib/PhpParser',
@@ -230,6 +247,10 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         'Masterminds\\' => 
         array (
             0 => __DIR__ . '/..' . '/masterminds/html5/src',
+        ),
+        'Lcobucci\\JWT\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/lcobucci/jwt/src',
         ),
         'GuzzleHttp\\Psr7\\' => 
         array (

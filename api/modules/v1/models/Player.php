@@ -19,7 +19,7 @@ use Yii;
  * @property int|null $points
  * @property string $created_at
  * @property string|null $updated_at
- * @property string|null $openid
+ * @property string|null $openId
  * @property string|null $avatar
  * @property string|null $info
  *
@@ -60,9 +60,9 @@ class Player extends \yii\db\ActiveRecord
             [['recharge', 'cost'], 'number'],
             [['times', 'grade', 'points'], 'integer'],
             [['created_at', 'updated_at', 'info'], 'safe'],
-            [['tel', 'nickname', 'openid', 'avatar'], 'string', 'max' => 255],
+            [['tel', 'nickname', 'openId', 'avatar'], 'string', 'max' => 255],
             [['tel'], 'unique'],
-            [['openid'], 'unique'],
+            [['openId'], 'unique'],
         ];
     }
 
@@ -82,7 +82,7 @@ class Player extends \yii\db\ActiveRecord
             'points' => 'Points',
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
-            'openid' => 'Openid',
+            'openId' => 'Openid',
             'avatar' => 'Avatar',
             'info' => 'Info',
         ];

@@ -58,14 +58,14 @@ class PlayerController extends ActiveController
       throw new \yii\web\HttpException(400, 'Invalid fingerprint');
     }
 
-    $player = Player::find()->where(['openid'=>$params->openId])->one();
+    $player = Player::find()->where(['openId'=>$params->openId])->one();
     if($player != null){
       
       return ['time'=>time(), 'player'=> $player, 'result'=>"already signup"];
     }
     $player = new Player();
     $player->tel = $params->tel;
-    $player->openid = $params->openId;
+    $player->openId = $params->openId;
     if($player->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($player->errors));
     }
@@ -94,7 +94,7 @@ class PlayerController extends ActiveController
     if($params->fingerprint != md5($inputString)){
       throw new \yii\web\HttpException(400, 'Invalid fingerprint');
     }
-    $player = Player::find()->where(['openid'=>$params->openId])->one();
+    $player = Player::find()->where(['openId'=>$params->openId])->one();
     
     if($player == null){
       return ['time'=>time(), 'player'=> null, 'result'=>"no signup"];

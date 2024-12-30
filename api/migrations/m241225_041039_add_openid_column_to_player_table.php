@@ -12,7 +12,7 @@ class m241225_041039_add_openid_column_to_player_table extends Migration
      */
     public function safeUp()
     {
-        $this->addColumn('{{%player}}', 'openid', $this->string()->unique());
+        $this->addColumn('{{%player}}', 'openId', $this->string()->unique());
     }
 
     /**
@@ -20,6 +20,6 @@ class m241225_041039_add_openid_column_to_player_table extends Migration
      */
     public function safeDown()
     {
-        $this->dropColumn('{{%player}}', 'openid');
+        $this->dropColumn('{{%player}}', 'openId');
     }
 }

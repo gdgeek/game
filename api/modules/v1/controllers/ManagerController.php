@@ -44,15 +44,15 @@ class ManagerController extends ActiveController
   
   
   public function actionLogin(){
-    return "test";
     
     $openId = Yii::$app->request->post('openId');
     $player = Player::find()->where(['openId'=>$openId])->one();
+   
     if($player != null && $player->manager != null){
-      $id = Yii::$app->request->post('id');
-      if($id != null){
+      $player_id = Yii::$app->request->post('player_id');
+      if($player_id != null){
         
-        $target = Player::findOne($id);
+        $target = Player::findOne($player_id);
         return ["manager"=> $player->manager, "target"=>$target];
       }
       return ["manager"=>$player->manager];
