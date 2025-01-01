@@ -19,7 +19,7 @@ class CommonController extends Controller
     
        
          //如果 action 不是 test
-        if(!Yii::$app->controller->action->id == 'test'){
+        if(!Yii::$app->controller->action->id != 'test'){
           $behaviors['authenticator'] = [
               'class' => PlayerFingerprintAuth::className(),
           ];
