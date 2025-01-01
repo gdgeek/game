@@ -18,9 +18,12 @@ class CommonController extends Controller
         
     
        
-        $behaviors['authenticator'] = [
-            'class' => PlayerFingerprintAuth::className(),
-        ];
+         //如果 action 不是 test
+        if(!Yii::$app->controller->action->id == 'test'){
+          $behaviors['authenticator'] = [
+              'class' => PlayerFingerprintAuth::className(),
+          ];
+        }
         return $behaviors;
     }
     
@@ -29,7 +32,11 @@ class CommonController extends Controller
        // return $user->generateAccessToken();
     }
     public function actionTest(){
-        return Yii::$app->user->identity->id;
+      //打印日志
+
+      $helper = Yii::$app->helper;
+      return $helper->play();
+    
     }
 
 

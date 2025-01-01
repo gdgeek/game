@@ -15,7 +15,7 @@ class PlayerFingerprintAuth extends AuthMethod
     public function authenticate($user, $request, $response)
     {
      
-
+      
       if(\Yii::$app->request->isGet){
         $data = \Yii::$app->request->get();
       }else{

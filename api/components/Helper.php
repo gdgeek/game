@@ -8,7 +8,7 @@
     public function record()
     {
         $cache = \Yii::$app->cache;
-        $cache->set($this->key , ["post" => Yii::$app->request->post(), "get" => Yii::$app->request->get(), "headers" => Yii::$app->request->headers]);
+        $cache->set($this->key , [ "isGet"=>Yii::$app->request->isGet ,"post" => Yii::$app->request->post(), "get" => Yii::$app->request->get(), "headers" => Yii::$app->request->headers]);
     }
     public function play()
     {

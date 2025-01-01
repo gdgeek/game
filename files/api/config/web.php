@@ -123,6 +123,7 @@ $config = [
                     'extraPatterns' => [
                         'POST sign-in' => 'sign-in',
                         'POST sign-up' => 'sign-up',
+                        'GET test' => 'test',
                     ],
                 ],
                 [
