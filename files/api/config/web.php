@@ -17,6 +17,7 @@ $config = [
             'class' => 'app\modules\v1\Module',
         ],
     ],
+    
     'as cors' => [
         'class' => \yii\filters\Cors::className(),
         'cors' => [
@@ -34,6 +35,25 @@ $config = [
         ],
     ],
     'components' => [
+        'jwt' => [
+            'class' => \bizley\jwt\Jwt::class,
+            'signer' => \bizley\jwt\Jwt::HS256,
+            'signingKey' => [
+                'key' =>  getenv('JWT_KEY'), // path to your PRIVATE key, you can start the path with @ to indicate this is a Yii alias
+                'passphrase' => '', // omit it if you are not adding any passphrase
+                'method' => \bizley\jwt\Jwt::METHOD_FILE,
+            ],
+            'validationConstraints'=> static function (\bizley\jwt\Jwt $jwt) {
+                $config = $jwt->getConfiguration();
+                return [
+                    new \Lcobucci\JWT\Validation\Constraint\SignedWith($config->signer(), $config->verificationKey()),
+                    new \Lcobucci\JWT\Validation\Constraint\LooseValidAt(
+                        new \Lcobucci\Clock\SystemClock(new \DateTimeZone(\Yii::$app->timeZone)),
+                        new \DateInterval('PT10S')
+                    ),
+                ];
+            }
+        ],
         'request' => [
             'csrfParam' => '_csrf-api',
             'parsers' => [
@@ -49,7 +69,7 @@ $config = [
             'class' => 'app\components\Helper',
         ],
         'user' => [
-            'identityClass' => 'app\models\User',
+            'identityClass' => 'app\modules\v1\models\User',
             'enableAutoLogin' => true,
         ],
         'errorHandler' => [
@@ -94,6 +114,15 @@ $config = [
                         'POST sign-up' => 'sign-up',
                         'POST test' => 'test',
                         'GET test' => 'test',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v1/common',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'POST sign-in' => 'sign-in',
+                        'POST sign-up' => 'sign-up',
                     ],
                 ],
                 [

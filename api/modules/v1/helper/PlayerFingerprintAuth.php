@@ -15,7 +15,14 @@ class PlayerFingerprintAuth extends AuthMethod
     public function authenticate($user, $request, $response)
     {
      
-      $data = \Yii::$app->request->post();
+
+      if(\Yii::$app->request->isGet){
+        $data = \Yii::$app->request->get();
+      }else{
+        $data = \Yii::$app->request->post();
+      }
+
+      
      
       if(isset($data['openId']) && isset($data['timestamp']) && isset($data['fingerprint'])){
         

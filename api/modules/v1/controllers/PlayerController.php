@@ -4,7 +4,10 @@ namespace app\modules\v1\controllers;
 use Yii;
 use yii\rest\ActiveController;
 use app\modules\v1\models\Player;
+use bizley\jwt\JwtHttpBearerAuth;
+use app\modules\v1\models\User;
 
+use yii\filters\auth\CompositeAuth;
 class PlayerController extends ActiveController
 {
   public $modelClass = 'app\modules\v1\models\Player';
@@ -29,14 +32,24 @@ class PlayerController extends ActiveController
               ],
           ],
       ];
-      
-    
-      
+      /*
+     // unset($behaviors['authenticator']);
+     $behaviors['authenticator'] = [
+      'class' => CompositeAuth::class,
+      'authMethods' => [
+          JwtHttpBearerAuth::class,
+      ],
+      'except' => ['options'],
+    ];
+    */
       return $behaviors;
   }
 
   public function actionTest(){
-    return "test";
+   
+    
+    $user = User::findOne(3);
+    return  ["t" =>  getenv('MYSQL_HOST')];
   }
   public function actionSignUp()
   {
@@ -70,10 +83,7 @@ class PlayerController extends ActiveController
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($player->errors));
     }
     $player->save();
-    
-
     return ['time'=>time(), 'player'=> Player::findOne($player->id), 'result'=>"success"];
-
   }
   public function actionSignIn()
   {
@@ -101,7 +111,6 @@ class PlayerController extends ActiveController
     }
    
     return ['time'=>time(), 'player'=> $player, 'result'=>"success", 'player'=> $player];
-    
   }
 
 }

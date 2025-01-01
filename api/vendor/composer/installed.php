@@ -3,7 +3,7 @@
         'name' => 'yiisoft/yii2-app-basic',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'd3d472d10bf8aa3c2c5d76df67842ad90587b126',
+        'reference' => 'ff070fc648f37543bbb483373c65c923c0569ba9',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -214,6 +214,15 @@
             'aliases' => array(),
             'dev_requirement' => true,
         ),
+        'lcobucci/clock' => array(
+            'pretty_version' => '3.3.1',
+            'version' => '3.3.1.0',
+            'reference' => 'db3713a61addfffd615b79bf0bc22f0ccc61b86b',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../lcobucci/clock',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'lcobucci/jwt' => array(
             'pretty_version' => '5.4.2',
             'version' => '5.4.2.0',
@@ -348,6 +357,12 @@
             'install_path' => __DIR__ . '/../psr/clock',
             'aliases' => array(),
             'dev_requirement' => false,
+        ),
+        'psr/clock-implementation' => array(
+            'dev_requirement' => false,
+            'provided' => array(
+                0 => '1.0',
+            ),
         ),
         'psr/container' => array(
             'pretty_version' => '2.0.2',
@@ -778,7 +793,7 @@
         'yiisoft/yii2-app-basic' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'd3d472d10bf8aa3c2c5d76df67842ad90587b126',
+            'reference' => 'ff070fc648f37543bbb483373c65c923c0569ba9',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

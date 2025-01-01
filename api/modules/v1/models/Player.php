@@ -50,6 +50,8 @@ class Player extends \yii\db\ActiveRecord
         return 'player';
     }
 
+        
+
     /**
      * {@inheritdoc}
      */

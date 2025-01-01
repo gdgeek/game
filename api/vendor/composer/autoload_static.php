@@ -81,6 +81,7 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         'L' => 
         array (
             'Lcobucci\\JWT\\' => 13,
+            'Lcobucci\\Clock\\' => 15,
         ),
         'G' => 
         array (
@@ -251,6 +252,10 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         'Lcobucci\\JWT\\' => 
         array (
             0 => __DIR__ . '/..' . '/lcobucci/jwt/src',
+        ),
+        'Lcobucci\\Clock\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/lcobucci/clock/src',
         ),
         'GuzzleHttp\\Psr7\\' => 
         array (
