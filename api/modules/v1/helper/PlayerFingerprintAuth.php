@@ -27,10 +27,17 @@ class PlayerFingerprintAuth extends AuthMethod
      
       if(isset($data['openId']) && isset($data['timestamp']) && isset($data['fingerprint'])){
         
-        $openId =  urldecode($data['openId']);
-        $timestamp =  urldecode($data['timestamp']);
-        $fingerprint = urldecode($data['fingerprint']);
-        $inputString = "geek.v0xe1.pa2ty.c0m". $timestamp . $openId;
+        $salt = "geek.v0xe1.pa2ty.c0m";
+        $openId = $data['openId'];
+        $timestamp =  $data['timestamp'];
+        $fingerprint = $data['fingerprint'];
+
+        if(isset($data['key'])){
+          $key = $data['key'];
+          $inputString =  $salt. $timestamp . $openId. $key;
+        }else{
+          $inputString =  $salt. $timestamp . $openId;
+        }
      
         if($fingerprint == md5($inputString)){
          return true;
