@@ -128,7 +128,7 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
-                    'controller' => 'v1/wechat',
+                    'controller' => 'v1/we-chat',
                     'pluralize' => false,
                     'extraPatterns' => [
                         'POST credit-money' => 'credit-money',

@@ -8,7 +8,7 @@ use app\modules\v1\models\User;
 use yii\filters\auth\CompositeAuth;
 use app\modules\v1\helper\PlayerFingerprintAuth;
 
-class WechatController extends Controller
+class WeChatController extends Controller
 {
 
     public function behaviors()
