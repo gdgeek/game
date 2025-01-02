@@ -8,11 +8,11 @@
     public function record($key = 'log_cache')
     {
         $cache = \Yii::$app->cache;
-        $cache->set($this->key , [ "isGet"=>Yii::$app->request->isGet ,"post" => Yii::$app->request->post(), "get" => Yii::$app->request->get(), "headers" => Yii::$app->request->headers]);
+        $cache->set($key , [ "isGet"=>Yii::$app->request->isGet ,"post" => Yii::$app->request->post(), "get" => Yii::$app->request->get(), "headers" => Yii::$app->request->headers]);
     }
     public function play($key = 'log_cache')
     {
         $cache = \Yii::$app->cache;
-        return $cache->get($this->key);
+        return $cache->get($key);
     }
  }
