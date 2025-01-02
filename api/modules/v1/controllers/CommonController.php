@@ -72,7 +72,7 @@ class CommonController extends Controller
     $openId = Yii::$app->request->post("openId");
     $user = User::find()->where(['openId'=>$openId])->one();
     if($user == null){
-      return [ 'result'=>true,'player'=> null, 'message'=>"no signup"];
+      return [ 'result'=>false,'player'=> null, 'message'=>"no signup"];
     }
     return [ 'result'=>true,'player'=> $user->player, 'message'=>"success"];
   }
