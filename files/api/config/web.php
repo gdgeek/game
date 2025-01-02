@@ -128,6 +128,14 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v1/wechat',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'POST credit-money' => 'credit-money',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
                     'controller' => 'v1/game',
                     'pluralize' => false,
                     'extraPatterns' => [
