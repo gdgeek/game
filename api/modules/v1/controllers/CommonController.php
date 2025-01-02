@@ -59,7 +59,7 @@ class CommonController extends Controller
     $user->tel = $tel;
     $user->openId = $openId;
     if($user->validate() == false){
-      throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($player->errors));
+      throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($user->errors));
     }
     $user->save();
     return ['result'=>true, 'player'=> $user->player, 'message'=>"success"];
