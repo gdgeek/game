@@ -35,7 +35,7 @@ class CommonController extends Controller
       //打印日志
 
       $helper = Yii::$app->helper;
-      return $helper->play();
+      return $helper->play("auth");
     
     }
 

@@ -15,6 +15,7 @@ class PlayerFingerprintAuth extends AuthMethod
     public function authenticate($user, $request, $response)
     {
      
+      Yii::$app->helper->record("auth");
       
       if(\Yii::$app->request->isGet){
         $data = \Yii::$app->request->get();
