@@ -42,7 +42,7 @@ class SystemController extends Controller
     if($user == null){
       throw  
     }
-    return ['result'=>true, 'player'=>$user->info, 'message'=>'success']
+    return ['result'=>true,'success'=>true, 'player'=>$user->info, 'message'=>'success']
   }
 
   public function actionDevices(){//得到所有设备
