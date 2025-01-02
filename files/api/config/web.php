@@ -132,6 +132,7 @@ $config = [
                     'pluralize' => false,
                     'extraPatterns' => [
                         'POST credit-money' => 'credit-money',
+                        'GET credit-money' => 'credit-money',
                     ],
                 ],
                 [
