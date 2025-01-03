@@ -58,7 +58,7 @@ class WeChatController extends Controller
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($player->errors));
     }
     $user->save();*/
-    return ["result"=>true, "data" =>  $user->data, "message"=>"success"];
+    return [ 'success'=>true, "data" =>  $user->data, "message"=>"success"];
   }
 
   /*
