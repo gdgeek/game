@@ -9,7 +9,8 @@ use Yii;
  *
  * @property int $id
  * @property int $player_id
- * @property int|null $shop_id
+ * @property int $shop_id
+ * @property string $type
  *
  * @property Player $player
  * @property Shop $shop
@@ -30,8 +31,10 @@ class Manager extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['player_id'], 'required'],
+            [['player_id', 'shop_id'], 'required'],
             [['player_id', 'shop_id'], 'integer'],
+            [['type'], 'string'],
+            [['player_id'], 'unique'],
             [['player_id'], 'exist', 'skipOnError' => true, 'targetClass' => Player::class, 'targetAttribute' => ['player_id' => 'id']],
             [['shop_id'], 'exist', 'skipOnError' => true, 'targetClass' => Shop::class, 'targetAttribute' => ['shop_id' => 'id']],
         ];
@@ -46,6 +49,7 @@ class Manager extends \yii\db\ActiveRecord
             'id' => 'ID',
             'player_id' => 'Player ID',
             'shop_id' => 'Shop ID',
+            'type' => 'Type',
         ];
     }
 

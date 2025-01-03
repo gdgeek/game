@@ -39,8 +39,16 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
         ];
     }
     public function getPlayer(){
-        return ['id'=>$this->id,'openId'=>$this->openId, 'tel'=> $this->tel,  'token'=> $this->generateAccessToken(), 'data'=>$this->data];
+        return [
+            'id'=>$this->id,
+            'openId'=>$this->openId,
+            'tel'=> $this->tel,  
+            'token'=> $this->generateAccessToken(), 
+            'manager'=> $this->manager,
+            'data'=>$this->data
+        ];
     }
+    
     public function getId()
     {
         return $this->id;
