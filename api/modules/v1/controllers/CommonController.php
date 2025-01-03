@@ -53,7 +53,11 @@ class CommonController extends Controller
     }
     $user = User::find()->where(['openId'=>$openId])->one();
     if($user != null){
-      return ['result'=>true,'success'=>true, 'player'=> $user->player, 'message'=>"already signup"];
+      return [
+        'result'=>true,
+        'success'=>true, 
+        'player'=> $user->player,
+        'message'=>"already signup"];
     }
     $user = new User();
     $user->tel = $tel;
@@ -62,7 +66,11 @@ class CommonController extends Controller
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($user->errors));
     }
     $user->save();
-    return ['result'=>true, 'success'=>true,'player'=> $user->player, 'message'=>"success"];
+    $user = User::findOne($user->id);
+    return ['result'=>true, 
+    'success'=>true,
+    'player'=> $user->player, 
+    'message'=>"success"];
   }
 
   public function actionSignIn()
@@ -74,6 +82,9 @@ class CommonController extends Controller
     if($user == null){
       return [ 'result'=>false,'success'=>false,'player'=> null, 'message'=>"no signup"];
     }
-    return [ 'result'=>true,'success'=>true,'player'=> $user->player, 'message'=>"success"];
+    return [ 'result'=>true,
+    'success'=>true,
+    'player'=> $user->player, 
+    'message'=>"success"];
   }
 }

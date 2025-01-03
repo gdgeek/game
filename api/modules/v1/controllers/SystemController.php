@@ -2,13 +2,16 @@
 
 namespace app\modules\v1\controllers;
 use Yii;
-use yii\rest\ActiveController;
+
+use yii\rest\Controller;
 use app\modules\v1\models\Device;
 use app\modules\v1\helper\PlayerFingerprintAuth;
 use app\modules\v1\models\Game;
 use app\modules\v1\models\Award;
 use app\modules\v1\models\Player;
 
+use bizley\jwt\JwtHttpBearerAuth;
+use yii\filters\auth\CompositeAuth;
 //root，
 //管理员， （可以查看所有信息） Administrator
 //店长，（可以修改店家信息） Manager 
@@ -17,7 +20,7 @@ use app\modules\v1\models\Player;
 class SystemController extends Controller
 {
 
-  public $modelClass = 'app\modules\v1\models\Manager';
+ // public $modelClass = 'app\modules\v1\models\Manager';
   public function behaviors()
   {
       

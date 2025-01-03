@@ -23,14 +23,23 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
 
     public function getData(){
         return [
-            'id'=>$this->id, 
-            'openId'=>$this->openId, 
-            'tel'=> $this->tel,
+           // 'id'=>$this->id, 
+           // 'openId'=>$this->openId, 
+           // 'tel'=> $this->tel,
             'recharge'=> $this->recharge,
+            'nickname'=> $this->nickname,
+            'avatar'=> $this->avatar,
+
+            'points'=> $this->points,
+            'cost'=> $this->cost,
+            'times'=> $this->times,
+            'grade'=> $this->grade,
+
+
         ];
     }
     public function getPlayer(){
-        return ['id'=>$this->id, 'openId'=>$this->openId, 'tel'=> $this->tel,  'token'=> $this->generateAccessToken()];
+        return ['id'=>$this->id,'openId'=>$this->openId, 'tel'=> $this->tel,  'token'=> $this->generateAccessToken(), 'data'=>$this->data];
     }
     public function getId()
     {

@@ -137,6 +137,14 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v1/web',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET async-routes' => 'async-routes',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
                     'controller' => 'v1/game',
                     'pluralize' => false,
                     'extraPatterns' => [
