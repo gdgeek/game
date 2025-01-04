@@ -21,31 +21,20 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
     }
 
 
-    public function getData(){
+   
+    public function getPlayer(){
         return [
-           // 'id'=>$this->id, 
-           // 'openId'=>$this->openId, 
-           // 'tel'=> $this->tel,
+            'id'=> $this->id,
+            'openId'=> $this->openId,
+            'tel'=> $this->tel,  
             'recharge'=> $this->recharge,
             'nickname'=> $this->nickname,
             'avatar'=> $this->avatar,
-
             'points'=> $this->points,
             'cost'=> $this->cost,
             'times'=> $this->times,
             'grade'=> $this->grade,
-
-
-        ];
-    }
-    public function getPlayer(){
-        return [
-            'id'=>$this->id,
-            'openId'=>$this->openId,
-            'tel'=> $this->tel,  
-            'token'=> $this->generateAccessToken(), 
             'manager'=> $this->manager,
-            'data'=>$this->data
         ];
     }
     
@@ -56,7 +45,11 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
 
     public function getAuthKey()
     {
-        return Yii::$app->security->generateRandomString();
+        $token = PlayerToken::find()->where(['player_id'=>$this->id])->one();
+        if($token == null){
+            $token = PlayerToken::GenerateRefreshToken($user->id);
+        }
+        return  $token->refresh_token;
     }  
     
     public function validateAuthKey($authKey)
@@ -88,10 +81,12 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
     }
 
     //生成token
-    public function generateAccessToken()
+    public function generateAccessToken($now = null)
     {
         
-        $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
+        if($now == null){
+            $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
+        }
         
         $token = \Yii::$app->jwt->getBuilder()
         ->issuedBy(\Yii::$app->request->hostInfo)

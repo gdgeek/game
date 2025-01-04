@@ -6,6 +6,7 @@ $db = require __DIR__ . '/db.php';
 $config = [
     'id' => 'restful',
     'basePath' => dirname(__DIR__),
+    'timeZone' => 'Asia/Shanghai', 
     'bootstrap' => ['log'],
     'controllerNamespace' => 'app\controllers',
     'aliases' => [
@@ -124,6 +125,7 @@ $config = [
                         'POST sign-in' => 'sign-in',
                         'POST sign-up' => 'sign-up',
                         'GET test' => 'test',
+                        'GET refresh-token' => 'refresh-token',
                     ],
                 ],
                 [
@@ -143,6 +145,7 @@ $config = [
                         'GET async-routes' => 'async-routes',
                     ],
                 ],
+                
                 [
                     'class' => 'yii\rest\UrlRule',
                     'controller' => 'v1/game',

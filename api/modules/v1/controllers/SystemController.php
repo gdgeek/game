@@ -25,8 +25,6 @@ class SystemController extends Controller
   {
       
       $behaviors = parent::behaviors();
-  
-            
       $behaviors['authenticator'] = [
         'class' => CompositeAuth::class,
         'authMethods' => [

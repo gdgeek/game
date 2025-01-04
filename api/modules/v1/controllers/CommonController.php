@@ -8,6 +8,9 @@ use app\modules\v1\models\User;
 use yii\filters\auth\CompositeAuth;
 use app\modules\v1\helper\PlayerFingerprintAuth;
 
+//PlayerToken
+use  app\modules\v1\models\PlayerToken;
+
 class CommonController extends Controller
 {
 
@@ -16,17 +19,34 @@ class CommonController extends Controller
       
         $behaviors = parent::behaviors();
         
-    
-       
          //如果 action 不是 test
-        if(Yii::$app->controller->action->id != 'test'){
+        if(Yii::$app->controller->action->id != 'test'
+        && Yii::$app->controller->action->id != 'refresh-token'
+        ){
           $behaviors['authenticator'] = [
               'class' => PlayerFingerprintAuth::className(),
           ];
         }
         return $behaviors;
     }
+    public function actionRefreshToken($refreshToken){
+      $helper = Yii::$app->helper;
+      $helper->record();
     
+      $token = PlayerToken::findByRefreshToken($refreshToken);
+      if($token == null){
+        throw new \yii\web\HttpException(400, 'Invalid refreshToken');
+      }
+      if($token->isExpired){
+        throw new \yii\web\HttpException(400, 'Expired refreshToken');
+      }
+     $token->refresh();
+      return [
+        'success'=>true,
+        'player' => $token->user->player,
+        'refreshToken' => $token->refresh_token,
+        'message'=>"refresh success"];
+    }
     public function actionLogin(){
        // $user = User::findOne(3);
        // return $user->generateAccessToken();
@@ -52,11 +72,20 @@ class CommonController extends Controller
       throw new \yii\web\HttpException(400, 'No Tel');
     }
     $user = User::find()->where(['openId'=>$openId])->one();
+    $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
+     
     if($user != null){
+
+    
+      $token = PlayerToken::GenerateRefreshToken($user->id);
       return [
         'success'=>true, 
         'player'=> $user->player,
-        'message'=>"already signup"];
+        'refreshToken'=>$token->refresh_token,
+        'token' => $user->generateAccessToken($now),
+        'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
+        'message'=>"already signup"
+      ];
     }
     $user = new User();
     $user->tel = $tel;
@@ -66,24 +95,38 @@ class CommonController extends Controller
     }
     $user->save();
     $user = User::findOne($user->id);
+
+    $token = PlayerToken::GenerateRefreshToken($user->id);
     return [
-    'success'=>true,
-    'player'=> $user->player, 
-    'message'=>"success"];
+      'success'=>true,
+      'player'=> $user->player, 
+      'token' => $user->generateAccessToken($now),
+      'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
+      'refreshToken'=> $token->refresh_token,
+      'message'=>"success"  
+    ];
   }
 
   public function actionSignIn()
   {
     $helper = Yii::$app->helper;
     $helper->record();
+    
     $openId = Yii::$app->request->post("openId");
     $user = User::find()->where(['openId'=>$openId])->one();
     if($user == null){
       return [ 'success'=>false,'player'=> null, 'message'=>"no signup"];
     }
+    $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
+    
+    $token = PlayerToken::GenerateRefreshToken($user->id);
     return [ 
     'success'=>true,
     'player'=> $user->player, 
-    'message'=>"success"];
+    'refreshToken'=>$token->refresh_token,
+    'token' => $user->generateAccessToken($now),
+    'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
+    'message'=>"success"
+  ];
   }
 }
