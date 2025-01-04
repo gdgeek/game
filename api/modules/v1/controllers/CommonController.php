@@ -29,10 +29,12 @@ class CommonController extends Controller
         }
         return $behaviors;
     }
-    public function actionRefreshToken($refreshToken){
+    public function actionRefreshToken(){
       $helper = Yii::$app->helper;
       $helper->record();
-    
+      $refreshToken = Yii::$app->request->post("refreshToken");
+      $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
+     
       $token = PlayerToken::findByRefreshToken($refreshToken);
       if($token == null){
         throw new \yii\web\HttpException(400, 'Invalid refreshToken');
@@ -40,12 +42,16 @@ class CommonController extends Controller
       if($token->isExpired){
         throw new \yii\web\HttpException(400, 'Expired refreshToken');
       }
-     $token->refresh();
+      $token->refresh();
       return [
         'success'=>true,
-        'player' => $token->user->player,
-        'refreshToken' => $token->refresh_token,
-        'message'=>"refresh success"];
+        'message'=>"refresh success",
+        'token' => [
+          'accessToken' => $token->user->generateAccessToken($now),
+          'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
+          'refreshToken' => $token->refresh_token
+        ]
+      ];
     }
     public function actionLogin(){
        // $user = User::findOne(3);
@@ -83,7 +89,7 @@ class CommonController extends Controller
         'message'=>"already signup",
         'player'=> $user->player,
         'token' => [
-          'key' => $user->generateAccessToken($now),
+          'accessToken' => $user->generateAccessToken($now),
           'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
           'refreshToken' => $token->refresh_token
         ]
@@ -104,7 +110,7 @@ class CommonController extends Controller
       'message'=>"success",
       'player'=> $user->player, 
       'token' => [
-        'key' => $user->generateAccessToken($now),
+        'accessToken' => $user->generateAccessToken($now),
         'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
         'refreshToken' => $token->refresh_token
       ] 
@@ -129,7 +135,7 @@ class CommonController extends Controller
       'message'=>"success",
       'player'=> $user->player, 
       'token' => [
-        'key' => $user->generateAccessToken($now),
+        'accessToken' => $user->generateAccessToken($now),
         'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
         'refreshToken' => $token->refresh_token
       ]
