@@ -39,7 +39,6 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
             'cost'=> $this->cost,
             'times'=> $this->times,
             'grade'=> $this->grade,
-           
             'role'=> $role,
         ];
     }
