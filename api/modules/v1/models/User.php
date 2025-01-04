@@ -23,6 +23,11 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
 
    
     public function getPlayer(){
+        $role = 'player';
+        $manager = $this->manager;
+        if($manager != null){
+            $role = $manager->type;
+        }
         return [
             'id'=> $this->id,
             'openId'=> $this->openId,
@@ -34,7 +39,8 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
             'cost'=> $this->cost,
             'times'=> $this->times,
             'grade'=> $this->grade,
-            'manager'=> $this->manager,
+           
+            'role'=> $role,
         ];
     }
     
