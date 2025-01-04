@@ -65,14 +65,8 @@ class PlayerToken extends \yii\db\ActiveRecord
             $playerToken = new PlayerToken();
             $playerToken->player_id = $playerId;
         }
-        $playerToken->refresh_token = Yii::$app->security->generateRandomString();
-        $playerToken->expires_at = date('Y-m-d H:i:s', time() + $expirySeconds);
-       
-        if($playerToken->validate()&&$playerToken->save() ){
-            return $playerToken;
-        }else{
-            throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($playerToken->errors));
-        }
+        
+        return $playerToken;
       
     }
     public function getIsExpired(){
@@ -104,12 +98,13 @@ class PlayerToken extends \yii\db\ActiveRecord
     {
         $this->refresh_token = Yii::$app->security->generateRandomString();
         $this->expires_at = date('Y-m-d H:i:s', time() + $expirySeconds);
-        if($this->validate() && $this->save() ){
+        if($this->validate() && $this->save()){
             return $this;
-        }else{
-            throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($this->errors));
         }
+        throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($this->errors));
+    
     }
+ 
 
     /**
      * Gets query for [[Player]].

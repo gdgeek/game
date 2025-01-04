@@ -43,6 +43,10 @@ class CommonController extends Controller
         throw new \yii\web\HttpException(400, 'Expired refreshToken');
       }
       $token->refresh();
+      if($token->validate() == false){
+        throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($token->errors));
+      }
+      $token->save();
       return [
         'success'=>true,
         'message'=>"refresh success",
@@ -78,36 +82,30 @@ class CommonController extends Controller
       throw new \yii\web\HttpException(400, 'No Tel');
     }
     $user = User::find()->where(['openId'=>$openId])->one();
+    $token = null;
+    $message = null;
+    if($user == null){
+      $user = new User();
+      $user->tel = $tel;
+      $user->openId = $openId;
+      if($user->validate() == false){
+        throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($user->errors));
+      }
+      $user->save();
+      $user = User::findOne($user->id);
+      $message = "success";
+    }else{
+
+      $message = "already signup";
+    }
+   
     $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
-     
-    if($user != null){
-
-    
-      $token = PlayerToken::GenerateRefreshToken($user->id);
-      return [
-        'success'=>true, 
-        'message'=>"already signup",
-        'player'=> $user->player,
-        'token' => [
-          'accessToken' => $user->generateAccessToken($now),
-          'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
-          'refreshToken' => $token->refresh_token
-        ]
-      ];
-    }
-    $user = new User();
-    $user->tel = $tel;
-    $user->openId = $openId;
-    if($user->validate() == false){
-      throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($user->errors));
-    }
-    $user->save();
-    $user = User::findOne($user->id);
-
+   
     $token = PlayerToken::GenerateRefreshToken($user->id);
-    return [
-      'success'=>true,
-      'message'=>"success",
+    $token->refresh();
+    return  [
+      'success'=> true,
+      'message'=> $message,
       'player'=> $user->player, 
       'token' => [
         'accessToken' => $user->generateAccessToken($now),
@@ -115,6 +113,7 @@ class CommonController extends Controller
         'refreshToken' => $token->refresh_token
       ] 
     ];
+   
   }
 
   public function actionSignIn()
@@ -130,9 +129,11 @@ class CommonController extends Controller
     $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
     
     $token = PlayerToken::GenerateRefreshToken($user->id);
+
+    $token->refresh();
     return [ 
       'success'=>true,
-      'message'=>"success",
+      'message'=> "success" ,
       'player'=> $user->player, 
       'token' => [
         'accessToken' => $user->generateAccessToken($now),
