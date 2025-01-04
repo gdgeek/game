@@ -84,7 +84,7 @@ class CommonController extends Controller
         'player'=> $user->player,
         'token' => [
           'key' => $user->generateAccessToken($now),
-          'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s')
+          'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
           'refreshToken' => $token->refresh_token
         ]
       ];
@@ -105,7 +105,7 @@ class CommonController extends Controller
       'player'=> $user->player, 
       'token' => [
         'key' => $user->generateAccessToken($now),
-        'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s')
+        'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
         'refreshToken' => $token->refresh_token
       ] 
     ];
@@ -130,7 +130,7 @@ class CommonController extends Controller
       'player'=> $user->player, 
       'token' => [
         'key' => $user->generateAccessToken($now),
-        'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s')
+        'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
         'refreshToken' => $token->refresh_token
       ]
     ];
