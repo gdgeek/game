@@ -80,13 +80,13 @@ class CommonController extends Controller
       $token = PlayerToken::GenerateRefreshToken($user->id);
       return [
         'success'=>true, 
-        'message'=>"already signup"
+        'message'=>"already signup",
         'player'=> $user->player,
         'token' => [
           'key' => $user->generateAccessToken($now),
           'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s')
           'refreshToken' => $token->refresh_token
-        ] 
+        ]
       ];
     }
     $user = new User();
@@ -101,7 +101,7 @@ class CommonController extends Controller
     $token = PlayerToken::GenerateRefreshToken($user->id);
     return [
       'success'=>true,
-      'message'=>"success" 
+      'message'=>"success",
       'player'=> $user->player, 
       'token' => [
         'key' => $user->generateAccessToken($now),
@@ -125,14 +125,14 @@ class CommonController extends Controller
     
     $token = PlayerToken::GenerateRefreshToken($user->id);
     return [ 
-    'success'=>true,
-    'message'=>"success"
-    'player'=> $user->player, 
-    'token' => [
-      'key' => $user->generateAccessToken($now),
-      'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s')
-      'refreshToken' => $token->refresh_token
-    ]
-  ];
+      'success'=>true,
+      'message'=>"success",
+      'player'=> $user->player, 
+      'token' => [
+        'key' => $user->generateAccessToken($now),
+        'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s')
+        'refreshToken' => $token->refresh_token
+      ]
+    ];
   }
 }

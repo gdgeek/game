@@ -122,6 +122,7 @@ $config = [
                     'controller' => 'v1/common',
                     'pluralize' => false,
                     'extraPatterns' => [
+                        'GET sign-in' => 'sign-in',
                         'POST sign-in' => 'sign-in',
                         'POST sign-up' => 'sign-up',
                         'GET test' => 'test',
