@@ -31,7 +31,7 @@ use yii\db\Migration;
                 'gift' => $this->json(),
                 'award' => $this->json(),
             ], $tableOptions);
-            
+            php yii migrate/create add_player_id_column_device_id_column_points_column_start_time_end_time_to_record_table --fields="player_id:integer:unique:notNull:foreignKey(player),device_id:unique:integer:notNull:foreignKey(device),points:integer,startTime:dateTime,endTime:dateTime"
             // creates index for column `device_id`
             $this->createIndex(
                 '{{%idx-record-device_id}}',

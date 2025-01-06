@@ -10,6 +10,7 @@ use app\modules\v1\models\Game;
 use app\modules\v1\models\Award;
 use app\modules\v1\models\Player;
 use app\modules\v1\models\Shop;
+use app\modules\v1\models\Record;
 
 use app\modules\v1\models\User;
 use bizley\jwt\JwtHttpBearerAuth;
@@ -56,59 +57,67 @@ class SystemController extends Controller
         throw new \yii\web\HttpException(400, 'No Permission');
     }
 
-    $player = User::findOne($targetId);
-    if($player == null){
+    $target = User::findOne($targetId);
+    if($target == null){
         throw new \yii\web\HttpException(400, 'No Player');
     }
    
     $shops = Shop::find()->all();
     $devices = Device::find()->where(['status'=> 'ready'])->all();
   
-    return ['player'=> $player, 'manager'=>$user->manager, 'shops'=>$shops, 'devices'=> $devices];
+    return [
+      'success'=>true, 
+      'message'=>'success',
+     'target'=> $target->player, 
+     'manager'=>$user->manager
+    ];
   }
   public function actionStartGame($targetId, $deviceId){ //玩家和设备，开始游戏。
 
     //拿到玩家信息
-    $player = Player::findOne($player);
-    if($player == null){
+    $target = Player::findOne($targetId);
+    if($target == null){
       throw new \yii\web\HttpException(400, 'No Player');
     }
     //检查设备状态
-    $device = Device::findOne($device);
+    $device = Device::findOne($deviceId);
     if($device == null){
       throw new \yii\web\HttpException(400, 'No Device');
     }
-    if($device->status != 0){
+    if($device->status != 'ready'){
       throw new \yii\web\HttpException(400, 'Device is not ready');
     }
 
     //扣掉玩家的钱，
     $shop = $device->shop;
-    $player->cost = $player->cost + $shop->price;
-    if($player->validate() == false){
+    $target->cost = $target->cost + $shop->price;
+    if($target->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($player->errors));
     }
-    $shop->earn = $shop->earn + $shop->price;
+    $shop->income = $shop->income + $shop->price;
     if($shop->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($shop->errors));
     }
     //设备设置为等待运行。
-    $recode = new Recode();
-    $recode->player_id = $player->id;
-    $recode->device_id = $device->id;
-    $recode->status = 0;
-    if($recode->validate() == false){
-      throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($recode->errors));
+    $record = new Record();
+    $record->player_id = $target->id;
+    $record->device_id = $device->id;
+    //$record->status = 'runnable';
+    if($record->validate() == false){
+      throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($record->errors));
     }
 
-    $device->status = 1;
+    $device->status = 'runnable';
     if($device->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($device->errors));
     }
-    $recode->save();
+
+
+    $record->save();
     $device->save();
-    $player->save();
+    $target->save();
     $shop->save();
+    return ['success'=>true, 'message'=>'success', 'record'=>$record];
   }
 
   

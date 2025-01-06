@@ -2,6 +2,8 @@
 
 namespace app\modules\v1\models;
 
+use yii\behaviors\TimestampBehavior;
+use yii\db\Expression;
 use Yii;
 
 /**
@@ -14,6 +16,7 @@ use Yii;
  * @property string $created_at
  * @property string $updated_at
  * @property string|null $tag
+ * @property int|null $price
  *
  * @property Daily[] $dailies
  * @property Device[] $devices
@@ -22,6 +25,20 @@ use Yii;
  */
 class Shop extends \yii\db\ActiveRecord
 {
+
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => TimestampBehavior::class,
+                'attributes' => [
+                    \yii\db\ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at'],
+                    \yii\db\ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
+                ],
+                'value' => new Expression('NOW()'),
+            ]
+        ];
+    }
     /**
      * {@inheritdoc}
      */
@@ -38,7 +55,7 @@ class Shop extends \yii\db\ActiveRecord
         return [
             [['income', 'rate'], 'number'],
             [['info', 'created_at', 'updated_at'], 'safe'],
-            [['created_at', 'updated_at'], 'required'],
+            [['price','play_time'], 'integer'],
             [['tag'], 'string', 'max' => 255],
         ];
     }
@@ -56,6 +73,8 @@ class Shop extends \yii\db\ActiveRecord
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
             'tag' => 'Tag',
+            'price' => 'Price',
+            'play_time' => 'Play Time',
         ];
     }
 

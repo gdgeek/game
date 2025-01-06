@@ -2,24 +2,42 @@
 
 namespace app\modules\v1\models;
 
+use yii\behaviors\TimestampBehavior;
+use yii\db\Expression;
 use Yii;
 
 /**
  * This is the model class for table "record".
  *
  * @property int $id
- * @property int $device_id
- * @property int $player_id
  * @property string $created_at
  * @property string|null $updated_at
- * @property string|null $gift
  * @property string|null $award
+ * @property int $player_id
+ * @property int $device_id
+ * @property int|null $points
+ * @property string|null $startTime
+ * @property string|null $endTime
  *
  * @property Device $device
  * @property Player $player
  */
 class Record extends \yii\db\ActiveRecord
 {
+
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => TimestampBehavior::class,
+                'attributes' => [
+                    \yii\db\ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at'],
+                    \yii\db\ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
+                ],
+                'value' => new Expression('NOW()'),
+            ]
+        ];
+    }
     /**
      * {@inheritdoc}
      */
@@ -34,9 +52,11 @@ class Record extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['device_id', 'player_id', 'created_at'], 'required'],
-            [['device_id', 'player_id'], 'integer'],
-            [['created_at', 'updated_at', 'gift', 'award'], 'safe'],
+            [['player_id', 'device_id'], 'required'],
+            [['created_at', 'updated_at', 'award', 'startTime', 'endTime'], 'safe'],
+            [['player_id', 'device_id', 'points'], 'integer'],
+            [['player_id'], 'unique'],
+            [['device_id'], 'unique'],
             [['device_id'], 'exist', 'skipOnError' => true, 'targetClass' => Device::class, 'targetAttribute' => ['device_id' => 'id']],
             [['player_id'], 'exist', 'skipOnError' => true, 'targetClass' => Player::class, 'targetAttribute' => ['player_id' => 'id']],
         ];
@@ -49,12 +69,14 @@ class Record extends \yii\db\ActiveRecord
     {
         return [
             'id' => 'ID',
-            'device_id' => 'Device ID',
-            'player_id' => 'Player ID',
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
-            'gift' => 'Gift',
             'award' => 'Award',
+            'player_id' => 'Player ID',
+            'device_id' => 'Device ID',
+            'points' => 'Points',
+            'startTime' => 'Start Time',
+            'endTime' => 'End Time',
         ];
     }
 

@@ -120,6 +120,7 @@ $config = [
                     'pluralize' => false,
                     'extraPatterns' => [
                         'GET ready-game' => 'ready-game',
+                        'GET start-game' => 'start-game',
                     ],
                 ],
                 [
