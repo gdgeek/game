@@ -8,10 +8,10 @@ use yii\rest\ActiveController;
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
 
-class DeviceController extends ActiveController
+class ShopController extends ActiveController
 {
 
-  public $modelClass = 'app\modules\v1\models\Device';
+  public $modelClass = 'app\modules\v1\models\Shop';
   public function behaviors()
   {
       

@@ -106,19 +106,6 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
-                    'controller' => 'v1/player',
-                    'pluralize' => false,
-                    'extraPatterns' => [
-                        'GET sign-in' => 'sign-in',
-                        'GET sign-up' => 'sign-up',
-                        'POST sign-in' => 'sign-in',
-                        'POST sign-up' => 'sign-up',
-                        'POST test' => 'test',
-                        'GET test' => 'test',
-                    ],
-                ],
-                [
-                    'class' => 'yii\rest\UrlRule',
                     'controller' => 'v1/common',
                     'pluralize' => false,
                     'extraPatterns' => [
@@ -188,7 +175,7 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
-                    'controller' => 'v1/device',
+                    'controller' => ['v1/device', 'v1/shop', 'v1/player', 'v1/recode'],
                     'pluralize' => false,
                 ],
             ],

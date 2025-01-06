@@ -3,10 +3,9 @@ namespace app\modules\v1\controllers;
 use Yii;
 use yii\rest\Controller;
 use app\modules\v1\models\Player;
-use bizley\jwt\JwtHttpBearerAuth;
 use app\modules\v1\models\User;
+use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
-use app\modules\v1\helper\PlayerFingerprintAuth;
 
 class WeChatController extends Controller
 {

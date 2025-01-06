@@ -11,10 +11,14 @@ use Yii;
  * @property float|null $income
  * @property float|null $rate
  * @property string|null $info
+ * @property string $created_at
+ * @property string $updated_at
+ * @property string|null $tag
  *
  * @property Daily[] $dailies
  * @property Device[] $devices
  * @property Gift[] $gifts
+ * @property Manager[] $managers
  */
 class Shop extends \yii\db\ActiveRecord
 {
@@ -33,7 +37,9 @@ class Shop extends \yii\db\ActiveRecord
     {
         return [
             [['income', 'rate'], 'number'],
-            [['info'], 'safe'],
+            [['info', 'created_at', 'updated_at'], 'safe'],
+            [['created_at', 'updated_at'], 'required'],
+            [['tag'], 'string', 'max' => 255],
         ];
     }
 
@@ -47,6 +53,9 @@ class Shop extends \yii\db\ActiveRecord
             'income' => 'Income',
             'rate' => 'Rate',
             'info' => 'Info',
+            'created_at' => 'Created At',
+            'updated_at' => 'Updated At',
+            'tag' => 'Tag',
         ];
     }
 
@@ -78,5 +87,15 @@ class Shop extends \yii\db\ActiveRecord
     public function getGifts()
     {
         return $this->hasMany(Gift::class, ['shop_id' => 'id']);
+    }
+
+    /**
+     * Gets query for [[Managers]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getManagers()
+    {
+        return $this->hasMany(Manager::class, ['shop_id' => 'id']);
     }
 }

@@ -2,6 +2,8 @@
 
 namespace app\modules\v1\models;
 
+use yii\behaviors\TimestampBehavior;
+use yii\db\Expression;
 use Yii;
 
 /**
@@ -12,12 +14,27 @@ use Yii;
  * @property string|null $uuid
  * @property string $status
  * @property string|null $tag
+ * @property string $created_at
+ * @property string $updated_at
  *
  * @property Record[] $records
  * @property Shop $shop
  */
 class Device extends \yii\db\ActiveRecord
 {
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => TimestampBehavior::class,
+                'attributes' => [
+                    \yii\db\ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at'],
+                    \yii\db\ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
+                ],
+                'value' => new Expression('NOW()'),
+            ]
+        ];
+    }
     /**
      * {@inheritdoc}
      */
@@ -34,6 +51,7 @@ class Device extends \yii\db\ActiveRecord
         return [
             [['shop_id'], 'integer'],
             [['status'], 'string'],
+            [['created_at', 'updated_at'], 'safe'],
             [['uuid', 'tag'], 'string', 'max' => 255],
             [['uuid'], 'unique'],
             [['tag'], 'unique'],
@@ -52,6 +70,8 @@ class Device extends \yii\db\ActiveRecord
             'uuid' => 'Uuid',
             'status' => 'Status',
             'tag' => 'Tag',
+            'created_at' => 'Created At',
+            'updated_at' => 'Updated At',
         ];
     }
 
