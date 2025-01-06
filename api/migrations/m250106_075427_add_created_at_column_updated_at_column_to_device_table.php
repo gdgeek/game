@@ -12,8 +12,8 @@ class m250106_075427_add_created_at_column_updated_at_column_to_device_table ext
      */
     public function safeUp()
     {
-        $this->addColumn('{{%device}}', 'created_at', $this->dateTime()->notNull());
-        $this->addColumn('{{%device}}', 'updated_at', $this->dateTime()->notNull());
+        $this->addColumn('{{%device}}', 'created_at', $this->dateTime()->defaultExpression('CURRENT_TIMESTAMP')->notNull());
+        $this->addColumn('{{%device}}', 'updated_at', $this->dateTime()->defaultExpression('CURRENT_TIMESTAMP')->notNull());
     }
 
     /**

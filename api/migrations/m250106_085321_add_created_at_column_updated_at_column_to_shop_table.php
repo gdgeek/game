@@ -12,8 +12,8 @@ class m250106_085321_add_created_at_column_updated_at_column_to_shop_table exten
      */
     public function safeUp()
     {
-        $this->addColumn('{{%shop}}', 'created_at', $this->dateTime()->notNull());
-        $this->addColumn('{{%shop}}', 'updated_at', $this->dateTime()->notNull());
+        $this->addColumn('{{%shop}}', 'created_at', $this->dateTime()->defaultExpression('CURRENT_TIMESTAMP')->notNull());
+        $this->addColumn('{{%shop}}', 'updated_at', $this->dateTime()->defaultExpression('CURRENT_TIMESTAMP')->notNull());
     }
 
     /**
