@@ -52,13 +52,8 @@ class WeChatController extends Controller
     }
     $user = Yii::$app->user->identity;
     $user->save();
-    /*
-    $user->recharge = $user->recharge + $mondy;
-    if($user->validate() == false){
-      throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($player->errors));
-    }
-    $user->save();*/
-    return [ 'success'=>true, "data" =>  $user->data, "message"=>"success"];
+   
+    return [ 'success'=>true, "player" =>  $user->player, "message"=>"success"];
   }
 
   /*

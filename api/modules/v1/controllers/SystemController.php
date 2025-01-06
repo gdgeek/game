@@ -9,7 +9,9 @@ use app\modules\v1\helper\PlayerFingerprintAuth;
 use app\modules\v1\models\Game;
 use app\modules\v1\models\Award;
 use app\modules\v1\models\Player;
+use app\modules\v1\models\Shop;
 
+use app\modules\v1\models\User;
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
 //root，
@@ -41,15 +43,30 @@ class SystemController extends Controller
     
     $user = User::findOne($id);
     if($user == null){
-      throw  
+        
     }
-    return ['success'=>true, 'player'=>$user->info, 'message'=>'success']
+    return ['success'=>true, 'player'=>$user->info, 'message'=>'success'];
   }
 
-  public function actionDevices(){//得到所有设备
-    
+  
+  public function actionReadyGame($targetId){
+
+    $user = Yii::$app->user->identity;
+    if(!$user->manager){
+        throw new \yii\web\HttpException(400, 'No Permission');
+    }
+
+    $player = User::findOne($targetId);
+    if($player == null){
+        throw new \yii\web\HttpException(400, 'No Player');
+    }
+   
+    $shops = Shop::find()->all();
+    $devices = Device::find()->where(['status'=> 'ready'])->all();
+  
+    return ['player'=> $player, 'manager'=>$user->manager, 'shops'=>$shops, 'devices'=> $devices];
   }
-  public function actionStartGame($player, $device){ //玩家和设备，开始游戏。
+  public function actionStartGame($targetId, $deviceId){ //玩家和设备，开始游戏。
 
     //拿到玩家信息
     $player = Player::findOne($player);

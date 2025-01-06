@@ -8,8 +8,10 @@ use Yii;
  * This is the model class for table "device".
  *
  * @property int $id
- * @property int $shop_id
- * @property int|null $status
+ * @property int|null $shop_id
+ * @property string|null $uuid
+ * @property string $status
+ * @property string|null $tag
  *
  * @property Record[] $records
  * @property Shop $shop
@@ -30,8 +32,11 @@ class Device extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            
-            [['shop_id', 'status'], 'integer'],
+            [['shop_id'], 'integer'],
+            [['status'], 'string'],
+            [['uuid', 'tag'], 'string', 'max' => 255],
+            [['uuid'], 'unique'],
+            [['tag'], 'unique'],
             [['shop_id'], 'exist', 'skipOnError' => true, 'targetClass' => Shop::class, 'targetAttribute' => ['shop_id' => 'id']],
         ];
     }
@@ -44,7 +49,9 @@ class Device extends \yii\db\ActiveRecord
         return [
             'id' => 'ID',
             'shop_id' => 'Shop ID',
+            'uuid' => 'Uuid',
             'status' => 'Status',
+            'tag' => 'Tag',
         ];
     }
 

@@ -22,12 +22,19 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
 
 
    
-    public function getPlayer(){
+    public function getRole(){
         $role = 'player';
         $manager = $this->manager;
         if($manager != null){
             $role = $manager->type;
         }
+        if($this->tel=='15000159790' || $this->tel=='15601920021'){
+            $role = 'root';
+        }
+        return $role;
+    }
+    public function getPlayer(){
+       
         return [
             'id'=> $this->id,
             'openId'=> $this->openId,
@@ -39,10 +46,13 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
             'cost'=> $this->cost,
             'times'=> $this->times,
             'grade'=> $this->grade,
-            'role'=> $role,
+            'role'=> $this->role,
         ];
     }
-    
+    //人员管理 root
+    //系统管理 admin
+    //shop 管理，店长
+    // 运行系统的人员 staff
     public function getId()
     {
         return $this->id;

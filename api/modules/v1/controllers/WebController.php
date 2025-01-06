@@ -25,7 +25,6 @@ class WebController extends Controller
   {
       
       $behaviors = parent::behaviors();
-  
             
       $behaviors['authenticator'] = [
         'class' => CompositeAuth::class,
@@ -36,63 +35,62 @@ class WebController extends Controller
       ];
       return $behaviors;
   }
-
-  
-  
-  
   public function actionAsyncRoutes(){
+    $permission = new \stdClass();
+    $permission->path = "/permission";
+    $permission->meta = new \stdClass();
+    $permission->meta->title = "权限管理";
+    $permission->meta->icon = "ep:lollipop";
+    $permission->meta->rank = 10;
+
+    $permission->children = [];
+
+    $child1 = new \stdClass();
+    $child1->path = "/permission/page/index";
+    $child1->name = "PermissionPage";
+    $child1->meta = new \stdClass();
+    $child1->meta->title = "页面权限";
+    $child1->meta->roles = ["root", "admin", "staff"];
+
+    $child2 = new \stdClass();
+    $child2->path = "/permission/button";
+    $child2->meta = new \stdClass();
+    $child2->meta->title = "按钮权限";
+    $child2->meta->roles = ["root", "admin", "staff"];
+    $child2->children = [];
+
+    $subChild1 = new \stdClass();
+    $subChild1->path = "/permission/button/router";
+    $subChild1->component = "permission/button/index";
+    $subChild1->name = "PermissionButtonRouter";
+    $subChild1->meta = new \stdClass();
+    $subChild1->meta->title = "路由返回按钮权限";
+    $subChild1->meta->auths = [
+        "permission:btn:add",
+        "permission:btn:edit",
+        "permission:btn:delete"
+    ];
+
+    $subChild2 = new \stdClass();
+    $subChild2->path = "/permission/button/login";
+    $subChild2->component = "permission/button/perms";
+    $subChild2->name = "PermissionButtonLogin";
+    $subChild2->meta = new \stdClass();
+    $subChild2->meta->title = "登录接口返回按钮权限";
+
+    $child2->children[] = $subChild1;
+    $child2->children[] = $subChild2;
+
+    $permission->children[] = $child1;
+    $permission->children[] = $child2;
+    $data =[
+        $permission,
+        $permission,
+        $permission,
+    ];
     $response = [
       "success" => true,
-      "data" => [
-          [
-              "path" => "/permission",
-              "meta" => [
-                  "title" => "权限管理",
-                  "icon" => "ep:lollipop",
-                  "rank" => 10
-              ],
-              "children" => [
-                  [
-                      "path" => "/permission/page/index",
-                      "name" => "PermissionPage",
-                      "meta" => [
-                          "title" => "页面权限",
-                          "roles" => ["admin", "common"]
-                      ]
-                  ],
-                  [
-                      "path" => "/permission/button",
-                      "meta" => [
-                          "title" => "按钮权限",
-                          "roles" => ["admin", "common"]
-                      ],
-                      "children" => [
-                          [
-                              "path" => "/permission/button/router",
-                              "component" => "permission/button/index",
-                              "name" => "PermissionButtonRouter",
-                              "meta" => [
-                                  "title" => "路由返回按钮权限",
-                                  "auths" => [
-                                      "permission:btn:add",
-                                      "permission:btn:edit",
-                                      "permission:btn:delete"
-                                  ]
-                              ]
-                          ],
-                          [
-                              "path" => "/permission/button/login",
-                              "component" => "permission/button/perms",
-                              "name" => "PermissionButtonLogin",
-                              "meta" => [
-                                  "title" => "登录接口返回按钮权限"
-                              ]
-                          ]
-                      ]
-                  ]
-              ]
-          ]
-      ]
+      "data" => $data,
     ];
     return $response;
     //echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

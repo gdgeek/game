@@ -47,12 +47,11 @@ class GameController extends ActiveController
     if($device == null){
       $device = new Device();
       $device->uuid = $uuid;
-      $device->status = 0;
+      $device->status = 'unused';
       if($device->validate() == false){
         throw new \yii\web\HttpException(400, 'Invalid device' . json_encode($device->errors));
       }
       $device->save();
-   
       return Device::findOne($device->id);
     }
     return $device;

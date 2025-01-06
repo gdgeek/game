@@ -129,6 +129,14 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v1/system',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET ready-game' => 'ready-game',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
                     'controller' => 'v1/we-chat',
                     'pluralize' => false,
                     'extraPatterns' => [
