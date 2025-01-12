@@ -9,20 +9,15 @@ use yii\db\Migration;
  * - `{{%player}}`
  * - `{{%device}}`
  */
-class m250106_174624_add_player_id_column_device_id_column_points_column_start_time_column_end_time_column_to_record_table extends Migration
+class m250112_024434_add_player_id_column_device_id_column_to_record_table extends Migration
 {
-
-    
     /**
      * {@inheritdoc}
      */
     public function safeUp()
     {
-        $this->addColumn('{{%record}}', 'player_id', $this->integer()->unique()->notNull());
-        $this->addColumn('{{%record}}', 'device_id', $this->integer()->unique()->notNull());
-        $this->addColumn('{{%record}}', 'points', $this->integer());
-        $this->addColumn('{{%record}}', 'startTime', $this->dateTime());
-        $this->addColumn('{{%record}}', 'endTime', $this->dateTime());
+        $this->addColumn('{{%record}}', 'player_id', $this->integer()->notNull());
+        $this->addColumn('{{%record}}', 'device_id', $this->integer()->notNull());
 
         // creates index for column `player_id`
         $this->createIndex(
@@ -90,8 +85,5 @@ class m250106_174624_add_player_id_column_device_id_column_points_column_start_t
 
         $this->dropColumn('{{%record}}', 'player_id');
         $this->dropColumn('{{%record}}', 'device_id');
-        $this->dropColumn('{{%record}}', 'points');
-        $this->dropColumn('{{%record}}', 'startTime');
-        $this->dropColumn('{{%record}}', 'endTime');
     }
 }

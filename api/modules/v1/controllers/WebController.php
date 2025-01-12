@@ -90,7 +90,7 @@ class WebController extends Controller
     ];
     $response = [
       "success" => true,
-      "data" => $data,
+      "data" => [],
     ];
     return $response;
     //echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

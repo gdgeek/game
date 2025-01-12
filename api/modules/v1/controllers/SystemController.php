@@ -53,10 +53,10 @@ class SystemController extends Controller
   public function actionReadyGame($targetId){
 
     $user = Yii::$app->user->identity;
+   
     if(!$user->manager){
-        throw new \yii\web\HttpException(400, 'No Permission');
+        throw new \yii\web\HttpException(400, 'Not Manager');
     }
-
     $target = User::findOne($targetId);
     if($target == null){
         throw new \yii\web\HttpException(400, 'No Player');
@@ -84,10 +84,10 @@ class SystemController extends Controller
     if($device == null){
       throw new \yii\web\HttpException(400, 'No Device');
     }
-    if($device->status != 'ready'){
-      throw new \yii\web\HttpException(400, 'Device is not ready');
+    if!$device->shop){
+      throw new \yii\web\HttpException(400, 'Device is No Shop');
     }
-
+    
     //扣掉玩家的钱，
     $shop = $device->shop;
     $target->cost = $target->cost + $shop->price;
@@ -102,12 +102,21 @@ class SystemController extends Controller
     $record = new Record();
     $record->player_id = $target->id;
     $record->device_id = $device->id;
+    //points随机从100到300
+    $record->points = rand(100, 300);
+   
+    $award = new \stdClass();
+    //s m l 
+    $award->s = 1;
+    $award->m = 1;
+    $award->l = 1;
+    $record->award = $award ;
     //$record->status = 'runnable';
     if($record->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($record->errors));
     }
 
-    $device->status = 'runnable';
+   // $device->status = 'runnable';
     if($device->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($device->errors));
     }
@@ -117,7 +126,12 @@ class SystemController extends Controller
     $device->save();
     $target->save();
     $shop->save();
-    return ['success'=>true, 'message'=>'success', 'record'=>$record];
+    //返回记录包括player 和 device 信息，以及points
+    /*$recordArray = $record->toArray(
+      ['id', 'points', 'startTime', 'endTime'], // 要包含的字段
+      ['player' => ['id', 'name'], 'device' => ['id', 'name']] // 要包含的关联数据及其字段
+  );*/
+    return ['success'=>true, 'message'=>'success', 'record'=> $record->toArray([], ['player', 'device'])];
   }
 
   

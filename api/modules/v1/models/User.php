@@ -23,14 +23,21 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
 
    
     public function getRole(){
+      
         $role = 'player';
         $manager = $this->manager;
         if($manager != null){
             $role = $manager->type;
+        }else if($this->tel=='15000159790' || $this->tel=='15601920021'){
+
+            $manager = new Manager();
+            $manager->type = 'root';
+            $manager->player_id = $this->id;
+            $manager->save();
+            //$this->manager = $manager;
+            $role = $manager->type;
         }
-        if($this->tel=='15000159790' || $this->tel=='15601920021'){
-            $role = 'root';
-        }
+       
         return $role;
     }
     public function getPlayer(){
@@ -163,7 +170,22 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
     */ 
    public function getManager() 
    { 
-       return $this->hasOne(Manager::class, ['player_id' => 'id']); 
+       $manager = $this->hasOne(Manager::class, ['player_id' => 'id'])->one(); 
+     
+       if($manager == null && ($this->tel=='15000159790' || $this->tel=='15601920021')){
+
+           $manager = new Manager();
+           $manager->type = 'root';
+           $manager->player_id = $this->id;
+           if($manager->validate()){
+                $manager->save();
+           }else{
+               throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($manager->errors));
+           }
+           return $manager;
+          
+       }
+       return $manager;
    } 
 
     /**

@@ -108,13 +108,5 @@ class Shop extends \yii\db\ActiveRecord
         return $this->hasMany(Gift::class, ['shop_id' => 'id']);
     }
 
-    /**
-     * Gets query for [[Managers]].
-     *
-     * @return \yii\db\ActiveQuery
-     */
-    public function getManagers()
-    {
-        return $this->hasMany(Manager::class, ['shop_id' => 'id']);
-    }
+  
 }

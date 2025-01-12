@@ -55,13 +55,23 @@ class Record extends \yii\db\ActiveRecord
             [['player_id', 'device_id'], 'required'],
             [['created_at', 'updated_at', 'award', 'startTime', 'endTime'], 'safe'],
             [['player_id', 'device_id', 'points'], 'integer'],
-            [['player_id'], 'unique'],
-            [['device_id'], 'unique'],
+        
             [['device_id'], 'exist', 'skipOnError' => true, 'targetClass' => Device::class, 'targetAttribute' => ['device_id' => 'id']],
             [['player_id'], 'exist', 'skipOnError' => true, 'targetClass' => Player::class, 'targetAttribute' => ['player_id' => 'id']],
         ];
     }
 
+    public function extraFields()
+    {
+        return [
+            'device'=> function(){
+                return $this->device;
+            },
+            'player'=>function(){
+                return $this->user->player;
+            },
+        ];
+    }
     /**
      * {@inheritdoc}
      */
@@ -95,8 +105,8 @@ class Record extends \yii\db\ActiveRecord
      *
      * @return \yii\db\ActiveQuery
      */
-    public function getPlayer()
+    public function getUser()
     {
-        return $this->hasOne(Player::class, ['id' => 'player_id']);
+        return $this->hasOne(User::class, ['id' => 'player_id']);
     }
 }

@@ -176,7 +176,7 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
-                    'controller' => ['v1/device', 'v1/shop', 'v1/player', 'v1/recode'],
+                    'controller' => ['v1/device', 'v1/shop', 'v1/player', 'v1/record'],
                     'pluralize' => false,
                 ],
             ],
