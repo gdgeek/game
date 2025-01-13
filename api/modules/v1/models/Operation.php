@@ -5,25 +5,24 @@ namespace app\modules\v1\models;
 use Yii;
 
 /**
- * This is the model class for table "gift".
+ * This is the model class for table "operation".
  *
  * @property int $id
  * @property int $shop_id
- * @property float|null $price
- * @property string|null $info
- * @property string $created_at
- * @property string|null $updated_at
+ * @property int $pool
+ * @property int $income
+ * @property int $expense
  *
  * @property Shop $shop
  */
-class Gift extends \yii\db\ActiveRecord
+class Operation extends \yii\db\ActiveRecord
 {
     /**
      * {@inheritdoc}
      */
     public static function tableName()
     {
-        return 'gift';
+        return 'operation';
     }
 
     /**
@@ -32,14 +31,12 @@ class Gift extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['shop_id', 'created_at'], 'required'],
-            [['shop_id'], 'integer'],
-            [['price'], 'number'],
-            [['info', 'created_at', 'updated_at'], 'safe'],
+            [['shop_id'], 'required'],
+            [['shop_id', 'pool', 'income', 'expense'], 'integer'],
             [['shop_id'], 'exist', 'skipOnError' => true, 'targetClass' => Shop::class, 'targetAttribute' => ['shop_id' => 'id']],
         ];
     }
-  
+
     /**
      * {@inheritdoc}
      */
@@ -48,10 +45,9 @@ class Gift extends \yii\db\ActiveRecord
         return [
             'id' => 'ID',
             'shop_id' => 'Shop ID',
-            'price' => 'Price',
-            'info' => 'Info',
-            'created_at' => 'Created At',
-            'updated_at' => 'Updated At',
+            'pool' => 'Pool',
+            'income' => 'Income',
+            'expense' => 'Expense',
         ];
     }
 

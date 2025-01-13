@@ -26,21 +26,8 @@ class m250105_124514_add_status_column_to_device extends Migration
         echo "m250105_124514_add_status_column_to_device cannot be reverted.\n";
 
         $this->execute("ALTER TABLE `device` DROP COLUMN `status`");
-        return false;
+        return true;
     }
 
-    /*
-    // Use up()/down() to run migration code without a transaction.
-    public function up()
-    {
-
-    }
-
-    public function down()
-    {
-        echo "m250105_124514_add_status_column_to_device cannot be reverted.\n";
-
-        return false;
-    }
-    */
+   
 }

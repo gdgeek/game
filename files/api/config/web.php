@@ -119,8 +119,11 @@ $config = [
                     'controller' => 'v1/system',
                     'pluralize' => false,
                     'extraPatterns' => [
+                        
+                        'GET player-info' => 'player-info',
                         'GET ready-game' => 'ready-game',
-                        'GET start-game' => 'start-game',
+                   
+
                     ],
                 ],
                 [

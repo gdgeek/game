@@ -25,13 +25,14 @@ class PlayerController extends ActiveController
       
       return $behaviors;
   }
-
+/*
   public function actionTest(){
    
     
     $user = User::findOne(3);
     return  ["t" =>  getenv('MYSQL_HOST')];
   }
+  
   public function actionSignUp()
   {
     $helper = Yii::$app->helper;
@@ -91,7 +92,8 @@ class PlayerController extends ActiveController
       return ['time'=>time(), 'player'=> null, 'result'=>"no signup"];
     }
    
-    return ['time'=>time(), 'player'=> $player, 'result'=>"success", 'player'=> $player];
+    return ['time'=>time(), 'player'=> $player, 'success'=>true, 'result'=>"success", 'player'=> $player];
   }
+  */
 
 }

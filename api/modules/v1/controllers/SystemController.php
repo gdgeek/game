@@ -40,16 +40,27 @@ class SystemController extends Controller
 
   
   
-  public function actionPlayerInfo($id){
+
+  public function actionPlayerInfo($targetId){
     
-    $user = User::findOne($id);
-    if($user == null){
-        
+    $user = Yii::$app->user->identity;
+   
+    if(!$user->manager){
+        throw new \yii\web\HttpException(400, 'Not Manager');
     }
-    return ['success'=>true, 'player'=>$user->info, 'message'=>'success'];
+    $target = User::findOne($targetId);
+    if($target == null){
+        throw new \yii\web\HttpException(400, 'No Player');
+    }
+   
+    return [
+      'success'=>true, 
+      'message'=>'success',
+      'target' => $target->player,
+    ];
   }
 
-  
+  /*
   public function actionReadyGame($targetId){
 
     $user = Yii::$app->user->identity;
@@ -62,17 +73,17 @@ class SystemController extends Controller
         throw new \yii\web\HttpException(400, 'No Player');
     }
    
-    $shops = Shop::find()->all();
-    $devices = Device::find()->where(['status'=> 'ready'])->all();
-  
+   // $shops = Shop::find()->all();
+    $devices = Device::find()->all();
+    
     return [
       'success'=>true, 
       'message'=>'success',
-     'target'=> $target->player, 
-     'manager'=>$user->manager
+      'target'=> $target->player, 
+      'manager'=> $user->manager
     ];
-  }
-  public function actionStartGame($targetId, $deviceId){ //玩家和设备，开始游戏。
+  }*/
+  public function actionReadyGame($targetId, $deviceId){ //玩家和设备，开始游戏。
 
     //拿到玩家信息
     $target = Player::findOne($targetId);
@@ -84,10 +95,17 @@ class SystemController extends Controller
     if($device == null){
       throw new \yii\web\HttpException(400, 'No Device');
     }
-    if!$device->shop){
+    if(!$device->shop){
       throw new \yii\web\HttpException(400, 'Device is No Shop');
     }
-    
+
+
+
+    $record =Record::find()->where(['player_id'=>$target->id, 'device_id'=>$device->id])->with('player', 'device')->one();
+    if($record != null){
+      throw new \yii\web\HttpException(400, 'Already Running');
+    }
+
     //扣掉玩家的钱，
     $shop = $device->shop;
     $target->cost = $target->cost + $shop->price;
@@ -98,6 +116,7 @@ class SystemController extends Controller
     if($shop->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($shop->errors));
     }
+
     //设备设置为等待运行。
     $record = new Record();
     $record->player_id = $target->id;
@@ -126,6 +145,7 @@ class SystemController extends Controller
     $device->save();
     $target->save();
     $shop->save();
+    $record = Record::findOne($record->id);
     //返回记录包括player 和 device 信息，以及points
     /*$recordArray = $record->toArray(
       ['id', 'points', 'startTime', 'endTime'], // 要包含的字段

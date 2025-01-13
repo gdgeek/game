@@ -55,9 +55,19 @@ class Shop extends \yii\db\ActiveRecord
         return [
             [['income', 'rate'], 'number'],
             [['info', 'created_at', 'updated_at'], 'safe'],
-            [['price','play_time'], 'integer'],
+            [['price','play_time','expend'], 'integer'],
             [['tag'], 'string', 'max' => 255],
         ];
+    }
+
+    public function fields()
+    {
+       $fields = parent::fields();
+       unset($fields['created_at'],$fields['updated_at']);
+       $fields['operation'] = function($model){
+           return $model->operation;
+       };
+       return $fields;
     }
 
     /**
@@ -67,26 +77,19 @@ class Shop extends \yii\db\ActiveRecord
     {
         return [
             'id' => 'ID',
-            'income' => 'Income',
-            'rate' => 'Rate',
-            'info' => 'Info',
+            'income' => 'Income',//收入
+            'expend' => 'Expend',//支出
+            'rate' => 'Rate',//收益率
+            'info' => 'Info',//店铺信息
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
             'tag' => 'Tag',
-            'price' => 'Price',
+            'price' => 'Price',//单价
             'play_time' => 'Play Time',
         ];
     }
 
-    /**
-     * Gets query for [[Dailies]].
-     *
-     * @return \yii\db\ActiveQuery
-     */
-    public function getDailies()
-    {
-        return $this->hasMany(Daily::class, ['shop_id' => 'id']);
-    }
+    
 
     /**
      * Gets query for [[Devices]].
@@ -108,5 +111,31 @@ class Shop extends \yii\db\ActiveRecord
         return $this->hasMany(Gift::class, ['shop_id' => 'id']);
     }
 
+    /**
+    * Gets query for [[Operations]].
+    *
+    * @return \yii\db\ActiveQuery
+    */
+    public function getOperation()
+    {
+        $operation = $this->hasOne(Operation::class, ['shop_id' => 'id'])->one();
+        if(!$operation){
+            $operation = new Operation();
+            $operation->shop_id = $this->id;
+            $operation->pool = $this->price;
+            $operation->save();
+        }
+        return $operation->toArray(['pool','income','expense']);
+    }
+
+    /**
+    * Gets query for [[Gains]]. 
+    * 
+    * @return \yii\db\ActiveQuery 
+    */ 
+   public function getGains() 
+   { 
+       return $this->hasMany(Gain::class, ['shop_id' => 'id']); 
+   } 
   
 }

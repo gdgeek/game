@@ -55,7 +55,7 @@ class Record extends \yii\db\ActiveRecord
             [['player_id', 'device_id'], 'required'],
             [['created_at', 'updated_at', 'award', 'startTime', 'endTime'], 'safe'],
             [['player_id', 'device_id', 'points'], 'integer'],
-        
+            [['status'], 'string'],
             [['device_id'], 'exist', 'skipOnError' => true, 'targetClass' => Device::class, 'targetAttribute' => ['device_id' => 'id']],
             [['player_id'], 'exist', 'skipOnError' => true, 'targetClass' => Player::class, 'targetAttribute' => ['player_id' => 'id']],
         ];
@@ -87,6 +87,7 @@ class Record extends \yii\db\ActiveRecord
             'points' => 'Points',
             'startTime' => 'Start Time',
             'endTime' => 'End Time',
+            'status' => 'Status',
         ];
     }
 
@@ -108,5 +109,26 @@ class Record extends \yii\db\ActiveRecord
     public function getUser()
     {
         return $this->hasOne(User::class, ['id' => 'player_id']);
+    }
+
+    public function getGame(){
+        $game = new Game();
+        $game->award->points = $this->points;
+        
+        if(isset($this->award['s'])){
+            $game->award->s = $this->award['s'];
+        }
+        if(isset($this->award['m'])){
+            $game->award->m = $this->award['m'];
+        }
+        if(isset($this->award['l'])){
+            $game->award->l = $this->award['l'];
+        }
+        if(isset($this->award['xl'])){
+            $game->award->xl = $this->award['xl'];
+        }
+       // $game->award = $this->award;
+        $game->secodes = 60;
+        return $game;
     }
 }
