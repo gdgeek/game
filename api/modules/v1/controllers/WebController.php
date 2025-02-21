@@ -6,7 +6,7 @@ use yii\rest\Controller;
 use app\modules\v1\models\Device;
 use app\modules\v1\helper\PlayerFingerprintAuth;
 use app\modules\v1\models\Game;
-use app\modules\v1\models\Award;
+use app\modules\v1\models\AwardType;
 use app\modules\v1\models\Player;
 
 use bizley\jwt\JwtHttpBearerAuth;

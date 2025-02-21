@@ -4,6 +4,7 @@ namespace app\modules\v1\models;
 
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
+
 use Yii;
 
 /**
@@ -53,23 +54,24 @@ class Shop extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['income', 'rate'], 'number'],
-            [['info', 'created_at', 'updated_at'], 'safe'],
-            [['price','play_time','expend'], 'integer'],
+            [['created_at', 'updated_at'], 'safe'],
+            [['price','play_time','rate','advanced'], 'integer'],
             [['tag'], 'string', 'max' => 255],
         ];
     }
-
+   
     public function fields()
     {
        $fields = parent::fields();
        unset($fields['created_at'],$fields['updated_at']);
-       $fields['operation'] = function($model){
-           return $model->operation;
-       };
+   
        return $fields;
     }
 
+    public function extraFields()
+    {
+        return ['gifts','awards','operation'];
+    }
     /**
      * {@inheritdoc}
      */
@@ -77,13 +79,11 @@ class Shop extends \yii\db\ActiveRecord
     {
         return [
             'id' => 'ID',
-            'income' => 'Income',//收入
-            'expend' => 'Expend',//支出
             'rate' => 'Rate',//收益率
-            'info' => 'Info',//店铺信息
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
             'tag' => 'Tag',
+            'advanced' => 'Advanced',
             'price' => 'Price',//单价
             'play_time' => 'Play Time',
         ];
@@ -108,7 +108,11 @@ class Shop extends \yii\db\ActiveRecord
      */
     public function getGifts()
     {
-        return $this->hasMany(Gift::class, ['shop_id' => 'id']);
+       
+        return Gift::find()
+            ->joinWith('award')
+            ->where(['award.shop_id' => $this->id])
+            ->all();
     }
 
     /**
@@ -122,10 +126,10 @@ class Shop extends \yii\db\ActiveRecord
         if(!$operation){
             $operation = new Operation();
             $operation->shop_id = $this->id;
-            $operation->pool = $this->price;
+           // $operation->pool = $this->price;
             $operation->save();
         }
-        return $operation->toArray(['pool','income','expense']);
+        return  $operation;
     }
 
     /**
@@ -137,5 +141,15 @@ class Shop extends \yii\db\ActiveRecord
    { 
        return $this->hasMany(Gain::class, ['shop_id' => 'id']); 
    } 
+
+     /**
+     * Gets query for [[Awards]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getAwards()
+    {
+        return $this->hasMany(Award::class, ['shop_id' => 'id']);
+    }
   
 }

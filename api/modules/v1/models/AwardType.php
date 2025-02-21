@@ -14,14 +14,12 @@ use Yii;
  * @property Record[] $records
  * @property Shop $shop
  */
-class Game 
+class AwardType 
 {
-    public AwardType $award ;
-    public int $status ;
-    public $secodes = 60;
-    public function __construct()
-    {
-        $this->award = new AwardType();
-    }
-
+    public int $points = 100;
+    public int $s = 0;
+    public int $m = 0;
+    public int $l = 0;
+    public int $xl = 0;
+    
 }

@@ -24,7 +24,6 @@ class GameController extends ActiveController
       
       return $behaviors;
   }
-
   public function actionDevice(){
     
     $uuid = urldecode(Yii::$app->request->get('uuid'));
@@ -65,7 +64,7 @@ class GameController extends ActiveController
       return ["result" => false, "message"=>"No Ready", 'success' => false];  
     }
 
-    return ["result" => true, 'game'=>$record->game, "message"=>"Ready to play", 'success' =>true];   
+    return ["result" => true, 'game'=>$record->game, 'record'=>$record, "message"=>"Ready to play", 'success' =>true];   
   }
   public function actionStart(){
 
@@ -123,7 +122,10 @@ class GameController extends ActiveController
     $user = $device->record->user;
     $points = $award['points'];
     $user->points = $user->points + $points;
-    $shop->expend = $shop->expend + $points;
+    $operation = $shop->operation;
+
+    $operation->expense = $operation->expense + $points;
+    $operation->pool = $operation->pool - $points;
     
    
     if(isset($award['s'])){

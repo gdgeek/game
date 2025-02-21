@@ -7,7 +7,7 @@ use yii\rest\Controller;
 use app\modules\v1\models\Device;
 use app\modules\v1\helper\PlayerFingerprintAuth;
 use app\modules\v1\models\Game;
-use app\modules\v1\models\Award;
+use app\modules\v1\models\AwardType;
 use app\modules\v1\models\Player;
 use app\modules\v1\models\Shop;
 use app\modules\v1\models\Record;
@@ -101,7 +101,7 @@ class SystemController extends Controller
 
 
 
-    $record =Record::find()->where(['player_id'=>$target->id, 'device_id'=>$device->id])->with('player', 'device')->one();
+    $record = Record::find()->where(['player_id'=>$target->id, 'device_id'=>$device->id])->with('user', 'device')->one();
     if($record != null){
       throw new \yii\web\HttpException(400, 'Already Running');
     }
@@ -112,10 +112,15 @@ class SystemController extends Controller
     if($target->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($player->errors));
     }
-    $shop->income = $shop->income + $shop->price;
-    if($shop->validate() == false){
+    $operation = $shop->operation;
+  
+    $operation->income = $operation->income + $shop->price;
+    $operation->pool = $operation->pool + $shop->price;
+
+    if($operation->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($shop->errors));
     }
+    $operation->save();
 
     //设备设置为等待运行。
     $record = new Record();

@@ -17,6 +17,14 @@ use Yii;
  */
 class Operation extends \yii\db\ActiveRecord
 {
+
+    public function fields()
+    {
+        $fields = parent::fields();
+        unset($fields['shop_id']);
+        unset($fields['id']);
+        return $fields;
+    }
     /**
      * {@inheritdoc}
      */
