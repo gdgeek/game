@@ -5,7 +5,7 @@ use yii\web\IdentityInterface;
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
 use Yii;
-class User extends yii\db\ActiveRecord implements IdentityInterface
+class User extends ActiveRecord implements IdentityInterface
 {
     public static function findIdentity($id)
     {
@@ -50,6 +50,9 @@ class User extends yii\db\ActiveRecord implements IdentityInterface
        
         return $role;
     }
+
+
+
     public function getPlayer(){
        
         return [
@@ -74,7 +77,7 @@ class User extends yii\db\ActiveRecord implements IdentityInterface
     {
         return $this->id;
     }
-/*
+
     public function getAuthKey()
     {
         $token = PlayerToken::find()->where(['player_id'=>$this->id])->one();
@@ -82,13 +85,11 @@ class User extends yii\db\ActiveRecord implements IdentityInterface
             $token = PlayerToken::GenerateRefreshToken($this->id);
         }
         return  $token->refresh_token;
-    }  */
+    }  
     
-    public function validateAuthKey($token)
+    public function validateAuthKey($authKey)
     {
-        $claims = Yii::$app->jwt->parse($token)->claims();
-        $uid = $claims->get('uid');
-        return $uid == $this->id;
+        return $this->getAuthKey() === $authKey;
     }
     
 
@@ -98,8 +99,8 @@ class User extends yii\db\ActiveRecord implements IdentityInterface
             [
                 'class' => TimestampBehavior::class,
                 'attributes' => [
-                    \yii\db\ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at'],
-                    \yii\db\ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
+                    ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at'],
+                    ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
                 ],
                 'value' => new Expression('NOW()'),
             ]
@@ -114,22 +115,17 @@ class User extends yii\db\ActiveRecord implements IdentityInterface
         return 'player';
     }
 
-     /**
-     * {@inheritdoc}
-     * @param \Lcobucci\JWT\Token $token
-     */
-    public static function findByToken($token)
-    {
-        $claims = Yii::$app->jwt->parse($token)->claims();
-        $uid = $claims->get('uid');
-        $user = static::findIdentity( $uid);
-        // $user->token = $token;
-        return $user;
-    }
-
+    
     //生成token
-    public function generateAccessToken($now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone)), $expires = $now->modify('+3 hour'))
+    public function generateAccessToken($now = null, $expires = null)
     {
+
+        if ($now == null) {
+            $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
+        }
+        if($expires == null) {
+            $expires = $now->modify('+3 hour');
+        }
         $token = Yii::$app->jwt->getBuilder()
             ->issuedBy(Yii::$app->request->hostInfo)
             ->issuedAt($now) // Configures the time that the token was issue (iat claim)
