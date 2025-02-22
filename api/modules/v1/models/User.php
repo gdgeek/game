@@ -28,7 +28,8 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
         $manager = $this->manager;
         if($manager != null){
             $role = $manager->type;
-        }else if($this->tel=='15000159790' || $this->tel=='15601920021'){
+        }
+        /*else if($this->tel=='15000159790' || $this->tel=='15601920021'){
 
             $manager = new Manager();
             $manager->type = 'root';
@@ -36,7 +37,7 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
             $manager->save();
             //$this->manager = $manager;
             $role = $manager->type;
-        }
+        }*/
        
         return $role;
     }
@@ -170,8 +171,8 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
     */ 
    public function getManager() 
    { 
-       $manager = $this->hasOne(Manager::class, ['player_id' => 'id'])->one(); 
-     
+      return $this->hasOne(Manager::class, ['player_id' => 'id']);//->one(); 
+     /*
        if($manager == null && ($this->tel=='15000159790' || $this->tel=='15601920021')){
 
            $manager = new Manager();
@@ -185,7 +186,7 @@ class User extends \yii\db\ActiveRecord implements IdentityInterface
            return $manager;
           
        }
-       return $manager;
+       return $manager;*/
    } 
 
     /**
