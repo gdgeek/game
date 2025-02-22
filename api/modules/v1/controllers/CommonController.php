@@ -45,10 +45,6 @@ class CommonController extends Controller
         'token' => $user->token(),
       ];
     }
-    public function actionLogin(){
-       // $user = User::findOne(3);
-       // return $user->generateAccessToken();
-    }
     public function actionTest(){
       //打印日志
 
@@ -92,7 +88,7 @@ class CommonController extends Controller
       'success'=> true,
       'message'=> $message,
       'player'=> $user->player, 
-      'token' =>  $user->token();
+      'token' =>  $user->token()
     ];
    
   }

@@ -74,7 +74,7 @@ class User extends yii\db\ActiveRecord implements IdentityInterface
     {
         return $this->id;
     }
-
+/*
     public function getAuthKey()
     {
         $token = PlayerToken::find()->where(['player_id'=>$this->id])->one();
@@ -82,11 +82,13 @@ class User extends yii\db\ActiveRecord implements IdentityInterface
             $token = PlayerToken::GenerateRefreshToken($this->id);
         }
         return  $token->refresh_token;
-    }  
+    }  */
     
-    public function validateAuthKey($authKey)
+    public function validateAuthKey($token)
     {
-        return $this->getAuthKey() === $authKey;
+        $claims = Yii::$app->jwt->parse($token)->claims();
+        $uid = $claims->get('uid');
+        return $uid == $this->id;
     }
     
 
