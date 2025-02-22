@@ -33,28 +33,16 @@ class CommonController extends Controller
       $helper = Yii::$app->helper;
       $helper->record();
       $refreshToken = Yii::$app->request->post("refreshToken");
-      $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
-     
-      $token = PlayerToken::findByRefreshToken($refreshToken);
-      if($token == null){
-        throw new \yii\web\HttpException(400, 'Invalid refreshToken');
+   
+      $user = User::findIdentityByAccessToken($refreshToken);
+      if(!$user){
+        throw new \Exception("Invalid refreshToken");
       }
-      if($token->isExpired){
-        throw new \yii\web\HttpException(400, 'Expired refreshToken');
-      }
-      $token->refresh();
-      if($token->validate() == false){
-        throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($token->errors));
-      }
-      $token->save();
+      //$token->save();
       return [
         'success'=>true,
         'message'=>"refresh success",
-        'token' => [
-          'accessToken' => $token->user->generateAccessToken($now),
-          'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
-          'refreshToken' => $token->refresh_token
-        ]
+        'token' => $user->token(),
       ];
     }
     public function actionLogin(){
@@ -99,19 +87,12 @@ class CommonController extends Controller
       $message = "already signup";
     }
    
-    $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
-   
-    $token = PlayerToken::GenerateRefreshToken($user->id);
-    $token->refresh();
+    
     return  [
       'success'=> true,
       'message'=> $message,
       'player'=> $user->player, 
-      'token' => [
-        'accessToken' => $user->generateAccessToken($now),
-        'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
-        'refreshToken' => $token->refresh_token
-      ] 
+      'token' =>  $user->token();
     ];
    
   }
@@ -126,20 +107,12 @@ class CommonController extends Controller
     if($user == null){
       return [ 'success'=>false,'player'=> null, 'message'=>"no signup"];
     }
-    $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
     
-    $token = PlayerToken::GenerateRefreshToken($user->id);
-
-    $token->refresh();
     return [ 
       'success'=>true,
       'message'=> "success" ,
       'player'=> $user->player, 
-      'token' => [
-        'accessToken' => $user->generateAccessToken($now),
-        'expires' => $now->modify('+3 hour')->format('Y-m-d H:i:s'),
-        'refreshToken' => $token->refresh_token
-      ]
+      'token' => $user->token() 
     ];
   }
 }
