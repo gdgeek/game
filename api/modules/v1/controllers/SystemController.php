@@ -59,6 +59,9 @@ class SystemController extends Controller
       'target' => $target->player,
     ];
   }
+  public function actionReady(){
+    return "Ready";
+  }
 
   public function actionReadyGame($targetId, $deviceId){ //玩家和设备，开始游戏。
 

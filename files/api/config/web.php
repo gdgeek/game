@@ -122,6 +122,7 @@ $config = [
                         
                         'GET player-info' => 'player-info',
                         'GET ready-game' => 'ready-game',
+                        'GET ready' => 'ready',
                    
 
                     ],

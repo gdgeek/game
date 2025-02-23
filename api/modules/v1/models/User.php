@@ -19,7 +19,9 @@ class User extends ActiveRecord implements IdentityInterface
         $user = static::findIdentity($uid);
         return $user;
     }
-
+    public function getUsername(){
+        return $this->tel;
+    }
 
     public function token()
     {
