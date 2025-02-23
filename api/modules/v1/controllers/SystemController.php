@@ -75,9 +75,10 @@ class SystemController extends Controller
     if($device == null){
       throw new \yii\web\HttpException(400, 'No Device');
     }
+    /*
     if(!$device->shop){
       throw new \yii\web\HttpException(400, 'Device is No Shop');
-    }
+    }*/
 
 
 
