@@ -60,29 +60,6 @@ class SystemController extends Controller
     ];
   }
 
-  /*
-  public function actionReadyGame($targetId){
-
-    $user = Yii::$app->user->identity;
-   
-    if(!$user->manager){
-        throw new \yii\web\HttpException(400, 'Not Manager');
-    }
-    $target = User::findOne($targetId);
-    if($target == null){
-        throw new \yii\web\HttpException(400, 'No Player');
-    }
-   
-   // $shops = Shop::find()->all();
-    $devices = Device::find()->all();
-    
-    return [
-      'success'=>true, 
-      'message'=>'success',
-      'target'=> $target->player, 
-      'manager'=> $user->manager
-    ];
-  }*/
   public function actionReadyGame($targetId, $deviceId){ //玩家和设备，开始游戏。
 
     //拿到玩家信息

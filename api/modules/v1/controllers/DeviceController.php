@@ -26,7 +26,4 @@ class DeviceController extends ActiveController
       
       return $behaviors;
   }
-
-
-  
 }

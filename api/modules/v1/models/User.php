@@ -27,7 +27,7 @@ class User extends ActiveRecord implements IdentityInterface
         $expires = $now->modify('+3 hour');
         return [
             'accessToken' => $this->generateAccessToken($now, $expires),
-            'expires' => $expires->format('Y-m-d H:i:s'),
+            'expires' => $expires->format('Y/m/d H:i:s'),
             'refreshToken' => $this->generateAccessToken($now, $now->modify('+24 hour')),
         ];
     }
