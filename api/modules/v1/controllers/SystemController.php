@@ -89,6 +89,7 @@ class SystemController extends Controller
 
     //扣掉玩家的钱，
     $shop = $device->shop;
+    
     $target->cost = $target->cost + $shop->price;
     if($target->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($player->errors));
