@@ -59,9 +59,6 @@ class SystemController extends Controller
       'target' => $target->player,
     ];
   }
-  public function actionReady(){
-    return "Ready";
-  }
 
   public function actionReadyGame($targetId, $deviceId){ //玩家和设备，开始游戏。
 
@@ -75,11 +72,7 @@ class SystemController extends Controller
     if($device == null){
       throw new \yii\web\HttpException(400, 'No Device');
     }
-    /*
-    if(!$device->shop){
-      throw new \yii\web\HttpException(400, 'Device is No Shop');
-    }*/
-
+  
 
 
     $record = Record::find()->where(['player_id'=>$target->id, 'device_id'=>$device->id])->with('user', 'device')->one();

@@ -12,14 +12,12 @@ use app\modules\v1\models\Gain;
 
 class GameController extends ActiveController
 {
-
   public $modelClass = 'app\modules\v1\models\Device';
   public function behaviors()
   {
-      
       $behaviors = parent::behaviors();
       $behaviors['authenticator'] = [
-        'class' => DeviceFingerprintAuth::className(),
+        'class' => DeviceFingerprintAuth::class,
       ];
       
       return $behaviors;
@@ -49,22 +47,39 @@ class GameController extends ActiveController
       $device = new Device();
       $device->uuid = $uuid;
       $device->ip = Yii::$app->request->userIP;
-      if($device->validate() == false){
-        throw new \yii\web\HttpException(400, 'Invalid device' . json_encode($device->errors));
-      }
-      $device->save();
+     
+    }else{
+      $device->ip = Yii::$app->request->userIP;
     }
+
+    if($device->validate() == false){
+      throw new \yii\web\HttpException(400, 'Invalid device:' . json_encode($device->errors));
+    }
+    $device->save();
     return $device;
+  }
+  public function actionRestart(){
+    $device = $this->getDevice();
+    if($device->record == null){
+      throw new \yii\web\HttpException(400, 'No record');
+    }
+    $record = $device->record;
+    $record->status = 'ready';
+    if(!$record->validate()){
+      throw new \yii\web\HttpException(400, 'Invalid record' . json_encode($record->errors));
+    }
+    $record->save();
+    return ['message'=>'Game restart', 'success' =>true];   
   }
   public function actionReady(){
 
     $device = $this->getDevice();
     $record = $device->record;
     if($record == null){
-      return ["result" => false, "message"=>"No Ready", 'success' => false];  
+      return [ "message"=>"No Ready", 'success' => false];  
     }
 
-    return ["result" => true, 'game'=>$record->game, 'record'=>$record, "message"=>"Ready to play", 'success' =>true];   
+    return ['game'=>$record->game, 'record'=>$record, "message"=>"Ready to play", 'success' =>true];   
   }
   public function actionStart(){
 
@@ -85,10 +100,10 @@ class GameController extends ActiveController
     $record->save();
     
     return [
-      'result'=>true, 
+      
       'message'=>'Game start', 
       'success' =>true, 
-      'gmae' => $record->game
+      'game' => $record->game
     ];
   }
   public function addGain($shop, $player, $type){
@@ -151,7 +166,8 @@ class GameController extends ActiveController
    
     $player = $user->player;
     $device->record->delete();
-    return ['result'=>true, 
+    return [
+      
             'message'=>'Game over', 
             'player' => $player, 
             'success' =>true];   

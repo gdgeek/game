@@ -158,6 +158,8 @@ $config = [
                         'POST start' => 'start',
                         'GET finish' => 'finish',
                         'POST finish' => 'finish',
+                        'GET restart' => 'restart',
+                        'POST restart' => 'restart',
                     ],
                 ],
                 [

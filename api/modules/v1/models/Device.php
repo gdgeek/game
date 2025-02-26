@@ -69,7 +69,6 @@ class Device extends \yii\db\ActiveRecord
     {
         return [
             [['shop_id'], 'integer'],
-          //  [['status'], 'string'],
             [['created_at', 'updated_at'], 'safe'],
             [['uuid', 'tag', 'ip'], 'string', 'max' => 255],
             [['uuid'], 'unique'],
