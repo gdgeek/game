@@ -112,6 +112,10 @@ class Record extends \yii\db\ActiveRecord
         return $this->hasOne(Device::class, ['id' => 'device_id']);
     }
 
+    public function getShop()
+    {
+        return $this->hasOne(Shop::class, ['id' => 'shop_id'])->via('device');
+    }
     /**
      * Gets query for [[Player]].
      *

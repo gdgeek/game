@@ -125,6 +125,7 @@ $config = [
                         'GET ready' => 'ready',
                         'GET reset-shop' => 'reset-shop',
                         'POST give'=> 'give',
+                        'POST close-record'=> 'close-record',
                     ],
                 ],
                 [

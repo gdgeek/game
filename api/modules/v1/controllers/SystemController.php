@@ -107,9 +107,49 @@ class SystemController extends Controller
 
 
   }
-  public function actionReadyGame($targetId, $deviceId, $test = false)
+  public function  actionCloseRecord(){
+    $user = Yii::$app->user->identity;
+    if (!$user->manager) {
+      throw new \yii\web\HttpException(400, 'Not Manager');
+    }
+
+    $record_id = Yii::$app->request->post('recordId');
+    $record = Record::findOne($record_id);
+    if ($record == null) {
+      throw new \yii\web\HttpException(400,'No Record');
+    }
+    $shop = $record->shop;
+    $player = $record->player;
+    $player->cost -= $shop->price;//扣掉玩家的花费，
+
+    $operation = $shop->operation;
+    $operation->pool += $record->game['points'] ;//池子加上本局的点数
+    $operation->pool -= $shop->price;//池子减去本局的价格
+    $operation->turnover -=  $shop->price;//营业额减去玩家的花费
+    $operation->income -=  $shop->price;//收入减去玩家的花费
+    if (!$player->validate()) {
+      throw new \yii\web\HttpException(400,'Save Error' + json_decode($player->getErrors(), true) );
+   
+    }
+    if (!$operation->validate()) {
+      throw new \yii\web\HttpException(400,'Save Error' + json_decode($operation->getErrors(), true) );
+   
+    }
+    $player->save();
+    $operation->save();
+    
+   
+    $record->delete();
+    return ['success' => true, 'message' => 'success', 'player' => $player, 'operation' => $operation];
+  }
+  public function actionReadyGame($targetId, $deviceId)
   { //玩家和设备，开始游戏。
 
+
+    $user = Yii::$app->user->identity;
+    if (!$user->manager) {
+      throw new \yii\web\HttpException(400, 'Not Manager');
+    }
     //拿到玩家信息
     $player = Player::findOne($targetId);
     if ($player == null) {
@@ -122,8 +162,6 @@ class SystemController extends Controller
       throw new \yii\web\HttpException(400, 'No Device');
     }
 
-
-
     $record = Record::find()->where(['player_id' => $player->id, 'device_id' => $device->id])->with('user', 'device')->one();
 
     if ($record != null) {
@@ -133,27 +171,26 @@ class SystemController extends Controller
     //扣掉玩家的钱，
     $shop = $device->shop;
 
-    if (!$test) {
-      $player->cost = $player->cost + $shop->price;
-      if ($player->cost > $player->recharge) {
-        throw new \yii\web\HttpException(400, 'Not Enough Money');
-      }
-      if ($player->validate() == false) {
-        throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($player->errors));
-      }
+  
+    $player->cost = $player->cost + $shop->price;
+
+    if ($player->cost > $player->recharge + $player->give) {
+      throw new \yii\web\HttpException(400, 'Not Enough Money');
     }
+    if ($player->validate() == false) {
+      throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($player->errors));
+    }
+   
     $operation = $shop->operation;
 
-    $income = $operation->income + $shop->price;
-    $pool = $operation->pool + $shop->price;
+    $income = $operation->income + $shop->price;// 收入等于上次收入加上这次的价格
+    $pool = $operation->pool + $shop->price;// 池子等于上次池子加上这次的价格
 
-    $left = $income * (1 - ($shop->rate / 100));
-    $restore = $pool - $left;
-    $operation->pool = $left;
-    // $game = ;
-    //$operation->pool = $income * (1 - ($shop->rate/100));
-    //  $restore = $pool - $left;
-
+    $left = $income * (1 - ($shop->rate / 100));//剩下的钱等于收入减去收入的百分比
+    $restore = $pool - $left; //恢复的钱等于池子减去剩下的钱
+    $restore = rand($restore/2, $restore);
+    $operation->pool = $pool - $restore;
+    $operation->income = $income;
     if ($operation->validate() == false) {
       throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($shop->errors));
     }
