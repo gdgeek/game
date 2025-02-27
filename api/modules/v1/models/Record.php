@@ -2,8 +2,6 @@
 
 namespace app\modules\v1\models;
 
-use yii\behaviors\TimestampBehavior;
-use yii\db\Expression;
 use Yii;
 
 /**
@@ -13,31 +11,19 @@ use Yii;
  * @property string $created_at
  * @property string|null $updated_at
  * @property string|null $award
- * @property int $player_id
- * @property int $device_id
  * @property int|null $points
  * @property string|null $startTime
  * @property string|null $endTime
+ * @property int $player_id
+ * @property int $device_id
+ * @property string $status
+ * @property string|null $game
  *
  * @property Device $device
  * @property Player $player
  */
 class Record extends \yii\db\ActiveRecord
 {
-
-    public function behaviors()
-    {
-        return [
-            [
-                'class' => TimestampBehavior::class,
-                'attributes' => [
-                    \yii\db\ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at'],
-                    \yii\db\ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
-                ],
-                'value' => new Expression('NOW()'),
-            ]
-        ];
-    }
     /**
      * {@inheritdoc}
      */
@@ -52,26 +38,15 @@ class Record extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['player_id', 'device_id'], 'required'],
-            [['created_at', 'updated_at', 'award', 'startTime', 'endTime'], 'safe'],
-            [['player_id', 'device_id', 'points'], 'integer'],
+            [['created_at', 'player_id', 'device_id'], 'required'],
+            [['created_at', 'updated_at', 'award', 'startTime', 'endTime', 'game'], 'safe'],
+            [['points', 'player_id', 'device_id'], 'integer'],
             [['status'], 'string'],
             [['device_id'], 'exist', 'skipOnError' => true, 'targetClass' => Device::class, 'targetAttribute' => ['device_id' => 'id']],
             [['player_id'], 'exist', 'skipOnError' => true, 'targetClass' => Player::class, 'targetAttribute' => ['player_id' => 'id']],
         ];
     }
 
-    public function extraFields()
-    {
-        return [
-            'device'=> function(){
-                return $this->device;
-            },
-            'player'=>function(){
-                return $this->user->player;
-            },
-        ];
-    }
     /**
      * {@inheritdoc}
      */
@@ -82,12 +57,13 @@ class Record extends \yii\db\ActiveRecord
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
             'award' => 'Award',
-            'player_id' => 'Player ID',
-            'device_id' => 'Device ID',
             'points' => 'Points',
             'startTime' => 'Start Time',
             'endTime' => 'End Time',
+            'player_id' => 'Player ID',
+            'device_id' => 'Device ID',
             'status' => 'Status',
+            'game' => 'Game',
         ];
     }
 
@@ -106,12 +82,12 @@ class Record extends \yii\db\ActiveRecord
      *
      * @return \yii\db\ActiveQuery
      */
-    public function getUser()
+    public function getPlayer()
     {
-        return $this->hasOne(User::class, ['id' => 'player_id']);
+        return $this->hasOne(Player::class, ['id' => 'player_id']);
     }
-
-    public function getGame(){
+  
+    public function getTest(){
         $game = new Game();
         $game->award->points = $this->points;
         
