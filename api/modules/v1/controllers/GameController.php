@@ -128,56 +128,37 @@ class GameController extends ActiveController
   {
 
     $device = $this->getDevice();
-
-    if ($device->record == null) {
+    $record = $device->record;
+    if ($record == null) {
       throw new \yii\web\HttpException(400, 'No record');
     }
-    if ($device->record->status != "running") {
+    if ($record->status != "running") {
       throw new \yii\web\HttpException(400, 'Game is not running');
     }
 
     $shop = $device->shop;
-    $award = Yii::$app->request->post("award");
+    $points = Yii::$app->request->post("points");
 
-    if (!$award) {
-      throw new \yii\web\HttpException(400, 'award is required');
+    if (!$points) {
+      throw new \yii\web\HttpException(400, 'points is required');
     }
-    $user = $device->record->user;
-    $points = $award['points'];
+    $user = $record->user;
+    //$points = $award['points'];
     $user->points = $user->points + $points;
+    $user->times += 1;
     $operation = $shop->operation;
 
-    $operation->expense = $operation->expense + $points;
-    $operation->pool = $operation->pool - $points;
+    $back = $record->game['points'] - $points;
+    $operation->pool = $operation->pool + $back;
+    //$operation->income = $operation->income + $back;
 
-
-    if (isset($award['s'])) {
-      for ($i = 0; $i < $award['s']; $i++) {
-        $this->addGain($shop, $user, 's');
-      }
-    }
-    if (isset($award['m'])) {
-      for ($i = 0; $i < $award['m']; $i++) {
-        $this->addGain($shop, $user, 'm');
-      }
-    }
-    if (isset($award['l'])) {
-      for ($i = 0; $i < $award['l']; $i++) {
-        $this->addGain($shop, $user, 'l');
-      }
-    }
-    if (isset($award['xl'])) {
-      for ($i = 0; $i < $award['xl']; $i++) {
-        $this->addGain($shop, $user, 'xl');
-      }
-    }
-
-    $player = $user->player;
-    $device->record->delete();
+    $user->save();
+    $operation->save();
+    $record->delete();
     return [
 
       'message' => 'Game over',
-      'player' => $player,
+      'player' =>  $user->player,
       'success' => true
     ];
 
