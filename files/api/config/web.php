@@ -124,8 +124,7 @@ $config = [
                         'GET ready-game' => 'ready-game',
                         'GET ready' => 'ready',
                         'GET reset-shop' => 'reset-shop',
-                   
-
+                        'POST give'=> 'give',
                     ],
                 ],
                 [

@@ -109,7 +109,7 @@ class GameController extends ActiveController
 
       'message' => 'Game start',
       'success' => true,
-      'game' => $record->test
+      'game' => $record->game
     ];
   }
   public function addGain($shop, $player, $type)

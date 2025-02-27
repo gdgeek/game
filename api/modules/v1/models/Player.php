@@ -13,6 +13,7 @@ use Yii;
  * @property string $tel
  * @property string|null $nickname
  * @property float|null $recharge
+ * @property float|null $give
  * @property float|null $cost
  * @property int|null $times
  * @property int|null $grade
@@ -59,7 +60,7 @@ class Player extends \yii\db\ActiveRecord
     {
         return [
             [['tel'], 'required'],
-            [['recharge', 'cost'], 'number'],
+            [['recharge', 'cost', 'give'], 'number'],
             [['times', 'grade', 'points'], 'integer'],
             [['created_at', 'updated_at', 'info'], 'safe'],
             [['tel', 'nickname', 'openId', 'avatar'], 'string', 'max' => 255],
@@ -78,6 +79,7 @@ class Player extends \yii\db\ActiveRecord
             'tel' => 'Tel',
             'nickname' => 'Nickname',
             'recharge' => 'Recharge',
+            'give' => 'Give',
             'cost' => 'Cost',
             'times' => 'Times',
             'grade' => 'Grade',
@@ -89,7 +91,14 @@ class Player extends \yii\db\ActiveRecord
             'info' => 'Info',
         ];
     }
-
+    public function extraFields()
+    {
+        return [
+            'role'=> function(){
+                return $this->role;
+            },
+        ];
+    }
    /**
     * Gets query for [[Managers]]. 
     * 
@@ -109,4 +118,17 @@ class Player extends \yii\db\ActiveRecord
     {
         return $this->hasMany(Record::class, ['player_id' => 'id']);
     }
+
+
+    public function getRole(){
+      
+        $role = 'player';
+        $manager = $this->manager;
+        if($manager != null){
+            $role = $manager->type;
+        }
+    
+        return $role;
+    }
+
 }

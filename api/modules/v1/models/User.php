@@ -40,16 +40,7 @@ class User extends ActiveRecord implements IdentityInterface
         if($manager != null){
             $role = $manager->type;
         }
-        /*else if($this->tel=='15000159790' || $this->tel=='15601920021'){
-
-            $manager = new Manager();
-            $manager->type = 'root';
-            $manager->player_id = $this->id;
-            $manager->save();
-            //$this->manager = $manager;
-            $role = $manager->type;
-        }*/
-       
+    
         return $role;
     }
 
@@ -57,19 +48,8 @@ class User extends ActiveRecord implements IdentityInterface
 
     public function getPlayer(){
        
-        return [
-            'id'=> $this->id,
-            'openId'=> $this->openId,
-            'tel'=> $this->tel,  
-            'recharge'=> $this->recharge,
-            'nickname'=> $this->nickname,
-            'avatar'=> $this->avatar,
-            'points'=> $this->points,
-            'cost'=> $this->cost,
-            'times'=> $this->times,
-            'grade'=> $this->grade,
-            'role'=> $this->role,
-        ];
+       
+        return Player::find()->where(['id'=>$this->id])->one()->toArray([],['role']);
     }
     //人员管理 root
     //系统管理 admin
@@ -149,7 +129,7 @@ class User extends ActiveRecord implements IdentityInterface
     {
         return [
             [['tel'], 'required'],
-            [['recharge', 'cost'], 'number'],
+            [['recharge', 'cost', 'give'], 'number'],
             [['times', 'grade', 'points'], 'integer'],
             [['created_at', 'updated_at', 'info'], 'safe'],
             [['tel', 'nickname', 'openId', 'avatar'], 'string', 'max' => 255],
@@ -177,6 +157,7 @@ class User extends ActiveRecord implements IdentityInterface
             'openId' => 'Openid',
             'avatar' => 'Avatar',
             'info' => 'Info',
+            'give' => 'Give',
         ];
     }
 
