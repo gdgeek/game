@@ -16,12 +16,16 @@ use Yii;
  */
 class Game 
 {
-    public AwardType $award ;
-    public int $status ;
+    // public AwardType $award ;
+   // public int $status;
     public $secodes = 60;
-    public function __construct()
+    public $points = 0;
+    public function __construct($points, $secodes)
     {
-        $this->award = new AwardType();
+       // $this->award = new AwardType();
+        //$this->status = $status;
+        $this->secodes = $secodes;
+        $this->points = $points;
     }
 
 }

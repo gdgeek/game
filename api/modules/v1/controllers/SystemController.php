@@ -2,7 +2,6 @@
 
 namespace app\modules\v1\controllers;
 use Yii;
-
 use yii\rest\Controller;
 use app\modules\v1\models\Device;
 use app\modules\v1\helper\PlayerFingerprintAuth;
@@ -11,6 +10,7 @@ use app\modules\v1\models\AwardType;
 use app\modules\v1\models\Player;
 use app\modules\v1\models\Shop;
 use app\modules\v1\models\Record;
+use app\modules\v1\models\Operation;
 
 use app\modules\v1\models\User;
 use bizley\jwt\JwtHttpBearerAuth;
@@ -60,6 +60,20 @@ class SystemController extends Controller
     ];
   }
 
+  public function actionResetShop($shopId){
+    $operation = Operation::find()->where(['shop_id'=>$shopId])->one();
+    if($operation == null){
+      throw new \yii\web\HttpException(400, 'No Operation');
+    }
+    $operation->pool = 0;
+    $operation->turnover = 0;
+    $operation->income = 0;
+    if(!$operation->save()){
+      throw new \yii\web\HttpException(400, 'Save Error');
+    }
+    return ['success'=>true, 'message'=>'success', 'operation'=>$operation]; 
+   
+  }
   public function actionReadyGame($targetId, $deviceId){ //玩家和设备，开始游戏。
 
     //拿到玩家信息
@@ -67,6 +81,7 @@ class SystemController extends Controller
     if($target == null){
       throw new \yii\web\HttpException(400, 'No Player');
     }
+    
     //检查设备状态
     $device = Device::findOne($deviceId);
     if($device == null){
@@ -76,6 +91,7 @@ class SystemController extends Controller
 
 
     $record = Record::find()->where(['player_id'=>$target->id, 'device_id'=>$device->id])->with('user', 'device')->one();
+    
     if($record != null){
       throw new \yii\web\HttpException(400, 'Already Running');
     }
@@ -85,13 +101,20 @@ class SystemController extends Controller
     
     $target->cost = $target->cost + $shop->price;
     if($target->validate() == false){
-      throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($player->errors));
+      throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($target->errors));
     }
     $operation = $shop->operation;
   
-    $operation->income = $operation->income + $shop->price;
-    $operation->pool = $operation->pool + $shop->price;
+    $income = $operation->income + $shop->price;
+    $pool = $operation->pool + $shop->price;
 
+    $left = $income * (1 - ($shop->rate/100));
+    $restore =  $pool - $left;
+    $operation->pool = $left;
+   // $game = ;
+   //$operation->pool = $income * (1 - ($shop->rate/100));
+  //  $restore = $pool - $left;
+   
     if($operation->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($shop->errors));
     }
@@ -101,16 +124,10 @@ class SystemController extends Controller
     $record = new Record();
     $record->player_id = $target->id;
     $record->device_id = $device->id;
-    //points随机从100到300
-    $record->points = rand(100, 300);
-   
-    $award = new \stdClass();
-    //s m l 
-    $award->s = 1;
-    $award->m = 1;
-    $award->l = 1;
-    $record->award = $award ;
-    //$record->status = 'runnable';
+    //$game = new Game();
+    
+    $record->game = new Game($restore, $shop->play_time);
+  
     if($record->validate() == false){
       throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($record->errors));
     }

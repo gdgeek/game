@@ -4,6 +4,8 @@ namespace app\modules\v1\models;
 
 use Yii;
 
+use yii\behaviors\TimestampBehavior;
+use yii\db\Expression;
 /**
  * This is the model class for table "record".
  *
@@ -24,6 +26,21 @@ use Yii;
  */
 class Record extends \yii\db\ActiveRecord
 {
+
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => TimestampBehavior::class,
+                'attributes' => [
+                    \yii\db\ActiveRecord::EVENT_BEFORE_INSERT => ['created_at', 'updated_at'],
+                    \yii\db\ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
+                ],
+                'value' => new Expression('NOW()'),
+            ]
+        ];
+    }
+    
     /**
      * {@inheritdoc}
      */
@@ -31,21 +48,39 @@ class Record extends \yii\db\ActiveRecord
     {
         return 'record';
     }
-
+    
     /**
      * {@inheritdoc}
      */
     public function rules()
     {
         return [
-            [['created_at', 'player_id', 'device_id'], 'required'],
-            [['created_at', 'updated_at', 'award', 'startTime', 'endTime', 'game'], 'safe'],
-            [['points', 'player_id', 'device_id'], 'integer'],
+            [['player_id', 'device_id'], 'required'],
+            [['created_at', 'updated_at', 'startTime', 'endTime', 'game'], 'safe'],
+            [['player_id', 'device_id'], 'integer'],
             [['status'], 'string'],
             [['device_id'], 'exist', 'skipOnError' => true, 'targetClass' => Device::class, 'targetAttribute' => ['device_id' => 'id']],
             [['player_id'], 'exist', 'skipOnError' => true, 'targetClass' => Player::class, 'targetAttribute' => ['player_id' => 'id']],
         ];
     }
+    public function extraFields()
+    {
+        return [
+            'device'=> function(){
+                return $this->device;
+            },
+            'player'=>function(){
+                return $this->user->player;
+            },
+        ];
+    }
+
+
+    public function getUser()
+     {
+        return $this->hasOne(User::class, ['id' => 'player_id']);
+
+     }
 
     /**
      * {@inheritdoc}
@@ -56,8 +91,8 @@ class Record extends \yii\db\ActiveRecord
             'id' => 'ID',
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
-            'award' => 'Award',
-            'points' => 'Points',
+       //     'award' => 'Award',
+         //   'points' => 'Points',
             'startTime' => 'Start Time',
             'endTime' => 'End Time',
             'player_id' => 'Player ID',
@@ -88,23 +123,11 @@ class Record extends \yii\db\ActiveRecord
     }
   
     public function getTest(){
-        $game = new Game();
-        $game->award->points = $this->points;
+        $game = new Game(10,10);
         
-        if(isset($this->award['s'])){
-            $game->award->s = $this->award['s'];
-        }
-        if(isset($this->award['m'])){
-            $game->award->m = $this->award['m'];
-        }
-        if(isset($this->award['l'])){
-            $game->award->l = $this->award['l'];
-        }
-        if(isset($this->award['xl'])){
-            $game->award->xl = $this->award['xl'];
-        }
-       // $game->award = $this->award;
-        $game->secodes = 60;
+      //  $game->award->points = 12;
+        
+     
         return $game;
     }
 }
