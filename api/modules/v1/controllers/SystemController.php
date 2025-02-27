@@ -149,12 +149,12 @@ class SystemController extends Controller
     if (!$user->manager) {
       throw new \yii\web\HttpException(400, 'Not Manager');
     }
-    $points = Yii::$app->request->get('points');
+    $points = Yii::$app->request->post('points');
     if(!$points){
       throw new \yii\web\HttpException(400,'No Points');
     }
 
-    $player_id = Yii::$app->request->get('targetId');
+    $player_id = Yii::$app->request->post('targetId');
     $player = Player::findOne($player_id);
     if (!$player) {
       throw new \yii\web\HttpException(400,'No Player');
