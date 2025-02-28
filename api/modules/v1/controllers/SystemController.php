@@ -219,7 +219,7 @@ class SystemController extends Controller
 
     $left = $turnover * (1 - ($shop->rate / 100));//剩下的钱等于收入减去收入的百分比
     $restore = $pool - $left; //恢复的钱等于池子减去剩下的钱
-    $restore = random_int(floor($restore / 2), $restore);
+    $restore = rand(floor($restore / 2), $restore);
 
     $operation->pool = $pool - $restore;
     $operation->turnover = $turnover;
