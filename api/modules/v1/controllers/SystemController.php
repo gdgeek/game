@@ -116,7 +116,7 @@ class SystemController extends Controller
     $record_id = Yii::$app->request->post('recordId');
     $record = Record::findOne($record_id);
     if ($record == null) {
-      throw new \yii\web\HttpException(400,'No Record');
+      throw new \yii\web\HttpException(400,'No Record:' .$record_id);
     }
     $shop = $record->shop;
     $player = $record->player;
