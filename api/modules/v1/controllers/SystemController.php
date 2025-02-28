@@ -76,30 +76,31 @@ class SystemController extends Controller
     return ['success' => true, 'message' => 'success', 'operation' => $operation];
 
   }
-  public function actionGive(){
+  public function actionGive()
+  {
 
     $user = Yii::$app->user->identity;
     if (!$user->manager) {
       throw new \yii\web\HttpException(400, 'Not Manager');
     }
 
-    $target_id =   $user_id = Yii::$app->request->post('targetId');
+    $target_id = $user_id = Yii::$app->request->post('targetId');
     $player = User::findOne($target_id);
     if ($player == null) {
-      throw new \yii\web\HttpException(400,'No Player');
+      throw new \yii\web\HttpException(400, 'No Player');
     }
     $money = Yii::$app->request->post('money');
-    if(!$money){
-      throw new \yii\web\HttpException(400,'No Money');
+    if (!$money) {
+      throw new \yii\web\HttpException(400, 'No Money');
     }
     $user->give -= $money;
     $player->give += $money;
     if (!$user->validate()) {
-      throw new \yii\web\HttpException(400,'Save Error' + json_decode($user->getErrors(), true) );
-   
-    } 
-    if(!$player->validate()) {
-      throw new \yii\web\HttpException(400,'Save Error' + json_decode($player->getErrors(), true) );
+      throw new \yii\web\HttpException(400, 'Save Error' + json_decode($user->getErrors(), true));
+
+    }
+    if (!$player->validate()) {
+      throw new \yii\web\HttpException(400, 'Save Error' + json_decode($player->getErrors(), true));
     }
     $user->save();
     $player->save();
@@ -107,7 +108,8 @@ class SystemController extends Controller
 
 
   }
-  public function  actionCloseRecord(){
+  public function actionCloseRecord()
+  {
     $user = Yii::$app->user->identity;
     if (!$user->manager) {
       throw new \yii\web\HttpException(400, 'Not Manager');
@@ -116,58 +118,59 @@ class SystemController extends Controller
     $record_id = Yii::$app->request->post('recordId');
     $record = Record::findOne($record_id);
     if ($record == null) {
-      throw new \yii\web\HttpException(400,'No Record:' .$record_id);
+      throw new \yii\web\HttpException(400, 'No Record:' . $record_id);
     }
     $shop = $record->shop;
     $player = $record->player;
     $player->cost -= $shop->price;//扣掉玩家的花费，
 
     $operation = $shop->operation;
-    $operation->pool += $record->game['points'] ;//池子加上本局的点数
+    if ($record->game && isset($record->game['points'])) {
+      $operation->pool += $record->game['points'];//池子加上本局的点数
+    }
     $operation->pool -= $shop->price;//池子减去本局的价格
-    $operation->turnover -=  $shop->price;//营业额减去玩家的花费
-    //$operation->income += $record->game['points'] ;//池子加上本局的点数
-    //$operation->income -=  $shop->price;//收入减去玩家的花费
+    $operation->turnover -= $shop->price;//营业额减去玩家的花费
     if (!$player->validate()) {
-      throw new \yii\web\HttpException(400,'Save Error' + json_decode($player->getErrors(), true) );
-   
+      throw new \yii\web\HttpException(400, 'Save Error' + json_decode($player->getErrors(), true));
+
     }
     if (!$operation->validate()) {
-      throw new \yii\web\HttpException(400,'Save Error' + json_decode($operation->getErrors(), true) );
-   
+      throw new \yii\web\HttpException(400, 'Save Error' + json_decode($operation->getErrors(), true));
+
     }
     $player->save();
     $operation->save();
-    
-   
+
+
     $record->delete();
     return ['success' => true, 'message' => 'success', 'player' => $player, 'operation' => $operation];
   }
-  public function actionDeductPoints(){
+  public function actionDeductPoints()
+  {
 
     $user = Yii::$app->user->identity;
     if (!$user->manager) {
       throw new \yii\web\HttpException(400, 'Not Manager');
     }
     $points = Yii::$app->request->post('points');
-    if(!$points){
-      throw new \yii\web\HttpException(400,'No Points');
+    if (!$points) {
+      throw new \yii\web\HttpException(400, 'No Points');
     }
 
     $player_id = Yii::$app->request->post('targetId');
     $player = Player::findOne($player_id);
     if (!$player) {
-      throw new \yii\web\HttpException(400,'No Player');
+      throw new \yii\web\HttpException(400, 'No Player');
     }
-    if($points > $player->points){
-      throw new \yii\web\HttpException(400,'Not Enough Points');
+    if ($points > $player->points) {
+      throw new \yii\web\HttpException(400, 'Not Enough Points');
     }
     $player->points -= $points;
-    if(!$player->validate()){
-      throw new \yii\web\HttpException(400,'Save Error' + json_decode($player->getErrors(), true) );
+    if (!$player->validate()) {
+      throw new \yii\web\HttpException(400, 'Save Error' + json_decode($player->getErrors(), true));
     }
     $player->save();
-    return ['success'=> true,'message'=> 'success','player'=> $player];
+    return ['success' => true, 'message' => 'success', 'player' => $player];
   }
   public function actionReadyGame($targetId, $deviceId)
   { //玩家和设备，开始游戏。
@@ -198,7 +201,7 @@ class SystemController extends Controller
     //扣掉玩家的钱，
     $shop = $device->shop;
 
-  
+
     $player->cost = $player->cost + $shop->price;
 
     if ($player->cost > $player->recharge + $player->give) {
@@ -207,8 +210,8 @@ class SystemController extends Controller
     if ($player->validate() == false) {
       throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($player->errors));
     }
-   
-    
+
+
     $operation = $shop->operation;
 
     $turnover = $operation->turnover + $shop->price;// 收入等于上次收入加上这次的价格
@@ -216,14 +219,14 @@ class SystemController extends Controller
 
     $left = $turnover * (1 - ($shop->rate / 100));//剩下的钱等于收入减去收入的百分比
     $restore = $pool - $left; //恢复的钱等于池子减去剩下的钱
-    $restore = random_int(floor($restore/2), $restore);
-    
+    $restore = random_int(floor($restore / 2), $restore);
+
     $operation->pool = $pool - $restore;
     $operation->turnover = $turnover;
     //$operation->income += $operation->income + ($shop->price - $restore);
-    
+
     $operation->save();
-   
+
     if ($operation->validate() == false) {
       throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($shop->errors));
     }
