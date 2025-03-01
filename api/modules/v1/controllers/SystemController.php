@@ -214,15 +214,34 @@ class SystemController extends Controller
 
     $operation = $shop->operation;
 
+    $info = [];
+   
+    $info ['price'] = $shop->price; 
+    $info ['old_turnover'] = $operation->turnover;
+    $info ['old_pool'] = $operation->pool;
+    
+    
+    
     $turnover = $operation->turnover + $shop->price;// 收入等于上次收入加上这次的价格
+    $info ['turnover'] = $turnover;
     $pool = $operation->pool + $shop->price;// 池子等于上次池子加上这次的价格
+    $info ['pool'] = $pool;
+    $percentage = (1 - $shop->rate / 100);
+    $info ['percentage'] = $percentage;
+    $left = $turnover * $percentage;//剩下的钱等于收入减去收入的百分比
 
-    $left = $turnover * (1 - ($shop->rate / 100));//剩下的钱等于收入减去收入的百分比
+    $info ['left'] = $percentage;
     $restore = $pool - $left; //恢复的钱等于池子减去剩下的钱
+
+    $info ['restore1'] = $restore;
     $restore = rand(floor($restore / 2), $restore);
 
+    $info ['restore'] = $restore;
     $operation->pool = $pool - $restore;
+
+    $info ['new_pool'] =  $operation->pool;
     $operation->turnover = $turnover;
+
     //$operation->income += $operation->income + ($shop->price - $restore);
 
     $operation->save();
@@ -260,7 +279,7 @@ class SystemController extends Controller
       ['id', 'points', 'startTime', 'endTime'], // 要包含的字段
       ['player' => ['id', 'name'], 'device' => ['id', 'name']] // 要包含的关联数据及其字段
   );*/
-    return ['success' => true, 'message' => 'success', 'record' => $record->toArray([], ['player', 'device'])];
+    return ['success' => true, 'info' => $info, 'message' => 'success', 'record' => $record->toArray([], ['player', 'device'])];
   }
 
 
