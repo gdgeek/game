@@ -69,7 +69,7 @@ class SystemController extends Controller
     }
     $operation->pool = 0;
     $operation->turnover = 0;
-    //$operation->income = 0;
+    $operation->income = 0;
     if (!$operation->save()) {
       throw new \yii\web\HttpException(400, 'Save Error');
     }
@@ -108,6 +108,7 @@ class SystemController extends Controller
 
 
   }
+  //关闭游戏，要把游戏的钱还回来
   public function actionCloseRecord()
   {
     $user = Yii::$app->user->identity;
@@ -121,15 +122,25 @@ class SystemController extends Controller
       throw new \yii\web\HttpException(400, 'No Record:' . $record_id);
     }
     $shop = $record->shop;
-    $player = $record->player;
-    $player->cost -= $shop->price;//扣掉玩家的花费，
-
+    $player = $record->player;  
+    $price = $shop->price;
     $operation = $shop->operation;
+    $restore = 0;
     if ($record->game && isset($record->game['points'])) {
-      $operation->pool += $record->game['points'];//池子加上本局的点数
+      $restore = $record->game['points'];//池子加上本局的点数
     }
-    $operation->pool -= $shop->price;//池子减去本局的价格
-    $operation->turnover -= $shop->price;//营业额减去玩家的花费
+
+    $operation->pool += $restore;
+
+
+    $player->cost -= $price;
+   
+    $percentage = $shop->rate / 100; // 返奖率
+    $back = $price * $percentage; //返奖等于价格乘以返奖率
+    $operation->pool -= $back;
+    $operation->income -=  $price - $back;
+    $operation->turnover -= $price;
+
     if (!$player->validate()) {
       throw new \yii\web\HttpException(400, 'Save Error' + json_decode($player->getErrors(), true));
 
@@ -145,6 +156,8 @@ class SystemController extends Controller
     $record->delete();
     return ['success' => true, 'message' => 'success', 'player' => $player, 'operation' => $operation];
   }
+
+  //扣除积分
   public function actionDeductPoints()
   {
 
@@ -200,9 +213,7 @@ class SystemController extends Controller
 
     //扣掉玩家的钱，
     $shop = $device->shop;
-
-
-    $player->cost = $player->cost + $shop->price;
+    $player->cost = $player->cost + $shop->price;//玩家的消费等于玩家的消费加上商店的价格
 
     if ($player->cost > $player->recharge + $player->give) {
       throw new \yii\web\HttpException(400, 'Not Enough Money');
@@ -216,13 +227,26 @@ class SystemController extends Controller
 
     $info = [];
    
-    $info ['price'] = $shop->price; 
+    $info ['price'] = $shop->price;
+    //价格
     $info ['old_turnover'] = $operation->turnover;
     $info ['old_pool'] = $operation->pool;
     
     
+    $price = $shop->price;
+    $turnover = $operation->turnover + $price;//营业额等于上次营业额加上这次的价格
+    $percentage = $shop->rate / 100; // 返奖率
+    $back = $shop->price * $percentage; //返奖等于价格乘以返奖率
+    $pool =  $back + $operation->pool; //池子等于返奖加上上次池子
+    $restore = rand(floor($pool / 2), $pool);//恢复的钱等于池子的一半到池子之间的随机数
+
+    $operation->pool = $pool - $restore;//池子等于池子减去恢复的钱
+    $operation->turnover = $turnover;//营业额等于上次营业额加上这次的价格
+    $operation->income += $price - $back;// - $restore;//收入等于上次收入加上这次的价格减去恢复的钱
     
-    $turnover = $operation->turnover + $shop->price;// 收入等于上次收入加上这次的价格
+    //$income = $operation->income + ($shop->price - $back); //收入等于上次收入加上这次的价格减去返奖
+  /*
+
     $info ['turnover'] = $turnover;
     $pool = $operation->pool + $shop->price;// 池子等于上次池子加上这次的价格
     $info ['pool'] = $pool;
@@ -230,7 +254,7 @@ class SystemController extends Controller
     $info ['percentage'] = $percentage;
     $left = $turnover * $percentage;//剩下的钱等于收入减去收入的百分比
 
-    $info ['left'] = $percentage;
+    $info ['left'] = $left;
     $restore = $pool - $left; //恢复的钱等于池子减去剩下的钱
 
     $info ['restore1'] = $restore;
@@ -241,6 +265,7 @@ class SystemController extends Controller
 
     $info ['new_pool'] =  $operation->pool;
     $operation->turnover = $turnover;
+    */
 
     //$operation->income += $operation->income + ($shop->price - $restore);
 

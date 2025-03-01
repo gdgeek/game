@@ -143,20 +143,25 @@ class GameController extends ActiveController
       throw new \yii\web\HttpException(400, 'points is required');
     }
     $user = $record->user;
-    //$points = $award['points'];
+
+    $back  = $record->game['points'];
+    if($points> $back){
+      $points = $back;
+    }
+    if($points < 0){
+      $points = 0;
+    }
     $user->points = $user->points + $points;
     $user->times += 1;
+
     $operation = $shop->operation;
-
-    $back = $record->game['points'] - $points;
-    $operation->pool = $operation->pool + $back;
-    //$operation->income = $operation->income + $back;
-
+    $left = $back - $points;
+    
+    $operation->pool = $operation->pool + $left;
     $user->save();
     $operation->save();
     $record->delete();
     return [
-
       'message' => 'Game over',
       'player' =>  $user->player,
       'success' => true

@@ -10,6 +10,7 @@ use Yii;
  * @property int $id
  * @property int $shop_id
  * @property int $pool
+ * @property int $income
  * @property int $turnover
  *
  * @property Shop $shop
@@ -39,7 +40,7 @@ class Operation extends \yii\db\ActiveRecord
     {
         return [
             [['shop_id'], 'required'],
-            [['shop_id', 'pool',  'turnover'], 'integer'],
+            [['shop_id', 'pool', 'income', 'turnover'], 'integer'],
             [['shop_id'], 'exist', 'skipOnError' => true, 'targetClass' => Shop::class, 'targetAttribute' => ['shop_id' => 'id']],
         ];
     }
@@ -53,7 +54,7 @@ class Operation extends \yii\db\ActiveRecord
             'id' => 'ID',
             'shop_id' => 'Shop ID',
             'pool' => 'Pool',
-          //  'income' => 'Income',
+            'income' => 'Income',
             'turnover' => 'Turnover',
         ];
     }
