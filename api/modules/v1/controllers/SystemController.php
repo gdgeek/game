@@ -93,16 +93,16 @@ class SystemController extends Controller
     if (!$money) {
       throw new \yii\web\HttpException(400, 'No Money');
     }
-    $user->give -= $money;
-    $player->give += $money;
+    //$user->give -= $money;
+    /*$player->give += $money;
     if (!$user->validate()) {
       throw new \yii\web\HttpException(400, 'Save Error' + json_decode($user->getErrors(), true));
 
-    }
+    }*/
     if (!$player->validate()) {
       throw new \yii\web\HttpException(400, 'Save Error' + json_decode($player->getErrors(), true));
     }
-    $user->save();
+    //$user->save();
     $player->save();
     return ['success' => true, 'message' => 'success', 'user' => $user, 'player' => $player];
 
