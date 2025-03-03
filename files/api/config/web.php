@@ -36,6 +36,15 @@ $config = [
         ],
     ],
     'components' => [
+        'secret' => [
+            'class' => \app\modules\v1\components\Secret::class,
+            'id' => getenv('SECRET_ID'),
+            'key' => getenv('SECRET_KEY'),
+            'cloud' => [
+                'bucket' => getenv('COS_BUCKETS_BUCKET'),
+                'region' => getenv('COS_BUCKETS_REGION'),
+            ],
+        ],
         'jwt' => [
             'class' => \bizley\jwt\Jwt::class,
             'signer' => \bizley\jwt\Jwt::HS256,
@@ -136,6 +145,16 @@ $config = [
                     'extraPatterns' => [
                         'POST credit-money' => 'credit-money',
                         'GET credit-money' => 'credit-money',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v1/tencent-cloud',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET token' => 'token',
+                      //  'GET store' => 'store',
+                        'GET cloud' => 'cloud',
                     ],
                 ],
                 [

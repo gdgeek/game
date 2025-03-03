@@ -20,7 +20,8 @@
         "yiisoft/yii2-symfonymailer": "~2.0.3",
         "bizley/jwt": "^4.1",
         "lcobucci/jwt": "^5.0",
-        "lcobucci/clock": "^3.3"
+        "lcobucci/clock": "^3.3",
+        "tencentcloud/sts": "^3.0"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.1.0",
