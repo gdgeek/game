@@ -153,8 +153,8 @@ $config = [
                     'pluralize' => false,
                     'extraPatterns' => [
                         'GET token' => 'token',
-                      //  'GET store' => 'store',
                         'GET cloud' => 'cloud',
+                        'GET store' => 'store',
                     ],
                 ],
                 [

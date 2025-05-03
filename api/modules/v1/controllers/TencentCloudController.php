@@ -15,11 +15,11 @@ use yii\rest\Controller;
 
 class TencentCloudController extends Controller
 {
-    
+
     public function behaviors()
     {
         $behaviors = parent::behaviors();
-        
+
         // add CORS filter
         $behaviors['corsFilter'] = [
             'class' => \yii\filters\Cors::class,
@@ -37,7 +37,7 @@ class TencentCloudController extends Controller
                 ],
             ],
         ];
-        
+
         return $behaviors;
     }
     public function actions()
@@ -49,11 +49,36 @@ class TencentCloudController extends Controller
         $cloud = \Yii::$app->secret->cloud;
         return $cloud;
     }
+    public function actionStore()
+    {
+        $cloud = \Yii::$app->secret->cloud;
+        $bucket = $cloud['bucket'];
+        $region = $cloud['region'];
+        $result = $this->actionToken($bucket, $region);
+        $credentials = $result->getCredentials();
+        $token = $credentials->getToken();
+        $tmpSecretId = $credentials->getTmpSecretId();
+        $tmpSecretKey = $credentials->getTmpSecretKey();
+        return [
+            'message' => 'success',
+            'success' => true,
+            'data' => [
+                'bucket' => $bucket,
+                'region' => $region,
+                'token' => $token,
+                'tmpSecretId' => $tmpSecretId,
+                'tmpSecretKey' => $tmpSecretKey,
+                'expiredTime' => $result->getExpiredTime(),
+                'expiration' => $result->getExpiration(),
+                'requestId' => $result->getRequestId(),
+            ]
+        ];
+    }
     public function actionToken($bucket, $region = 'ap-nanjing')
     {
-        
+
         $cred = new Credential(Yii::$app->secret->id, Yii::$app->secret->key);
-        
+
         // 实例化一个http选项，可选的，没有特殊需求可以跳过
         $httpProfile = new HttpProfile();
         // 配置代理
@@ -61,14 +86,14 @@ class TencentCloudController extends Controller
         $httpProfile->setReqMethod("POST"); // post请求(默认为post请求)
         $httpProfile->setReqTimeout(30); // 请求超时时间，单位为秒(默认60秒)
         $httpProfile->setEndpoint("sts.tencentcloudapi.com"); // 指定接入地域域名(默认就近接入)
-        
+
         // 实例化一个client选项，可选的，没有特殊需求可以跳过
         $clientProfile = new ClientProfile();
         $clientProfile->setSignMethod("TC3-HMAC-SHA256"); // 指定签名算法(默认为HmacSHA256)
         $clientProfile->setHttpProfile($httpProfile);
-        
+
         $client = new StsClient($cred, $region, $clientProfile);
-        
+
         // 实例化一个请求对象
         $req = new GetFederationTokenRequest();
         $req->Name = "mrpp";
@@ -99,11 +124,11 @@ class TencentCloudController extends Controller
         );
         $policyStr = str_replace('\\/', '/', json_encode($policy));
         $req->Policy = urlencode($policyStr);
-        
+
         // 通过client对象调用想要访问的接口，需要传入请求对象
         $resp = $client->GetFederationToken($req);
         //!!$resp->StartTime = time();
         return $resp;
     }
-    
+
 }
