@@ -68,6 +68,7 @@ class TencentCloudController extends Controller
                 'token' => $token,
                 'tmpSecretId' => $tmpSecretId,
                 'tmpSecretKey' => $tmpSecretKey,
+                'startTime' => time(),
                 'expiredTime' => $result->getExpiredTime(),
                 'expiration' => $result->getExpiration(),
                 'requestId' => $result->getRequestId(),
