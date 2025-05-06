@@ -2,6 +2,7 @@
 namespace app\modules\v1\controllers;
 use Yii;
 use yii\rest\Controller;
+use EasyWeChat\MiniApp;
 use app\modules\v1\models\Player;
 use app\modules\v1\models\User;
 use bizley\jwt\JwtHttpBearerAuth;
@@ -15,17 +16,27 @@ class WeChatController extends Controller
       
         $behaviors = parent::behaviors();
        
-        $behaviors['authenticator'] = [
-          'class' => CompositeAuth::class,
-          'authMethods' => [
-              JwtHttpBearerAuth::class,
-          ],
-          'except' => ['options'],
-        ];
         return $behaviors;
     }
     
+   public function actionOpenid()
+   {
+      $code = Yii::$app->request->post("code");
+      if(!$code){
+        throw new \yii\web\HttpException(400, 'code is required');
+      }
+      $wechat = Yii::$app->wechat;
+      $app = $wechat->miniApp();
+      $utils = $app->getUtils();
+
+      //如何拿到 unionid
+      //https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/open-api-3rd/unionid.html
+      $response = $utils->codeToSession($code);
+
    
+      return $response;
+
+   }
 
   public function actionCreditMoney()//存钱
   {

@@ -45,6 +45,13 @@ $config = [
                 'region' => getenv('COS_BUCKETS_REGION'),
             ],
         ],
+        'wechat' => [
+            'class' => \app\modules\v1\components\Wechat::class,
+            'app_id' => getenv('WECHAT_APP_ID'),
+            'secret' => getenv('WECHAT_SECRET'),
+            'token' => getenv('WECHAT_TOKEN'),
+            'aes_key' => getenv('WECHAT_AES_KEY'),
+        ],
         'jwt' => [
             'class' => \bizley\jwt\Jwt::class,
             'signer' => \bizley\jwt\Jwt::HS256,
@@ -143,8 +150,9 @@ $config = [
                     'controller' => 'v1/we-chat',
                     'pluralize' => false,
                     'extraPatterns' => [
-                        'POST credit-money' => 'credit-money',
-                        'GET credit-money' => 'credit-money',
+                     //   'POST credit-money' => 'credit-money',
+                      //  'GET credit-money' => 'credit-money',
+                        'POST openid' => 'openid',
                     ],
                 ],
                 [
