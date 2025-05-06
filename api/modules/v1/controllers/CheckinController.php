@@ -54,7 +54,7 @@ class CheckinController extends Controller
     }
     public function actionDeleteReady()
     {
-        $openid = Yii::$app->request->post("openid");
+        $openid = Yii::$app->request->get("openid");
         if (!$openid) {
             throw new \yii\web\HttpException(400, 'openid is required');
         }
