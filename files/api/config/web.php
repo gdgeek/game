@@ -218,6 +218,7 @@ $config = [
                     'pluralize' => false,
                     'extraPatterns' => [
                         'POST ready' => 'ready',
+                        'GET is-ready' => 'is-ready',
                     ],
                 ],
                 [
