@@ -21,7 +21,7 @@ class CheckinController extends Controller
   }
   
   public function actionIsReady(){
-    $token = Yii::$app->request->post("token");
+    $token = Yii::$app->request->get("token");
     if (!$token) {
       throw new \yii\web\HttpException(400, 'token is required');
     }
