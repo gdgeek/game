@@ -22,7 +22,8 @@
         "lcobucci/jwt": "^5.0",
         "lcobucci/clock": "^3.3",
         "tencentcloud/sts": "^3.0",
-        "w7corp/easywechat": "^6.17"
+        "w7corp/easywechat": "^6.17",
+        "yiisoft/yii2-redis": "^2.0"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.1.0",

@@ -34,6 +34,7 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         'y' => 
         array (
             'yii\\symfonymailer\\' => 18,
+            'yii\\redis\\' => 10,
             'yii\\gii\\' => 8,
             'yii\\faker\\' => 10,
             'yii\\debug\\' => 10,
@@ -146,6 +147,10 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         'yii\\symfonymailer\\' => 
         array (
             0 => __DIR__ . '/..' . '/yiisoft/yii2-symfonymailer/src',
+        ),
+        'yii\\redis\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/yiisoft/yii2-redis/src',
         ),
         'yii\\gii\\' => 
         array (

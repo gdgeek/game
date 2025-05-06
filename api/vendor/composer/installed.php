@@ -3,7 +3,7 @@
         'name' => 'yiisoft/yii2-app-basic',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'c8c1562bbdf1b897a4b5b570555ed98536da4006',
+        'reference' => '523ecf2251be422c2d94e13b0fb08af981627186',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -1030,7 +1030,7 @@
         'yiisoft/yii2-app-basic' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'c8c1562bbdf1b897a4b5b570555ed98536da4006',
+            'reference' => '523ecf2251be422c2d94e13b0fb08af981627186',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -1080,6 +1080,15 @@
             'install_path' => __DIR__ . '/../yiisoft/yii2-gii',
             'aliases' => array(),
             'dev_requirement' => true,
+        ),
+        'yiisoft/yii2-redis' => array(
+            'pretty_version' => '2.0.18',
+            'version' => '2.0.18.0',
+            'reference' => '08aecdf44e091c5fae3411e719ac0fdb803ef594',
+            'type' => 'yii2-extension',
+            'install_path' => __DIR__ . '/../yiisoft/yii2-redis',
+            'aliases' => array(),
+            'dev_requirement' => false,
         ),
         'yiisoft/yii2-symfonymailer' => array(
             'pretty_version' => '2.0.4',
