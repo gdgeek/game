@@ -22,11 +22,11 @@ class CheckinController extends Controller
 
 
 
-    public function actionIsReady()
+    public function actionStatus()
     {
         $token = Yii::$app->request->get("token");
         $openid = Yii::$app->request->get("openid");
-        
+
         if (!$token && !$openid) {
             throw new \yii\web\HttpException(400, 'token and openid is required');
           
@@ -58,7 +58,7 @@ class CheckinController extends Controller
         }
 
     }
-    public function actionDeleteReady()
+    public function actionClose()
     {
         $openid = Yii::$app->request->get("openid");
         if (!$openid) {

@@ -218,8 +218,8 @@ $config = [
                     'pluralize' => false,
                     'extraPatterns' => [
                         'POST ready' => 'ready',
-                        'GET ready' => 'is-ready',
-                        'DELETE ready' => 'delete-ready',
+                        'GET status' => 'status',
+                        'DELETE close' => 'close',
                     ],
                 ],
                 [
