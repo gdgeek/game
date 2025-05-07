@@ -35,7 +35,7 @@ class WeChatController extends Controller
     $response = $utils->codeToSession($code);
 
 
-    return $response;
+    return ['openid' => $response['openid'], 'scuess' => true, 'message' => 'success'];
 
   }
   /*
