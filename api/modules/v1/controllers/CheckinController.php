@@ -25,13 +25,19 @@ class CheckinController extends Controller
     public function actionIsReady()
     {
         $token = Yii::$app->request->get("token");
-        if (!$token) {
-            throw new \yii\web\HttpException(400, 'token is required');
+        $openid = Yii::$app->request->get("openid");
+        
+        if (!$token && !$openid) {
+            throw new \yii\web\HttpException(400, 'token and openid is required');
+          
         }
 
-
-        // Checkin::find()->where(['token' => $token])->andWhere(['openid' => $openid])->one();
-        $checkin = Checkin::find()->where(['token' => $token])->one();
+        if($token){
+            $checkin = Checkin::find()->where(['token' => $token])->one();
+        }else if($openid){
+            $checkin = Checkin::find()->where(['openid' => $openid])->one();
+        }
+        
 
         if ($checkin) {
             return [
