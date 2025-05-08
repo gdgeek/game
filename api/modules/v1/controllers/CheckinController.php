@@ -44,7 +44,8 @@ class CheckinController extends Controller
                 'scuess' => true,
                 'message' => 'already checkin',
                 'data' => [
-                    'status' => $checkin->status
+                    'status' => $checkin->status,
+                    'token' => $checkin->token,
                 ]
             ];
         } else {
@@ -53,6 +54,7 @@ class CheckinController extends Controller
                 'message' => 'not checkin',
                 'data' => [
                     'status' => 'waiting',
+                    'token' => $token,
                 ]
             ];
         }
