@@ -29,8 +29,11 @@ class CheckinController extends Controller
         if(!$checkin){
             throw new \yii\web\HttpException(400, 'checkin not found');
         }
-        $file = new RecodeFile();
-        $file->token = $token;
+        $file = RecodeFile::find()->where(['token' => $token])->one();
+        if(!$file){
+            $file = new RecodeFile();
+            $file->token = $token;
+        }
         $file->key = $key;
         $file->openid = $checkin->openid;
         $file->created_at = strval(time());
