@@ -3,11 +3,7 @@ namespace app\modules\v1\controllers;
 use Yii;
 use yii\rest\Controller;
 use app\modules\v1\models\Checkin;
-use EasyWeChat\MiniApp;
-use app\modules\v1\models\Player;
-use app\modules\v1\models\User;
-use bizley\jwt\JwtHttpBearerAuth;
-use yii\filters\auth\CompositeAuth;
+use app\modules\v1\models\RecodeFile;
 
 class CheckinController extends Controller
 {
@@ -25,37 +21,100 @@ class CheckinController extends Controller
     public function actionStatus()
     {
         $token = Yii::$app->request->get("token");
-      
+        
         if (!$token) {
-            throw new \yii\web\HttpException(400, 'token and openid is required');
+            throw new \yii\web\HttpException(400, 'token is required');
         }
 
-        // if($token){
+      
         $checkin = Checkin::find()->where(['token' => $token])->one();
-     
+       
+        $file = RecodeFile::find()->where(['token' => $token])->one();
 
         if ($checkin) {
             return [
                 'scuess' => true,
                 'message' => 'already checkin',
                 'data' => [
-                    'status' => $checkin->status,
-                    'token' => $checkin->token,
-                    'openid' => $checkin->openid,
+                    'checkin' => $checkin,
+                    'file' => $file
                 ]
             ];
         } else {
             return [
-                'scuess' => true,
-                'message' => 'not checkin',
-                'data' => [
-                    'status' => 'waiting',
-                    'token' => $token,
-                ]
+                'scuess' => false,
+                'message' => 'not checkin'
             ];
         }
-
     }
+  
+    public function actionStatusOver(){
+        $token = Yii::$app->request->post("token");
+        $openid = Yii::$app->request->post("openid");
+        if (!$token) {
+            throw new \yii\web\HttpException(400, 'token is required');
+        }
+        if (!$openid) {
+            throw new \yii\web\HttpException(400, 'openid is required');
+        }
+        $checkin = Checkin::find()->where(['token' => $token, 'openid'=>$openid])->one();
+
+        if ($checkin) {
+            $checkin->delete();
+            return [
+                'scuess' => true,
+                'message' => 'success'
+            ];
+        }else {
+            return [
+                'scuess' => false,
+                'message' => 'not checkin',
+            ];
+        }
+    }
+    
+    private function changeState($status){
+
+        $token = Yii::$app->request->post("token");
+        $openid = Yii::$app->request->post("openid");
+        if (!$token) {
+            throw new \yii\web\HttpException(400, 'token is required');
+        }
+        if (!$openid) {
+            throw new \yii\web\HttpException(400, 'openid is required');
+        }
+        $checkin = Checkin::find()->where(['token' => $token, 'openid'=>$openid])->one();
+
+        if(!$checkin){
+            $checkin = new Checkin();
+            $checkin->created_at =strval(time());
+            $checkin->token = $token;
+            $checkin->openid = $openid;
+        }
+        if($checkin->status != $status){
+            $checkin->status = $status;
+            $checkin->updated_at = strval(time());
+            $checkin->save();
+        }
+       
+        
+        return [
+            'scuess' => true,
+            'message' => 'success',
+            'data' => $checkin
+        ];
+    }
+
+    public function actionStatusReady(){
+        return $this->changeState("ready");
+    }
+    public function actionStatusLinked(){
+        return $this->changeState("linked");
+    }
+  
+ 
+   
+    
     public function actionClose()
     {
         $openid = Yii::$app->request->get("openid");

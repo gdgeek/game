@@ -4,11 +4,11 @@ namespace app\modules\v1\models;
 
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
-class Checkin extends \yii\redis\ActiveRecord
+class RecodeFile extends \yii\redis\ActiveRecord
 {
 
 
- 
+
     /**
      * @return array 定义 Redis 键名前缀
      */
@@ -23,6 +23,6 @@ class Checkin extends \yii\redis\ActiveRecord
      */
     public function attributes()
     {
-        return ['token', 'openid', 'status', 'created_at', 'updated_at'];
+        return ['token', 'file', 'created_at'];
     }
 }

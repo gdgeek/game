@@ -220,6 +220,9 @@ $config = [
                         'POST ready' => 'ready',
                         'GET status' => 'status',
                         'DELETE close' => 'close',
+                        'POST status-linked' => 'status-linked',
+                        'POST status-ready' => 'status-ready',
+                        'POST status-over' => 'status-over',
                     ],
                 ],
                 [
