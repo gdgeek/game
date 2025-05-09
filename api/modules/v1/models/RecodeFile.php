@@ -23,6 +23,6 @@ class RecodeFile extends \yii\redis\ActiveRecord
      */
     public function attributes()
     {
-        return ['token', 'url', 'created_at'];
+        return ['token', 'key', 'openid', 'created_at'];
     }
 }

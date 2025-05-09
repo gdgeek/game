@@ -16,7 +16,32 @@ class CheckinController extends Controller
         return $behaviors;
     }
 
-
+    public function actionUpload(){
+        $token = Yii::$app->request->post("token");
+        if (!$token) {
+            throw new \yii\web\HttpException(400, 'token is required');
+        }
+        $key = Yii::$app->request->post("key");
+        if (!$key) {
+            throw new \yii\web\HttpException(400, 'key is required');
+        }
+        $checkin = Checkin::find()->where(['token' => $token])->one();
+        if(!$checkin){
+            throw new \yii\web\HttpException(400, 'checkin not found');
+        }
+        $file = new RecodeFile();
+        $file->token = $token;
+        $file->key = $key;
+        $file->openid = $checkin->openid;
+        $file->created_at = strval(time());
+        $file->save();
+        return [
+            'scuess' => true,
+            'message' => 'success',
+            'data' => $file
+        ];
+     
+    }
 
     public function actionStatus()
     {
@@ -103,7 +128,7 @@ class CheckinController extends Controller
             'message' => 'success',
             'data' => [
                 'checkin' => $checkin,
-                'file' => RecodeFile::find()->where(['token' => $token])->one()
+                'file' => RecodeFile::find()->where(['token' => $token, 'openid' =>$openid ])->one()
             ]
         ];
     }
