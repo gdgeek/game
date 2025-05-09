@@ -101,7 +101,10 @@ class CheckinController extends Controller
         return [
             'scuess' => true,
             'message' => 'success',
-            'data' => $checkin
+            'data' => [
+                'checkin' => $checkin,
+                'file' => RecodeFile::find()->where(['token' => $token])->one()
+            ]
         ];
     }
 
