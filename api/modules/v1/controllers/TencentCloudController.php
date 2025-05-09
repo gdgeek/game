@@ -114,6 +114,8 @@ class TencentCloudController extends Controller
                         'name/cos:ListParts',
                         'name/cos:UploadPart',
                         'name/cos:CompleteMultipartUpload',
+                        'name/cos:GetPreSignedURL',
+                        'name/cos:GetObjectUrl',
                     ],
                     'effect' => 'allow',
                     'principal' => array('qcs' => array('*')),
