@@ -40,7 +40,7 @@ class CheckinController extends Controller
         $file->save();
         return [
             'scuess' => true,
-            'message' => 'success',
+            'message' => 'file upload success',
             'data' => $file
         ];
      

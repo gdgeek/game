@@ -57,6 +57,12 @@ $config = [
             'secret' => getenv('WECHAT_SECRET'),
             'token' => getenv('WECHAT_TOKEN'),
             'aes_key' => getenv('WECHAT_AES_KEY'),
+            'mch_id' => getenv('WECHAT_MCH_ID'),
+            'private_key' => getenv('WECHAT_PRIVATE_KEY'), // path to your PRIVATE key, you can start the path with @ to indicate this is a Yii alias
+            'certificate' => getenv('WECHAT_CERTIFICATE'), // path to your CERTIFICATE key, you can start the path with @ to indicate this is a Yii alias
+            'pub_key_id' => getenv('WECHAT_PUB_KEY_ID'),
+            'pub_key_path' => getenv('WECHAT_PUB_KEY'),
+            'secret_key' => getenv('WECHAT_SECRET_KEY'), // v3 API secret key
         ],
         'jwt' => [
             'class' => \bizley\jwt\Jwt::class,
