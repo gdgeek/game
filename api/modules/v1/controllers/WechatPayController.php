@@ -156,6 +156,9 @@ class WechatPayController extends Controller
       $wechat = Yii::$app->wechat;
       $app = $wechat->payApp();
 
+      // 调试信息记录
+      Yii::info('查询订单请求参数: mchid=' . $app->getConfig()['mch_id'] . ', outTradeNo=' . $outTradeNo, 'wechat-pay');
+
       // 查询订单API
       $response = $app->getClient()->get('v3/pay/transactions/out-trade-no/' . $outTradeNo, [
         'query' => [
@@ -163,7 +166,8 @@ class WechatPayController extends Controller
         ],
       ]);
 
-      $result = json_decode($response->getBody()->getContents(), true);
+      $result = $response->toArray(false);
+      //$result = json_decode($response->getBody()->getContents(), true);
 
       // 处理查询结果
       return [
