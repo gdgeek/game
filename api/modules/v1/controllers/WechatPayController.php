@@ -91,8 +91,8 @@ class WechatPayController extends Controller
 
       // 使用 V6 方式生成小程序支付参数
       $prepayId = $result['prepay_id'];
-      $config = $app->getUtils()->buildMiniAppConfig($prepayId);  // 小程序使用这个
-
+      $appId = $app->getConfig()['app_id'];
+      $config = $app->getUtils()->buildMiniAppConfig($prepayId, $appId);
       // 如果是公众号JSAPI支付，使用下面这个
       // $config = $app->getUtils()->buildJsApiConfig($prepayId);
 
