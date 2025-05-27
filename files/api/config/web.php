@@ -172,6 +172,8 @@ $config = [
                         'POST wxpay-order' => 'wxpay-order',
                         'POST notify' => 'notify',
                         'GET notify' => 'notify',
+                     //   WxpayQueryOrderByOutTradeNo
+                        'GET wxpay-query-order-by-out-trade-no' => 'wxpay-query-order-by-out-trade-no',
                         /*
                         'POST refund' => 'refund',
                         'GET refund' => 'refund',

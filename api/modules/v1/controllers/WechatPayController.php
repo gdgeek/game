@@ -137,4 +137,50 @@ class WechatPayController extends Controller
       throw new \yii\web\HttpException(500, '支付通知处理异常: ' . $e->getMessage());
     }
   }
+
+  /**
+   * 根据商户订单号查询微信支付订单
+   */
+  public function actionWxpayQueryOrderByOutTradeNo()
+  {
+    Yii::$app->response->format = Response::FORMAT_JSON;
+
+    $request = Yii::$app->request;
+    $outTradeNo = $request->get('out_trade_no'); // 商户订单号
+
+    if (empty($outTradeNo)) {
+      return ['code' => 400, 'message' => '缺少商户订单号参数'];
+    }
+
+    try {
+      $wechat = Yii::$app->wechat;
+      $app = $wechat->payApp();
+
+      // 查询订单API
+      $response = $app->getClient()->get('v3/pay/transactions/out-trade-no/' . $outTradeNo, [
+        'query' => [
+          'mchid' => $app->getConfig()['mch_id'],
+        ],
+      ]);
+
+      $result = json_decode($response->getBody()->getContents(), true);
+
+      // 处理查询结果
+      return [
+        'code' => 0,
+        'message' => '查询成功',
+        'data' => [
+          'order_info' => $result,
+          'trade_state' => $result['trade_state'] ?? '',
+          'trade_state_desc' => $result['trade_state_desc'] ?? '',
+        ]
+      ];
+    } catch (\Exception $e) {
+      Yii::error('查询订单失败: ' . $e->getMessage() . ', 订单号: ' . $outTradeNo, 'wechat-pay');
+      return [
+        'code' => 500,
+        'message' => '查询订单失败: ' . $e->getMessage(),
+      ];
+    }
+  }
 }
