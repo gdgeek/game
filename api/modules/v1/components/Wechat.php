@@ -26,6 +26,9 @@ class Wechat extends Component
         $config = [
             'mch_id' => $this->mch_id,
 
+
+            'app_id' => $this->app_id,
+
             // 商户证书
             'private_key' => $this->private_key,
             'certificate' => $this->certificate,
