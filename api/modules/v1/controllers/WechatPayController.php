@@ -187,4 +187,169 @@ class WechatPayController extends Controller
       ];
     }
   }
+
+  /**
+   * 申请退款
+   */
+  public function actionWxpayRefund()
+  {
+    Yii::$app->response->format = Response::FORMAT_JSON;
+
+    $request = Yii::$app->request;
+    $outTradeNo = $request->post('out_trade_no'); // 原商户订单号
+    $outRefundNo = $request->post('out_refund_no'); // 商户退款单号
+    $reason = $request->post('reason', ''); // 退款原因
+    $refundAmount = $request->post('refund_amount'); // 退款金额
+    $totalAmount = $request->post('total_amount'); // 订单总金额
+
+    // 参数验证
+    if (empty($outTradeNo)) {
+      return ['code' => 400, 'message' => '缺少商户订单号参数'];
+    }
+
+    if (empty($outRefundNo)) {
+      return ['code' => 400, 'message' => '缺少商户退款单号参数'];
+    }
+
+    if (empty($refundAmount) || !is_numeric($refundAmount) || $refundAmount <= 0) {
+      return ['code' => 400, 'message' => '退款金额参数不正确'];
+    }
+
+    if (empty($totalAmount) || !is_numeric($totalAmount) || $totalAmount <= 0) {
+      return ['code' => 400, 'message' => '订单总金额参数不正确'];
+    }
+
+    // 确保金额为整数类型（单位：分）
+    $refundAmount = (int) $refundAmount;
+    $totalAmount = (int) $totalAmount;
+
+    // 验证退款金额不能大于订单金额
+    if ($refundAmount > $totalAmount) {
+      return ['code' => 400, 'message' => '退款金额不能大于订单总金额'];
+    }
+
+    try {
+      $wechat = Yii::$app->wechat;
+      $app = $wechat->payApp();
+
+      // 调试信息
+      Yii::info('申请退款请求参数: out_trade_no=' . $outTradeNo . ', out_refund_no=' . $outRefundNo
+        . ', refund_amount=' . $refundAmount . ', total_amount=' . $totalAmount, 'wechat-pay');
+
+      // 调用微信支付退款接口
+      $response = $app->getClient()->post('v3/refund/domestic/refunds', [
+        'json' => [
+          'out_trade_no' => $outTradeNo, // 原支付交易对应的商户订单号
+          'out_refund_no' => $outRefundNo, // 商户系统内部的退款单号
+          'reason' => $reason, // 退款原因
+          'amount' => [
+            'refund' => $refundAmount, // 退款金额
+            'total' => $totalAmount, // 原订单金额
+            'currency' => 'CNY',
+          ],
+        ],
+      ]);
+
+      // 使用 V6 方式获取响应内容
+      $result = $response->toArray(false);
+
+      // 处理退款结果
+      return [
+        'code' => 0,
+        'message' => '退款申请成功',
+        'data' => [
+          'refund_id' => $result['refund_id'] ?? '', // 微信支付退款单号
+          'out_refund_no' => $result['out_refund_no'] ?? '', // 商户退款单号
+          'status' => $result['status'] ?? '', // 退款状态
+          'refund_amount' => $result['amount']['refund'] ?? 0, // 退款金额
+          'success_time' => $result['success_time'] ?? '', // 退款成功时间
+        ]
+      ];
+    } catch (\Exception $e) {
+      Yii::error('申请退款失败: ' . $e->getMessage() . ', 订单号: ' . $outTradeNo, 'wechat-pay');
+      return [
+        'code' => 500,
+        'message' => '申请退款失败: ' . $e->getMessage(),
+      ];
+    }
+  }
+
+  /**
+   * 查询退款
+   */
+  public function actionWxpayQueryRefund()
+  {
+    Yii::$app->response->format = Response::FORMAT_JSON;
+
+    $request = Yii::$app->request;
+    $outRefundNo = $request->get('out_refund_no'); // 商户退款单号
+
+    if (empty($outRefundNo)) {
+      return ['code' => 400, 'message' => '缺少商户退款单号参数'];
+    }
+
+    try {
+      $wechat = Yii::$app->wechat;
+      $app = $wechat->payApp();
+
+      // 调试信息记录
+      Yii::info('查询退款请求参数: out_refund_no=' . $outRefundNo, 'wechat-pay');
+
+      // 查询退款API
+      $response = $app->getClient()->get('v3/refund/domestic/refunds/' . $outRefundNo);
+
+      // 使用 V6 方式获取响应内容
+      $result = $response->toArray(false);
+
+      // 处理查询结果
+      return [
+        'code' => 0,
+        'message' => '查询成功',
+        'data' => [
+          'refund_info' => $result,
+          'refund_status' => $result['status'] ?? '',
+          'refund_amount' => $result['amount']['refund'] ?? 0,
+          'success_time' => $result['success_time'] ?? '',
+        ]
+      ];
+    } catch (\Exception $e) {
+      Yii::error('查询退款失败: ' . $e->getMessage() . ', 退款单号: ' . $outRefundNo, 'wechat-pay');
+      return [
+        'code' => 500,
+        'message' => '查询退款失败: ' . $e->getMessage(),
+      ];
+    }
+  }
+
+  /**
+   * 退款回调通知
+   */
+  public function actionRefundNotify()
+  {
+    $wechat = Yii::$app->wechat;
+    $app = $wechat->payApp();
+
+    try {
+      $server = $app->getServer();
+      $response = $server->handleRefunded(function ($message, $fail) {
+        // 退款通知处理逻辑
+        Yii::info('收到退款回调: ' . json_encode($message), 'wechat-pay');
+
+        // 商户退款单号
+        $outRefundNo = $message['out_refund_no'];
+        // 退款状态
+        $refundStatus = $message['refund_status'];
+
+        // TODO: 在这里实现处理退款结果的业务逻辑
+        // 例如更新订单状态、发送通知等
+
+        return true; // 告知微信服务器已成功处理
+      });
+
+      return $response;
+    } catch (\Exception $e) {
+      Yii::error('退款通知处理异常: ' . $e->getMessage(), 'wechat-pay');
+      throw new \yii\web\HttpException(500, '退款通知处理异常: ' . $e->getMessage());
+    }
+  }
 }
