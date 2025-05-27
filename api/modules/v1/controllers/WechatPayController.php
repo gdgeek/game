@@ -39,17 +39,16 @@ class WechatPayController extends Controller
     Yii::$app->response->format = Response::FORMAT_JSON;
 
     $request = Yii::$app->request;
-    $openid = $request->post('openid'); // 从小程序端获取的openid
-    $orderNo = $request->post('order_no'); // 商户订单号
-    $amount = $request->post('amount'); // 金额(单位:分)
-    $description = $request->post('description', '商品支付'); // 商品描述
+    $openid = $request->post('openid');
+    $orderNo = $request->post('order_no');
+    $amount = $request->post('amount');
+    $description = $request->post('description', '商品支付');
 
     if (empty($openid)) {
       return ['code' => 400, 'message' => '缺少openid参数'];
     }
 
     try {
-
       $wechat = Yii::$app->wechat;
       $app = $wechat->payApp();
 
@@ -71,16 +70,19 @@ class WechatPayController extends Controller
         ],
       ]);
 
-      $result = json_decode($response->getBody()->getContents(), true);
+      // 使用 V6 方式获取响应内容
+      $result = $response->toArray(false);
 
       if (!isset($result['prepay_id'])) {
         throw new \Exception('获取prepay_id失败: ' . json_encode($result));
-
       }
 
-      // 生成小程序支付参数
+      // 使用 V6 方式生成小程序支付参数
       $prepayId = $result['prepay_id'];
-      $config = $app->getJsapiConfig($prepayId);
+      $config = $app->getUtils()->buildMiniAppConfig($prepayId);  // 小程序使用这个
+
+      // 如果是公众号JSAPI支付，使用下面这个
+      // $config = $app->getUtils()->buildJsApiConfig($prepayId);
 
       return [
         'code' => 0,
@@ -106,29 +108,15 @@ class WechatPayController extends Controller
     try {
       $server = $app->getServer();
       $response = $server->handlePaid(function ($message, $fail) {
-        // 1. 检查订单是否存在
-        // $order = Order::findOne(['out_trade_no' => $message['out_trade_no']]);
-        // if (!$order) {
-        //     return $fail('订单不存在');
-        // }
-
-        // 2. 检查订单是否已支付
-        // if ($order->status === 'paid') {
-        //     return true;
-        // }
-
-        // 3. 检查金额是否匹配
-        // if ($order->total_fee !== $message['amount']['total']) {
-        //     return $fail('金额不一致');
-        // }
-
-        // 4. 标记订单为已支付
-        // $order->status = 'paid';
-        // $order->transaction_id = $message['transaction_id'];
-        // $order->paid_at = time();
-        // $order->save();
-
-        return true; // 返回处理完成
+        // 实现订单查询和状态更新逻辑
+        /*$order = YourOrderModel::findOne(['out_trade_no' => $message['out_trade_no']]);
+        if (!$order) {
+          return $fail('订单不存在');
+        }
+        // 更新订单状态逻辑
+        $order->status = 'paid';
+        $order->save();*/
+        return true;
       });
 
       return $response;
