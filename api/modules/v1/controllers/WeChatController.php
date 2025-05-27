@@ -23,9 +23,9 @@ class WeChatController extends Controller
   public function actionInfo(){
 
     $wechat = Yii::$app->wechat;
-    //$app = $wechat->payApp();
+    $app = $wechat->payApp();
    
-    return $wechat;
+    return $app;
   }
 
   public function actionOpenid()
