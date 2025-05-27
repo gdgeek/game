@@ -24,10 +24,10 @@ class WechatPayController extends Controller
   public function actionInfo()
   {
 
-    $wechat = Yii::$app->wechat;
-    $app = $wechat->payApp();
+   // $wechat = Yii::$app->wechat;
+   // $app = $wechat->payApp();
 
-    return $app;
+    return Yii::$app->urlManager->createAbsoluteUrl(['wechat-pay/notify']);
   }
 
 
