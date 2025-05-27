@@ -352,4 +352,82 @@ class WechatPayController extends Controller
       throw new \yii\web\HttpException(500, '退款通知处理异常: ' . $e->getMessage());
     }
   }
+
+
+  /**
+   * 根据微信支付订单号查询订单
+   */
+  public function actionWxpayQueryOrderByTransactionId()
+  {
+    Yii::$app->response->format = Response::FORMAT_JSON;
+
+    $request = Yii::$app->request;
+    $transactionId = $request->get('transaction_id'); // 微信支付订单号
+
+    if (empty($transactionId)) {
+      return ['code' => 400, 'message' => '缺少微信支付订单号参数'];
+    }
+
+    // 验证微信支付订单号格式（通常是28位数字）
+    if (!preg_match('/^\d{28}$/', $transactionId)) {
+      return ['code' => 400, 'message' => '微信支付订单号格式不正确，应为28位数字'];
+    }
+
+    try {
+      $wechat = Yii::$app->wechat;
+      $app = $wechat->payApp();
+
+      // 调试信息记录
+      Yii::info('查询订单请求参数: mchid=' . $app->getConfig()['mch_id'] . ', transaction_id=' . $transactionId, 'wechat-pay');
+
+      // 查询订单API
+      $response = $app->getClient()->get('v3/pay/transactions/id/' . $transactionId, [
+        'query' => [
+          'mchid' => $app->getConfig()['mch_id'],
+        ],
+      ]);
+
+      // 使用 V6 方式获取响应内容
+      $result = $response->toArray(false);
+
+      // 处理查询结果
+      return [
+        'code' => 0,
+        'message' => '查询成功',
+        'data' => [
+          'order_info' => $result,
+          'trade_state' => $result['trade_state'] ?? '',
+          'trade_state_desc' => $result['trade_state_desc'] ?? '',
+          'out_trade_no' => $result['out_trade_no'] ?? '',
+          'transaction_id' => $result['transaction_id'] ?? '',
+          'amount' => $result['amount']['total'] ?? 0,
+          'payer' => $result['payer'] ?? [],
+          'success_time' => $result['success_time'] ?? '',
+        ]
+      ];
+    } catch (\Symfony\Component\HttpClient\Exception\ClientException $e) {
+      // 处理客户端异常，如404表示订单不存在
+      if ($e->getCode() === 404) {
+        return [
+          'code' => 404,
+          'message' => '订单不存在',
+          'data' => null
+        ];
+      }
+      Yii::error('查询订单失败: ' . $e->getMessage() . ', 微信支付订单号: ' . $transactionId, 'wechat-pay');
+      return [
+        'code' => 500,
+        'message' => '查询订单失败: ' . $e->getMessage(),
+      ];
+    } catch (\Exception $e) {
+      // 处理其他异常
+      Yii::error('查询订单失败: ' . $e->getMessage() . ', 微信支付订单号: ' . $transactionId, 'wechat-pay');
+      return [
+        'code' => 500,
+        'message' => '查询订单失败: ' . $e->getMessage(),
+      ];
+    }
+  }
+
+
 }

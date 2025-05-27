@@ -6,19 +6,19 @@ $db = require __DIR__ . '/db.php';
 $config = [
     'id' => 'restful',
     'basePath' => dirname(__DIR__),
-    'timeZone' => 'Asia/Shanghai', 
+    'timeZone' => 'Asia/Shanghai',
     'bootstrap' => ['log'],
     'controllerNamespace' => 'app\controllers',
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
-        '@npm'   => '@vendor/npm-asset',
+        '@npm' => '@vendor/npm-asset',
     ],
     'modules' => [
         'v1' => [
             'class' => 'app\modules\v1\Module',
         ],
     ],
-    
+
     'as cors' => [
         'class' => \yii\filters\Cors::className(),
         'cors' => [
@@ -68,11 +68,11 @@ $config = [
             'class' => \bizley\jwt\Jwt::class,
             'signer' => \bizley\jwt\Jwt::HS256,
             'signingKey' => [
-                'key' =>  getenv('JWT_KEY'), // path to your PRIVATE key, you can start the path with @ to indicate this is a Yii alias
+                'key' => getenv('JWT_KEY'), // path to your PRIVATE key, you can start the path with @ to indicate this is a Yii alias
                 'passphrase' => '', // omit it if you are not adding any passphrase
                 'method' => \bizley\jwt\Jwt::METHOD_FILE,
             ],
-            'validationConstraints'=> static function (\bizley\jwt\Jwt $jwt) {
+            'validationConstraints' => static function (\bizley\jwt\Jwt $jwt) {
                 $config = $jwt->getConfiguration();
                 return [
                     new \Lcobucci\JWT\Validation\Constraint\SignedWith($config->signer(), $config->verificationKey()),
@@ -90,7 +90,7 @@ $config = [
             ],
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
             'cookieValidationKey' => '1IGWolYN-GxNJpfxx84J24XhP2iFh4GZ',
-        ],        
+        ],
         'cache' => [
             //  'class' => 'yii\caching\FileCache',
             'class' => 'yii\redis\Cache',
@@ -126,13 +126,13 @@ $config = [
             ],
         ],
         'db' => $db,
-        
+
         'urlManager' => [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'enableStrictParsing' => true,
             'rules' => [
-                
+
                 [
                     'pattern' => 'apple-app-site-association',
                     'route' => 'site/apple-app-site-association',
@@ -153,14 +153,14 @@ $config = [
                     'controller' => 'v1/system',
                     'pluralize' => false,
                     'extraPatterns' => [
-                        
+
                         'GET player-info' => 'player-info',
                         'GET ready-game' => 'ready-game',
                         'GET ready' => 'ready',
                         'GET reset-shop' => 'reset-shop',
-                        'POST give'=> 'give',
-                        'POST close-record'=> 'close-record',
-                        'POST deduct-points'=>'deduct-points',
+                        'POST give' => 'give',
+                        'POST close-record' => 'close-record',
+                        'POST deduct-points' => 'deduct-points',
                     ],
                 ],
                 [
@@ -172,13 +172,11 @@ $config = [
                         'POST wxpay-order' => 'wxpay-order',
                         'POST notify' => 'notify',
                         'GET notify' => 'notify',
-                     //   WxpayQueryOrderByOutTradeNo
                         'GET wxpay-query-order-by-out-trade-no' => 'wxpay-query-order-by-out-trade-no',
-                        /*
-                        'POST refund' => 'refund',
-                        'GET refund' => 'refund',
-                        'POST query' => 'query',
-                        'GET query' => 'query',*/
+                        'GET wxpay-query-order-by-transaction-id' => 'wxpay-query-order-by-transaction-id',
+                        'POST refund-notify' => 'refund-notify',
+                        'GET wxpay-query-refund' => 'wxpay-query-refund',
+                        'POST wxpay-refund' => 'wxpay-refund',
                     ],
                 ],
                 [
@@ -208,7 +206,7 @@ $config = [
                         'GET async-routes' => 'async-routes',
                     ],
                 ],
-                
+
                 [
                     'class' => 'yii\rest\UrlRule',
                     'controller' => 'v1/game',
@@ -265,7 +263,7 @@ $config = [
                 ],
             ],
         ],
-        
+
     ],
     'params' => $params,
 ];
@@ -294,7 +292,7 @@ if (YII_ENV_DEV) {
         // uncomment the following to add your IP if you are not connecting from localhost.
         //'allowedIPs' => ['127.0.0.1', '::1'],
     ];
-    
+
     $config['bootstrap'][] = 'gii';
     $config['modules']['gii'] = [
         'class' => 'yii\gii\Module',
