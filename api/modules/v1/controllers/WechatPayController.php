@@ -27,7 +27,7 @@ class WechatPayController extends Controller
    // $wechat = Yii::$app->wechat;
    // $app = $wechat->payApp();
 
-    return Yii::$app->urlManager->createAbsoluteUrl(['wechat-pay/notify']);
+    return Yii::$app->urlManager->createAbsoluteUrl(['v1/wechat-pay/notify']);
   }
 
 
@@ -59,7 +59,7 @@ class WechatPayController extends Controller
           'mchid' => $app->getConfig()['mch_id'],
           'description' => $description,
           'out_trade_no' => $orderNo,
-          'notify_url' => Yii::$app->urlManager->createAbsoluteUrl(['wechat-pay/notify']),
+          'notify_url' => Yii::$app->urlManager->createAbsoluteUrl(['v1/wechat-pay/notify']),
           'amount' => [
             'total' => (int) $amount,
             'currency' => 'CNY',
