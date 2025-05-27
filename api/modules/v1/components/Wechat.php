@@ -11,7 +11,7 @@ class Wechat extends Component
     public $token;
     public $aes_key;
 
-    public ?int  $mch_id;
+    public ?string  $mch_id;
 
     public ?string $private_key;
     public ?string $certificate;
