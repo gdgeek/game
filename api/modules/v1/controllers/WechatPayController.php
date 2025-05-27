@@ -39,12 +39,25 @@ class WechatPayController extends Controller
 
     $request = Yii::$app->request;
     $openid = $request->post('openid');
-    $orderNo = $request->post('order_no');
+    $orderNo = $request->post('out_trade_no');
     $amount = $request->post('amount');
     $description = $request->post('description', '商品支付');
 
     if (empty($openid)) {
       return ['code' => 400, 'message' => '缺少openid参数'];
+    }
+
+
+    if (empty($orderNo)) {
+      return ['code' => 400, 'message' => '缺少商户订单号参数'];
+    }
+
+    if (empty($amount) || !is_numeric($amount)) {
+      return ['code' => 400, 'message' => '金额参数不正确'];
+    }
+
+    if (!preg_match('/^[A-Za-z0-9_-]{6,32}$/', $orderNo)) {
+      return ['code' => 400, 'message' => '商户订单号格式不正确，要求6-32位字母数字或下划线'];
     }
 
     try {
