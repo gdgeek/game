@@ -168,9 +168,8 @@ $config = [
                     'controller' => 'v1/we-chat',
                     'pluralize' => false,
                     'extraPatterns' => [
-                     //   'POST credit-money' => 'credit-money',
-                      //  'GET credit-money' => 'credit-money',
                         'POST openid' => 'openid',
+                        'GET info' => 'info',
                     ],
                 ],
                 [

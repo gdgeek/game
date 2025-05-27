@@ -17,6 +17,8 @@ class Wechat extends Component
     public ?string $certificate;
 
     public ?string $secret_key;
+    public ?string $pub_key_id;
+    public ?string $pub_key_path;
 
     public function payApp()
     {
@@ -44,6 +46,8 @@ class Wechat extends Component
                 // 如果是「微信支付公钥」模式
                 //    使用Key/Value结构， key为微信支付公钥ID，value为微信支付公钥文件绝对路径
                 // "{$pubKeyId}" => '/path/to/wechatpay/pubkey.pem',
+
+                 "{$this->pub_key_id}" => $this->pub_key_path,
             ],
 
             /**
