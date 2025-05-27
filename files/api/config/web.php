@@ -165,6 +165,22 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v1/wechat-pay',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET info' => 'info',
+                        'POST wxpay-order' => 'wxpay-order',
+                        'POST notify' => 'notify',
+                        'GET notify' => 'notify',
+                        /*
+                        'POST refund' => 'refund',
+                        'GET refund' => 'refund',
+                        'POST query' => 'query',
+                        'GET query' => 'query',*/
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
                     'controller' => 'v1/we-chat',
                     'pluralize' => false,
                     'extraPatterns' => [
