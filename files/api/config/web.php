@@ -245,6 +245,8 @@ $config = [
                         'POST status-ready' => 'status-ready',
                         'POST status-over' => 'status-over',
                         'POST upload' => 'upload',
+                        'GET files' => 'files',
+                        'POST action' => 'action',
                     ],
                 ],
                 [
