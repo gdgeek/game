@@ -23,6 +23,6 @@ class Checkin extends \yii\redis\ActiveRecord
      */
     public function attributes()
     {
-        return ['token', 'openid', 'status', 'action', 'created_at', 'updated_at'];
+        return ['token', 'openid', 'status', 'device', 'action', 'created_at', 'updated_at'];
     }
 }

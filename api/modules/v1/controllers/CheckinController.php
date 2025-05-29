@@ -26,7 +26,15 @@ class CheckinController extends Controller
         if (!$key) {
             throw new \yii\web\HttpException(400, 'key is required');
         }
+        $device = Yii::$app->request->post("device");
+        /* if (!$device) {
+             throw new \yii\web\HttpException(400, 'device is required');
+         }*/
+
         $checkin = Checkin::find()->where(['token' => $token])->one();
+
+
+      
         if (!$checkin) {
             throw new \yii\web\HttpException(400, 'checkin not found');
         }
@@ -35,6 +43,7 @@ class CheckinController extends Controller
             $file = new RecodeFile();
             $file->token = $token;
         }
+
         $file->key = $key;
         $file->openid = $checkin->openid;
         $file->created_at = strval(time());
@@ -46,7 +55,8 @@ class CheckinController extends Controller
         ];
     }
 
-    public function actionFiles(){
+    public function actionFiles()
+    {
         $openid = Yii::$app->request->get("openid");
         if (!$openid) {
             throw new \yii\web\HttpException(400, 'openid is required');
@@ -65,7 +75,8 @@ class CheckinController extends Controller
             'data' => $files
         ];
     }
-    public function actionAction(){
+    public function actionAction()
+    {
         $token = Yii::$app->request->post("token");
         if (!$token) {
             throw new \yii\web\HttpException(400, 'token is required');
@@ -74,13 +85,18 @@ class CheckinController extends Controller
         if (!$action) {
             throw new \yii\web\HttpException(400, 'action is required');
         }
-     
+        $device = Yii::$app->request->post("device");
+        if (!$device) {
+            throw new \yii\web\HttpException(400, 'device is required');
+        }
+
 
         $checkin = Checkin::find()->where(['token' => $token])->one();
         if (!$checkin) {
             throw new \yii\web\HttpException(400, 'checkin not found');
         }
         $checkin->action = $action;
+        $checkin->device = $device;
         $checkin->updated_at = strval(time());
         $checkin->save();
         return [
