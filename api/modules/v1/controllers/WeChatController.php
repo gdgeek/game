@@ -20,11 +20,12 @@ class WeChatController extends Controller
   }
 
 
-  public function actionInfo(){
+  public function actionInfo()
+  {
 
     $wechat = Yii::$app->wechat;
     $app = $wechat->payApp();
-   
+
     return $app;
   }
 
@@ -43,7 +44,16 @@ class WeChatController extends Controller
     $response = $utils->codeToSession($code);
 
 
-    return ['openid' => $response['openid'], 'scuess' => true, 'message' => 'success'];
+    // 检查是否包含 unionid
+    $unionid = $response['unionid'] ?? null;
+
+
+    return [
+      'openid' => $response['openid'],
+      'unionid' => $unionid, // 返回 unionid（可能为 null）
+      'success' => true,
+      'message' => $unionid ? 'success' : 'unionid not available (check if user has authorized or follows related official account)'
+    ];
 
   }
 
