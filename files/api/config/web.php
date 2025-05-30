@@ -246,7 +246,7 @@ $config = [
                         'POST status-over' => 'status-over',
                         'POST upload' => 'upload',
                         'GET files' => 'files',
-                        'POST action' => 'action',
+                        'POST report' => 'report',
                     ],
                 ],
                 [

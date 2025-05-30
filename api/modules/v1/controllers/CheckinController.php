@@ -3,6 +3,8 @@ namespace app\modules\v1\controllers;
 use Yii;
 use yii\rest\Controller;
 use app\modules\v1\models\Checkin;
+use app\modules\v1\models\Report;
+
 use app\modules\v1\models\RecodeFile;
 
 class CheckinController extends Controller
@@ -26,10 +28,7 @@ class CheckinController extends Controller
         if (!$key) {
             throw new \yii\web\HttpException(400, 'key is required');
         }
-        $device = Yii::$app->request->post("device");
-        /* if (!$device) {
-             throw new \yii\web\HttpException(400, 'device is required');
-         }*/
+       // $device = Yii::$app->request->post("device");
 
         $checkin = Checkin::find()->where(['token' => $token])->one();
 
@@ -75,7 +74,7 @@ class CheckinController extends Controller
             'data' => $files
         ];
     }
-    public function actionAction()
+    public function actionReport()
     {
         $token = Yii::$app->request->post("token");
         if (!$token) {
@@ -91,18 +90,18 @@ class CheckinController extends Controller
         }
 
 
-        $checkin = Checkin::find()->where(['token' => $token])->one();
-        if (!$checkin) {
-            throw new \yii\web\HttpException(400, 'checkin not found');
-        }
-        $checkin->action = $action;
-        $checkin->device = $device;
-        $checkin->updated_at = strval(time());
-        $checkin->save();
+        $report = Report::find()->where(['token' => $token])->one();
+        if (!$report) {
+            $report = new Report();
+            $report->token = $token;
+            $report->device = $device;
+        } 
+        $report->action = $action;
+        $report->save();
         return [
             'scuess' => true,
             'message' => 'success',
-            'data' => $checkin
+            'data' => $report
         ];
     }
 
@@ -117,6 +116,7 @@ class CheckinController extends Controller
 
         $checkin = Checkin::find()->where(['token' => $token])->one();
         $file = RecodeFile::find()->where(['token' => $token])->one();
+        $report = Report::find()->where(['token' => $token])->one();
 
         if ($checkin) {
             return [
@@ -124,7 +124,8 @@ class CheckinController extends Controller
                 'message' => 'already checkin',
                 'data' => [
                     'checkin' => $checkin,
-                    'file' => $file
+                    'file' => $file,
+                    'report' => $report
                 ]
             ];
         } else {
