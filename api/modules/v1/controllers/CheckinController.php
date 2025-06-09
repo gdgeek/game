@@ -44,11 +44,11 @@ class CheckinController extends Controller
         }
 
         $file->key = $key;
-        $file->openid = $checkin->openid;
+      //  $file->openid = $checkin->openid;
         $file->created_at = strval(time());
         $file->save();
         return [
-            'scuess' => true,
+            'success' => true,
             'message' => 'file upload success',
             'data' => $file
         ];
@@ -63,13 +63,13 @@ class CheckinController extends Controller
         $files = RecodeFile::find()->where(['openid' => $openid])->all();
         if (!$files) {
             return [
-                'scuess' => false,
+                'success' => false,
                 'message' => 'no files found',
                 'data' => []
             ];
         }
         return [
-            'scuess' => true,
+            'success' => true,
             'message' => 'files found',
             'data' => $files
         ];
@@ -99,7 +99,7 @@ class CheckinController extends Controller
         $report->action = $action;
         $report->save();
         return [
-            'scuess' => true,
+            'success' => true,
             'message' => 'success',
             'data' => $report
         ];
@@ -120,7 +120,7 @@ class CheckinController extends Controller
 
         if ($checkin) {
             return [
-                'scuess' => true,
+                'success' => true,
                 'message' => 'already checkin',
                 'data' => [
                     'checkin' => $checkin,
@@ -130,7 +130,7 @@ class CheckinController extends Controller
             ];
         } else {
             return [
-                'scuess' => false,
+                'success' => false,
                 'message' => 'not checkin'
             ];
         }
@@ -151,17 +151,17 @@ class CheckinController extends Controller
         if ($checkin) {
             $checkin->delete();
             return [
-                'scuess' => true,
+                'success' => true,
                 'message' => 'success'
             ];
         } else {
             return [
-                'scuess' => false,
+                'success' => false,
                 'message' => 'not checkin',
             ];
         }
     }
-
+    
     private function changeState($status)
     {
 
@@ -189,7 +189,7 @@ class CheckinController extends Controller
 
 
         return [
-            'scuess' => true,
+            'success' => true,
             'message' => 'success',
             'data' => [
                 'checkin' => $checkin,
@@ -220,12 +220,12 @@ class CheckinController extends Controller
         if ($checkin) {
             $checkin->delete();
             return [
-                'scuess' => true,
+                'success' => true,
                 'message' => 'success'
             ];
         } else {
             return [
-                'scuess' => true,
+                'success' => true,
                 'message' => 'not checkin',
             ];
         }
@@ -247,7 +247,7 @@ class CheckinController extends Controller
 
         if ($checkin && $checkin->openid == $openid) {
             return [
-                'scuess' => true,
+                'success' => true,
                 'message' => 'already checkin',
                 'data' => $checkin
             ];
@@ -261,7 +261,7 @@ class CheckinController extends Controller
         $checkin->file = '';
         if ($checkin->save()) {
             return [
-                'scuess' => true,
+                'success' => true,
                 'message' => 'success',
                 'data' => $checkin
             ];

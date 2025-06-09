@@ -251,6 +251,15 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v1/local',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'POST refresh' => 'refresh',
+                        'GET refresh' => 'refresh',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
                     'controller' => 'v1/manager',
                     'pluralize' => false,
                     'extraPatterns' => [

@@ -23,6 +23,6 @@ class Report extends \yii\redis\ActiveRecord
      */
     public function attributes()
     {
-        return ['token', 'device', 'action', 'data'];
+        return ['token', 'device', 'status', 'data', 'setup', 'created_at', 'updated_at'];
     }
 }

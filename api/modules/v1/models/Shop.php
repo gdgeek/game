@@ -55,22 +55,22 @@ class Shop extends \yii\db\ActiveRecord
     {
         return [
             [['created_at', 'updated_at'], 'safe'],
-            [['price','play_time','rate','advanced'], 'integer'],
+            [['price', 'play_time', 'rate', 'advanced'], 'integer'],
             [['tag'], 'string', 'max' => 255],
         ];
     }
-   
+
     public function fields()
     {
-       $fields = parent::fields();
-       unset($fields['created_at'],$fields['updated_at']);
-   
-       return $fields;
+        $fields = parent::fields();
+        unset($fields['created_at'], $fields['updated_at']);
+
+        return $fields;
     }
 
     public function extraFields()
     {
-        return ['gifts','awards','operation'];
+        return ['gifts', 'awards', 'operation'];
     }
     /**
      * {@inheritdoc}
@@ -89,7 +89,7 @@ class Shop extends \yii\db\ActiveRecord
         ];
     }
 
-    
+
 
     /**
      * Gets query for [[Devices]].
@@ -108,7 +108,7 @@ class Shop extends \yii\db\ActiveRecord
      */
     public function getGifts()
     {
-       
+
         return Gift::find()
             ->joinWith('award')
             ->where(['award.shop_id' => $this->id])
@@ -116,33 +116,33 @@ class Shop extends \yii\db\ActiveRecord
     }
 
     /**
-    * Gets query for [[Operations]].
-    *
-    * @return \yii\db\ActiveQuery
-    */
+     * Gets query for [[Operations]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
     public function getOperation()
     {
         $operation = $this->hasOne(Operation::class, ['shop_id' => 'id'])->one();
-        if(!$operation){
+        if (!$operation) {
             $operation = new Operation();
             $operation->shop_id = $this->id;
-           // $operation->pool = $this->price;
+            // $operation->pool = $this->price;
             $operation->save();
         }
-        return  $operation;
+        return $operation;
     }
 
     /**
-    * Gets query for [[Gains]]. 
-    * 
-    * @return \yii\db\ActiveQuery 
-    */ 
-   public function getGains() 
-   { 
-       return $this->hasMany(Gain::class, ['shop_id' => 'id']); 
-   } 
+     * Gets query for [[Gains]]. 
+     * 
+     * @return \yii\db\ActiveQuery 
+     */
+    public function getGains()
+    {
+        return $this->hasMany(Gain::class, ['shop_id' => 'id']);
+    }
 
-     /**
+    /**
      * Gets query for [[Awards]].
      *
      * @return \yii\db\ActiveQuery
@@ -151,5 +151,5 @@ class Shop extends \yii\db\ActiveRecord
     {
         return $this->hasMany(Award::class, ['shop_id' => 'id']);
     }
-  
+
 }
