@@ -256,6 +256,7 @@ $config = [
                     'extraPatterns' => [
                         'POST refresh' => 'refresh',
                         'GET refresh' => 'refresh',
+                        'GET log' => 'log',
                     ],
                 ],
                 [
