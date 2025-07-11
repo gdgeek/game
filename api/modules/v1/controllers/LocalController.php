@@ -115,7 +115,7 @@ class LocalController extends Controller
         ];
     }
 
-    public function log($token){
+    public function actionLog($token){
 
         $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
         $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
