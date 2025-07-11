@@ -64,7 +64,7 @@ class LocalController extends Controller
         $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
         $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
         $file = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
-
+        
         if ($device) {
             if (!$report) {
                 $report = new Report();
@@ -75,7 +75,12 @@ class LocalController extends Controller
             $status = Yii::$app->request->post("status");
             if ($status) {
                 $report->status = $status;
-                $report->data = Yii::$app->request->post("data");
+              //  $report->data = Yii::$app->request->post("data");
+            }
+
+            $data = Yii::$app->request->post("data");
+            if ($data) {
+                $checkin->data = $data;
             }
             $report->updated_at = strval(time());
             $report->save();
@@ -89,8 +94,13 @@ class LocalController extends Controller
             $status = Yii::$app->request->post("status");
             if ($status) {
                 $checkin->status = $status;
-                $checkin->data = Yii::$app->request->post("data");
+                
             }
+            $data = Yii::$app->request->post("data");
+            if ($data) {
+                $checkin->data = $data;
+            }
+
             $checkin->updated_at = strval(time());
             $checkin->save();
         } elseif ($key) {
