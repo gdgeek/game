@@ -21,45 +21,49 @@ class LocalController extends Controller
 
     public function actionRefresh()
     {
-        $token = Yii::$app->request->post("token");
+        $token = Yii::$app->request->post("token");//这次 的token
+
         if (!$token) {
             throw new \yii\web\HttpException(400, 'token is required');
         }
-        $time = Yii::$app->request->get("time");
-        $hash = Yii::$app->request->get("hash");
+
+        $time = Yii::$app->request->get("time");//得到更新时间
+        $hash = Yii::$app->request->get("hash");//得到hash
+
+
         if (!$time || !$hash) {
             throw new \yii\web\HttpException(400, 'time and hash are required');
         }
 
         $pattern = '/^[A-Z][0-9a-f]{32}$/i';
 
-        if (!preg_match($pattern, $token)) {
+        if (!preg_match($pattern, $token)) {//测试hash
             // 如果不匹配，抛出异常或返回错误信息
             throw new \yii\web\HttpException(400, 'token format error');
         }
 
         // 简单明了的方法：只获取一个参数
-        $device = Yii::$app->request->post("device");
-        $openid = Yii::$app->request->post("openid");
-        $key = Yii::$app->request->post("key");
+        $device = Yii::$app->request->post("device");// 设备标识 这个是给 ar设备用
+        $openid = Yii::$app->request->post("openid");// 微信用户标识 这个是给微信小程序用
+        $key = Yii::$app->request->post("key");// 密钥标识 这个是给文件用
         // 用数组过滤空值，检查是否只有一个参数
         $params = array_filter([$device, $openid, $key]);
+        
         if (count($params) !== 1) {
             throw new \yii\web\HttpException(400, 'Exactly one of device, openid, or key must be provided');
         }
 
-        $param = array_values($params)[0];
+
+        $param = array_values($params)[0];// 获取唯一的参数值
         $salt = "buj1aban.c0m";
-        if (md5($token . $time . $param . $salt) != $hash) {
+        
+        if (md5($token . $time . $param . $salt) != $hash) {//验证是否通过
             throw new \yii\web\HttpException(400, 'hash error');
         }
 
-        $report = Report::find()->where(['token' => $token])->one();
-        $checkin = Checkin::find()->where(['token' => $token])->one();
-        $file = RecodeFile::find()->where(['token' => $token])->one();
-
-
-        
+        $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
+        $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
+        $file = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
 
         if ($device) {
             if (!$report) {
@@ -100,6 +104,22 @@ class LocalController extends Controller
             $file->save();
         }
 
+        return [
+            'success' => true,
+            'message' => 'success',
+            'data' => [
+                'checkin' => $checkin,
+                'report' => $report,
+                'file' => $file,
+            ]
+        ];
+    }
+
+    public function log($token){
+
+        $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
+        $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
+        $file = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
         return [
             'success' => true,
             'message' => 'success',
