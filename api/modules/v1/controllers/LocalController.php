@@ -75,7 +75,6 @@ class LocalController extends Controller
             $status = Yii::$app->request->post("status");
             if ($status) {
                 $report->status = $status;
-              //  $report->data = Yii::$app->request->post("data");
             }
 
             $data = Yii::$app->request->post("data");
@@ -94,7 +93,6 @@ class LocalController extends Controller
             $status = Yii::$app->request->post("status");
             if ($status) {
                 $checkin->status = $status;
-                
             }
             $data = Yii::$app->request->post("data");
             if ($data) {
