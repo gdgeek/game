@@ -79,7 +79,7 @@ class LocalController extends Controller
 
             $data = Yii::$app->request->post("data");
             if ($data) {
-                $checkin->data = $data;
+                $report->data = $data;
             }
             $report->updated_at = strval(time());
             $report->save();
