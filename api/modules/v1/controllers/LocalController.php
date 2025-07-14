@@ -17,7 +17,7 @@ class LocalController extends Controller
         return $behaviors;
     }
 
-    
+
 
     public function actionRefresh()
     {
@@ -48,7 +48,7 @@ class LocalController extends Controller
         $key = Yii::$app->request->post("key");// 密钥标识 这个是给文件用
         // 用数组过滤空值，检查是否只有一个参数
         $params = array_filter([$device, $openid, $key]);
-        
+
         if (count($params) !== 1) {
             throw new \yii\web\HttpException(400, 'Exactly one of device, openid, or key must be provided');
         }
@@ -56,7 +56,7 @@ class LocalController extends Controller
 
         $param = array_values($params)[0];// 获取唯一的参数值
         $salt = "buj1aban.c0m";
-        
+
         if (md5($token . $time . $param . $salt) != $hash) {//验证是否通过
             throw new \yii\web\HttpException(400, 'hash error');
         }
@@ -64,13 +64,15 @@ class LocalController extends Controller
         $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
         $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
         $file = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
-        
+
         if ($device) {
             if (!$report) {
                 $report = new Report();
                 $report->token = $token;
                 $report->device = $device;
+                $report->setup = json_encode(['money' => 500]);
                 $report->created_at = strval(time());
+                
             }
             $status = Yii::$app->request->post("status");
             if ($status) {
@@ -123,7 +125,8 @@ class LocalController extends Controller
         ];
     }
 
-    public function actionLog($token){
+    public function actionLog($token)
+    {
 
         $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
         $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
