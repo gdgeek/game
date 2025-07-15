@@ -78,10 +78,13 @@ class LocalController extends Controller
                     'b4' => 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/a4.png',
                     'b5' => 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/a5.png',
                     'b6' => 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/a6.png',
+                    
                 ]]]); // 示例数据
                 $report->created_at = strval(time());
 
             }
+
+            
             $status = Yii::$app->request->post("status");
             if ($status) {
                 $report->status = $status;
