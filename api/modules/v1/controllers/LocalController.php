@@ -75,10 +75,10 @@ class LocalController extends Controller
                     [
                         'pictures' =>
                             [
-                                'b1' => 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/s1.png',
-                                'b2' => 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/s2.png',
-                                'b3' => 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/s3.png',
-                                'b4' => 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/s4.png',
+                                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/s1.png',
+                                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/s2.png',
+                                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/s3.png',
+                                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/s4.png',
                             ]
                     ]
                 ]); // 示例数据
