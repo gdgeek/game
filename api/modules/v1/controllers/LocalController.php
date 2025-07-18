@@ -71,7 +71,7 @@ class LocalController extends Controller
                 $report->token = $token;
                 $report->device = $device;
                 $report->setup = json_encode([
-                    'money' => 500,
+                    'money' => 0,
                     [
                         'pictures' =>
                             [
@@ -79,6 +79,13 @@ class LocalController extends Controller
                                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/s2.png',
                                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/s3.png',
                                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/s4.png',
+                            ],
+                        'shot' =>
+                            [
+                                1.1,
+                                2.12,
+                                10.3,
+                                11.4,
                             ]
                     ]
                 ]); // 示例数据
