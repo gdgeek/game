@@ -4,6 +4,13 @@ namespace app\modules\v1\models;
 
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
+
+// 1先上传文件，并把文件储存在本地。 文件包括地址，时间，以及文件md5 和 key 以及 用户openid或者 uniid,
+
+// 2通过 id 可以看到文件列表
+
+
+
 class RecodeFile extends \yii\redis\ActiveRecord
 {
 

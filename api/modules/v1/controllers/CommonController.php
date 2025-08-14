@@ -14,6 +14,7 @@ use  app\modules\v1\models\PlayerToken;
 class CommonController extends Controller
 {
 
+    
     public function behaviors()
     {
       
@@ -47,11 +48,11 @@ class CommonController extends Controller
     }
     public function actionTest(){
       //打印日志
-
-      $helper = Yii::$app->helper;
-      return $helper->play("auth");
+      
+      return "1123";
     
     }
+
 
 
 

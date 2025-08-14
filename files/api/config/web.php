@@ -143,6 +143,7 @@ $config = [
                     'controller' => 'v1/common',
                     'pluralize' => false,
                     'extraPatterns' => [
+                        'GET test' => 'test',
                         'POST sign-in' => 'sign-in',
                         'POST sign-up' => 'sign-up',
                         'POST refresh-token' => 'refresh-token',
@@ -196,6 +197,14 @@ $config = [
                         'GET token' => 'token',
                         'GET cloud' => 'cloud',
                         'GET store' => 'store',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v1/q-cloud',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET object-url' => 'object-url'
                     ],
                 ],
                 [
@@ -257,6 +266,7 @@ $config = [
                         'POST refresh' => 'refresh',
                         'GET refresh' => 'refresh',
                         'GET log' => 'log',
+                        'GET test' => 'test',
                     ],
                 ],
                 [

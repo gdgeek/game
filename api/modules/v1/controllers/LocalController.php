@@ -18,9 +18,107 @@ class LocalController extends Controller
     }
 
 
+    private function getReport($token, $device)
+    {
+        $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
+        if (!$device) {
+            return $report;
+        }
+        if (!$report) {
+            $report = new Report();
+            $report->token = $token;
+            $report->device = $device;
+            $report->created_at = strval(time());
+            $report->setup = json_encode([
+                'money' => 0,
+                [
+                    'pictures' =>
+                        [
+                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.png',
+                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.png',
+                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
+                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
+                        ],
+                    'shot' =>
+                        [
+                            1,
+                            5,
+                            10,
+                            20,
+                        ]
+                ]
 
+            ]); // 示例数据
+        }
+        $status = Yii::$app->request->post("status");
+        if ($status) {
+            $report->status = $status;
+        }
+
+        $data = Yii::$app->request->post("data");
+        if ($data) {
+            $report->data = $data;
+        }
+        $report->updated_at = strval(time());
+        $report->save();
+
+        return $report;
+    }
+    private function getCheckin($token, $openid)
+    {
+        $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
+
+        if (!$openid) {
+            return $checkin;
+        }
+        if (!$checkin) {
+            $checkin = new Checkin();
+            $checkin->token = $token;
+            $checkin->created_at = strval(time());
+            $checkin->openid = $openid;
+        }
+
+        $status = Yii::$app->request->post("status");
+        if ($status) {
+            $checkin->status = $status;
+        }
+        $data = Yii::$app->request->post("data");
+        if ($data) {
+            $checkin->data = $data;
+        }
+
+        $checkin->updated_at = strval(time());
+        $checkin->save();
+        return $checkin;
+    }
+    private function getFile($token, $key)
+    {
+        $file = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
+        if (!$key) {
+            return $file;
+        }
+        if (!$file) {
+            $file = new RecodeFile();
+            $file->token = $token;
+            $file->created_at = strval(time());
+            $file->key = $key;
+        }
+        $file->updated_at = strval(time());
+        $file->save();
+        return $file;
+    }
+    public function actionTest(){
+      
+        $helper = Yii::$app->helper;
+        return $helper->play();
+     
+    }
     public function actionRefresh()
     {
+
+        //做个cache日志 
+        $helper = Yii::$app->helper;
+        $helper->record();
         $token = Yii::$app->request->post("token");//这次 的token
 
         if (!$token) {
@@ -61,78 +159,9 @@ class LocalController extends Controller
             throw new \yii\web\HttpException(400, 'hash error');
         }
 
-        $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
-        $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
-        $file = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
-
-        if ($device) {
-            if (!$report) {
-                $report = new Report();
-                $report->token = $token;
-                $report->device = $device;
-                $report->setup = json_encode([
-                    'money' => 0,
-                    [
-                        'pictures' =>
-                            [
-                                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.png',
-                                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.png',
-                                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
-                                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
-                            ],
-                        'shot' =>
-                            [
-                                1.1,
-                                2.12,
-                                10.3,
-                                11.4,
-                            ]
-                    ]
-                ]); // 示例数据
-                $report->created_at = strval(time());
-
-            }
-
-
-            $status = Yii::$app->request->post("status");
-            if ($status) {
-                $report->status = $status;
-            }
-
-            $data = Yii::$app->request->post("data");
-            if ($data) {
-                $report->data = $data;
-            }
-            $report->updated_at = strval(time());
-            $report->save();
-        } elseif ($openid) {
-            if (!$checkin) {
-                $checkin = new Checkin();
-                $checkin->token = $token;
-                $checkin->created_at = strval(time());
-                $checkin->openid = $openid;
-            }
-            $status = Yii::$app->request->post("status");
-            if ($status) {
-                $checkin->status = $status;
-            }
-            $data = Yii::$app->request->post("data");
-            if ($data) {
-                $checkin->data = $data;
-            }
-
-            $checkin->updated_at = strval(time());
-            $checkin->save();
-        } elseif ($key) {
-            if (!$file) {
-                $file = new RecodeFile();
-                $file->token = $token;
-                $file->created_at = strval(time());
-                $file->key = $key;
-            }
-            $file->updated_at = strval(time());
-            $file->save();
-        }
+        $report = $this->getReport($token, $device);//得到报告（ar端上传）
+        $checkin = $this->getCheckin($token, $openid);//得到签到（小程序端上传）
+        $file = $this->getFile($token, $key);//得到文件记录
 
         return [
             'success' => true,
