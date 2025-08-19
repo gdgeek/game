@@ -65,18 +65,18 @@ class ServerController extends Controller
 
         return $report;
     }
-    private function getCheckin(string $token, string|null $openid): ?Checkin
+    private function getCheckin(string $token, string|null $id): ?Checkin
     {
         $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
 
-        if (!$openid) {
+        if (!$id) {
             return $checkin;
         }
         if (!$checkin) {
             $checkin = new Checkin();
             $checkin->token = $token;
             $checkin->created_at = strval(time());
-            $checkin->openid = $openid;
+            $checkin->id = $id;
         }
 
         $status = Yii::$app->request->post("status");
@@ -94,29 +94,26 @@ class ServerController extends Controller
     }
     private function getFile(string $token, string|null $key, Checkin|null $checkin = null)
     {
-        $file = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
+        $rf = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
         if (!$key) {
-            return $file;
+            return $rf;
         }
-        if (!$file) {
-            $file = new RecodeFile();
-            $file->token = $token;
-            $file->created_at = strval(time());
-            $file->key = $key;
-        }
-
-
-        // $mysql = File::Create($key);
-        // $mysql->save();
-
-        $file->updated_at = strval(time());
-        // $file->dbid = $mysql->id;
-        $file->save();
-        if ($checkin) {
-
+        if (!$rf) {
+            $rf = new RecodeFile();
+            $rf->token = $token;
+            $rf->created_at = strval(time());
+            $rf->key = $key;
         }
 
-        return $file;
+
+        // $file = File::Create($key);
+        // $file->save();
+
+        $rf->updated_at = strval(time());
+        // $rf->file_id = $file->id;
+        $rf->save();
+     
+        return $rf;
     }
     public function actionTest()
     {
@@ -126,9 +123,23 @@ class ServerController extends Controller
 
     }
 
-    public function actionRefresh()
+    private function defaultSetup(): array
     {
-
+        return [
+            'money' => 0,
+            [
+                'pictures' => [
+                    'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.png',
+                    'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.png',
+                    'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
+                    'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
+                ],
+                'shot' => [1, 5, 10, 20],
+            ],
+        ];
+    }
+    private function doRefresh(): array
+    {
         $helper = Yii::$app->helper;
         $helper->record();
         $token = Yii::$app->request->post("token");
@@ -140,12 +151,12 @@ class ServerController extends Controller
         // 开发模式直接跳过 time/hash 校验
         if (YII_ENV_DEV) {
             $device = Yii::$app->request->post("device");
-            $openid = Yii::$app->request->post("openid");
+            $id = Yii::$app->request->post("id");
             $key = Yii::$app->request->post("key");
+            $params = array_filter([$device, $id, $key]);
 
-            $params = array_filter([$device, $openid, $key]);
             if (count($params) !== 1) {
-                throw new \yii\web\HttpException(400, 'Exactly one of device, openid, or key must be provided');
+                throw new \yii\web\HttpException(400, 'Exactly one of device, id, or key must be provided');
             }
         } else {
             $time = Yii::$app->request->get("time");
@@ -161,11 +172,11 @@ class ServerController extends Controller
             }
 
             $device = Yii::$app->request->post("device");
-            $openid = Yii::$app->request->post("openid");
+            $id = Yii::$app->request->post("id");
             $key = Yii::$app->request->post("key");
-            $params = array_filter([$device, $openid, $key]);
+            $params = array_filter([$device, $id, $key]);
             if (count($params) !== 1) {
-                throw new \yii\web\HttpException(400, 'Exactly one of device, openid, or key must be provided');
+                throw new \yii\web\HttpException(400, 'Exactly one of device, id, or key must be provided');
             }
 
             $param = array_values($params)[0];
@@ -175,21 +186,107 @@ class ServerController extends Controller
             }
         }
 
-      
+
 
         $report = $this->getReport($token, $device);
-        $checkin = $this->getCheckin($token, $openid);
+        $checkin = $this->getCheckin($token, $id);
         $file = $this->getFile($token, $key, $checkin);
 
-        return [
-            'success' => true,
-            'message' => 'success',
-            'data' => [
-                'checkin' => $checkin,
-                'report' => $report,
-                'file' => $file,
-            ]
-        ];
+
+        //检查 url 里面是否有 expand,如果有的话拆分成数组
+        $expand = Yii::$app->request->get("expand");
+        if ($expand) {
+            $expands = explode(",", $expand);
+            if (in_array("token", $expands)) {
+                $result['token'] = $token;
+            }
+            //  $result['data'] = [];
+            //检查 expands 里面是否有 setup 如果有，则增加 setup 字段
+            if (in_array("setup", $expands)) {
+                $result['setup'] = $this->getSetup($report["device"]);
+            }
+
+            if (in_array("file", $expands)) {
+                unset($file['token']);
+                //    unset($file['created_at']);
+                unset($file['updated_at']);
+                $result['file'] = $file;
+            }
+            if (in_array("applet", $expands)) {
+                $result['applet'] = $checkin;
+            }
+            if (in_array("server", $expands)) {
+
+                unset($report['setup']);
+                unset($report['token']);
+                unset($report['created_at']);
+                unset($report['updated_at']);
+                $result['server'] = $report;
+            }
+            //检查 applet
+            /* if (in_array("applet", $expands)) {
+                 $result['applet'] = $this->getApplet();
+             }
+             if (in_array("device", $expands)) {
+                 $result['device'] = $this->getDevice();
+             }
+             if (in_array("file", $expands)) {
+                 $result['file'] = $file;
+             }*/
+            //在 result 中增加 'success' => true
+            $result['success'] = true;
+            $result['message'] = 'success';
+
+            return $result;
+        } else {
+
+
+            return [
+                'success' => true,
+                'message' => 'success',
+                'data' => [
+                    'checkin' => $checkin,
+                    'report' => $report,
+                    'file' => $file,
+                ]
+            ];
+        }
+    }
+
+    private function getSetup(string|null $device)
+    {
+        return $this->defaultSetup();
+    }
+    public function actionFile()
+    {
+        $key = Yii::$app->request->post("key");
+        if (!isset($key)) {
+            throw new \yii\web\HttpException(400, 'key is required');
+        }
+        return $this->doRefresh();
+    }
+    public function actionApplet()
+    {
+        $id = Yii::$app->request->post("id");
+        if (!isset($id)) {
+            throw new \yii\web\HttpException(400, 'id is required');
+        }
+        return $this->doRefresh();
+    }
+
+    public function actionServer()
+    {
+        $device = Yii::$app->request->post("device");
+        if (!isset($device)) {
+            throw new \yii\web\HttpException(400, 'device is required');
+        }
+        return $this->doRefresh();
+    }
+    public function actionRefresh()
+    {
+
+        return $this->doRefresh();
+
     }
 
     public function actionLog($token)
