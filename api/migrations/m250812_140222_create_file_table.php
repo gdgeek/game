@@ -14,11 +14,11 @@ class m250812_140222_create_file_table extends Migration
     {
         $this->createTable('{{%file}}', [
             'id' => $this->primaryKey(),
-            'url' => $this->string()->unique()->notNull(),
-            'md5' => $this->string()->unique(),
+            'key' => $this->string()->unique()->notNull(),
             'type' => $this->string(),
-            'etag' => $this->json(),
-            'size' => $this->string(),
+            'md5' => $this->string()->unique(),
+            'size' => $this->integer(),
+            'bucket' =>  $this->string(),
             'created_at' => $this->dateTime()->notNull()->defaultExpression('CURRENT_TIMESTAMP'),
         ]);
     }

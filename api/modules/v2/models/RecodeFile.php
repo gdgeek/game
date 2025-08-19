@@ -1,5 +1,5 @@
 <?php
-namespace app\modules\v1\models;
+namespace app\modules\v2\models;
 
 
 use yii\behaviors\TimestampBehavior;

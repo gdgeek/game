@@ -17,6 +17,9 @@ $config = [
         'v1' => [
             'class' => 'app\modules\v1\Module',
         ],
+        'v2' => [
+            'class' => 'app\modules\v2\Module',
+        ],
     ],
 
     'as cors' => [
@@ -283,6 +286,44 @@ $config = [
                     'controller' => ['v1/device', 'v1/shop', 'v1/player', 'v1/record', 'v1/award', 'v1/gift'],
                     'pluralize' => false,
                 ],
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v2/server',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'POST refresh' => 'refresh',
+                        'GET refresh' => 'refresh',
+                        'GET log' => 'log',
+                        'GET test' => 'test',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v2/wechat',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET info' => 'info',
+                        'POST wxpay-order' => 'wxpay-order',
+                        'POST notify' => 'notify',
+                        'GET notify' => 'notify',
+                        'GET wxpay-query-order-by-out-trade-no' => 'wxpay-query-order-by-out-trade-no',
+                        'GET wxpay-query-order-by-transaction-id' => 'wxpay-query-order-by-transaction-id',
+                        'POST refund-notify' => 'refund-notify',
+                        'GET wxpay-query-refund' => 'wxpay-query-refund',
+                        'POST wxpay-refund' => 'wxpay-refund',
+                        'POST login' => 'login',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v2/tencent-cloud',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'GET token' => 'token',
+                        'GET cloud' => 'cloud',
+                        'GET store' => 'store',
+                    ],
+                ],
             ],
         ],
 
@@ -292,7 +333,7 @@ $config = [
 /*
 
   public function actionDeviceRegister(){
-    
+
 
   }
   public function actionGameReady(){
@@ -303,7 +344,7 @@ $config = [
   }
   public function actionGameOver(){
 
-    
+
 */
 
 if (YII_ENV_DEV) {

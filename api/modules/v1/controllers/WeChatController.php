@@ -29,6 +29,7 @@ class WeChatController extends Controller
     return $app;
   }
 
+
   public function actionOpenid()
   {
     $code = Yii::$app->request->post("code");

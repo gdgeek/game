@@ -1,14 +1,14 @@
 <?php
-namespace app\modules\v1\models;
+namespace app\modules\v2\models;
 
 
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
-class Checkin extends \yii\redis\ActiveRecord
+class Report extends \yii\redis\ActiveRecord
 {
 
 
-
+ 
     /**
      * @return array 定义 Redis 键名前缀
      */
@@ -23,6 +23,6 @@ class Checkin extends \yii\redis\ActiveRecord
      */
     public function attributes()
     {
-        return ['token', 'openid','unionid', 'status', 'data', 'created_at', 'updated_at'];
+        return ['token', 'device', 'status', 'data', 'setup', 'created_at', 'updated_at'];
     }
 }

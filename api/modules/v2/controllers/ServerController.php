@@ -1,13 +1,13 @@
 <?php
-namespace app\modules\v1\controllers;
+namespace app\modules\v2\controllers;
 use Yii;
 use yii\rest\Controller;
-use app\modules\v1\models\Checkin;
-use app\modules\v1\models\Report;
-use app\modules\v1\models\RecodeFile;
-use app\modules\v1\models\File;
+use app\modules\v2\models\Checkin;
+use app\modules\v2\models\Report;
+use app\modules\v2\models\RecodeFile;
+use app\modules\v2\models\File;
 
-class LocalController extends Controller
+class ServerController extends Controller
 {
 
     public function behaviors()
@@ -19,7 +19,7 @@ class LocalController extends Controller
     }
 
 
-    private function getReport(string $token, $device)
+    private function getReport(string $token, string|null $device)
     {
         $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
         if (!$device) {
@@ -65,7 +65,7 @@ class LocalController extends Controller
 
         return $report;
     }
-    private function getCheckin(string $token,string $openid): ?Checkin
+    private function getCheckin(string $token,string|null $openid): ?Checkin
     {
         $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
 
@@ -92,7 +92,7 @@ class LocalController extends Controller
         $checkin->save();
         return $checkin;
     }
-    private function getFile(string $token, string $key, Checkin|null $checkin = null)
+    private function getFile(string $token, string|null $key, Checkin|null $checkin = null)
     {
         $file = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
         if (!$key) {
@@ -105,15 +105,15 @@ class LocalController extends Controller
             $file->key = $key;
         }
 
-
-        $mysql = File::Create($key);
-        $mysql->save();
+        
+       // $mysql = File::Create($key);
+       // $mysql->save();
 
         $file->updated_at = strval(time());
-        $file->dbid = $mysql->id;
+       // $file->dbid = $mysql->id;
         $file->save();
         if($checkin){
-            //$checkin->openid;
+            
         }
 
         return $file;
