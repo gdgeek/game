@@ -65,7 +65,7 @@ class ServerController extends Controller
 
         return $report;
     }
-    private function getCheckin(string $token,string|null $openid): ?Checkin
+    private function getCheckin(string $token, string|null $openid): ?Checkin
     {
         $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
 
@@ -105,15 +105,15 @@ class ServerController extends Controller
             $file->key = $key;
         }
 
-        
-       // $mysql = File::Create($key);
-       // $mysql->save();
+
+        // $mysql = File::Create($key);
+        // $mysql->save();
 
         $file->updated_at = strval(time());
-       // $file->dbid = $mysql->id;
+        // $file->dbid = $mysql->id;
         $file->save();
-        if($checkin){
-            
+        if ($checkin) {
+
         }
 
         return $file;
@@ -125,55 +125,61 @@ class ServerController extends Controller
         return $helper->play();
 
     }
+
     public function actionRefresh()
     {
 
-        //做个cache日志 
         $helper = Yii::$app->helper;
         $helper->record();
-        $token = Yii::$app->request->post("token");//这次 的token
+        $token = Yii::$app->request->post("token");
 
         if (!$token) {
             throw new \yii\web\HttpException(400, 'token is required');
         }
 
-        $time = Yii::$app->request->get("time");//得到更新时间
-        $hash = Yii::$app->request->get("hash");//得到hash
+        // 开发模式直接跳过 time/hash 校验
+        if (YII_ENV_DEV) {
+            $device = Yii::$app->request->post("device");
+            $openid = Yii::$app->request->post("openid");
+            $key = Yii::$app->request->post("key");
 
+            $params = array_filter([$device, $openid, $key]);
+            if (count($params) !== 1) {
+                throw new \yii\web\HttpException(400, 'Exactly one of device, openid, or key must be provided');
+            }
+        } else {
+            $time = Yii::$app->request->get("time");
+            $hash = Yii::$app->request->get("hash");
 
-        if (!$time || !$hash) {
-            throw new \yii\web\HttpException(400, 'time and hash are required');
+            if (!$time || !$hash) {
+                throw new \yii\web\HttpException(400, 'time and hash are required');
+            }
+
+            $pattern = '/^[A-Z][0-9a-f]{32}$/i';
+            if (!preg_match($pattern, $token)) {
+                throw new \yii\web\HttpException(400, 'token format error');
+            }
+
+            $device = Yii::$app->request->post("device");
+            $openid = Yii::$app->request->post("openid");
+            $key = Yii::$app->request->post("key");
+            $params = array_filter([$device, $openid, $key]);
+            if (count($params) !== 1) {
+                throw new \yii\web\HttpException(400, 'Exactly one of device, openid, or key must be provided');
+            }
+
+            $param = array_values($params)[0];
+            $salt = "buj1aban.c0m";
+            if (md5($token . $time . $param . $salt) !== $hash) {
+                throw new \yii\web\HttpException(400, 'hash error');
+            }
         }
 
-        $pattern = '/^[A-Z][0-9a-f]{32}$/i';
+      
 
-        if (!preg_match($pattern, $token)) {//测试hash
-            // 如果不匹配，抛出异常或返回错误信息
-            throw new \yii\web\HttpException(400, 'token format error');
-        }
-
-        // 简单明了的方法：只获取一个参数
-        $device = Yii::$app->request->post("device");// 设备标识 这个是给 ar设备用
-        $openid = Yii::$app->request->post("openid");// 微信用户标识 这个是给微信小程序用
-        $key = Yii::$app->request->post("key");// 密钥标识 这个是给文件用
-        // 用数组过滤空值，检查是否只有一个参数
-        $params = array_filter([$device, $openid, $key]);
-
-        if (count($params) !== 1) {
-            throw new \yii\web\HttpException(400, 'Exactly one of device, openid, or key must be provided');
-        }
-
-
-        $param = array_values($params)[0];// 获取唯一的参数值
-        $salt = "buj1aban.c0m";
-
-        if (md5($token . $time . $param . $salt) != $hash) {//验证是否通过
-            throw new \yii\web\HttpException(400, 'hash error');
-        }
-
-        $report = $this->getReport($token, $device);//得到报告（ar端上传）
-        $checkin = $this->getCheckin($token, $openid);//得到签到（小程序端上传）
-        $file = $this->getFile($token, $key, $checkin);//得到文件记录
+        $report = $this->getReport($token, $device);
+        $checkin = $this->getCheckin($token, $openid);
+        $file = $this->getFile($token, $key, $checkin);
 
         return [
             'success' => true,
