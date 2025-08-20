@@ -274,7 +274,7 @@ class ServerController extends Controller
         return $this->doRefresh();
     }
 
-    public function actionServer()
+    public function actionDevice()
     {
         $device = Yii::$app->request->post("device");
         if (!isset($device)) {
