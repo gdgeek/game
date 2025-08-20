@@ -192,28 +192,28 @@ class ServerController extends Controller
         $checkin = $this->getCheckin($token, $id);
         $file = $this->getFile($token, $key, $checkin);
 
-
+        $result['data'] = [];
         //检查 url 里面是否有 expand,如果有的话拆分成数组
         $expand = Yii::$app->request->get("expand");
         if ($expand) {
             $expands = explode(",", $expand);
             if (in_array("token", $expands)) {
-                $result['token'] = $token;
+                $result['data']['token'] = $token;
             }
             //  $result['data'] = [];
             //检查 expands 里面是否有 setup 如果有，则增加 setup 字段
             if (in_array("setup", $expands)) {
-                $result['setup'] = $this->getSetup($report["device"]);
+                $result['data']['setup'] = $this->getSetup($report["device"]);
             }
 
             if (in_array("file", $expands)) {
                 unset($file['token']);
                 //    unset($file['created_at']);
                 unset($file['updated_at']);
-                $result['file'] = $file;
+                $result['data']['file'] = $file;
             }
             if (in_array("applet", $expands)) {
-                $result['applet'] = $checkin;
+                $result['data']['applet'] = $checkin;
             }
             if (in_array("server", $expands)) {
 
@@ -221,7 +221,7 @@ class ServerController extends Controller
                 unset($report['token']);
                 unset($report['created_at']);
                 unset($report['updated_at']);
-                $result['server'] = $report;
+                $result['data']['server'] = $report;
             }
             //检查 applet
             /* if (in_array("applet", $expands)) {
