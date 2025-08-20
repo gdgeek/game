@@ -19,16 +19,16 @@ class ServerController extends Controller
     }
 
 
-    private function getReport(string $token, string|null $device)
+    private function getReport(string $token, string|null $uuid)
     {
         $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
-        if (!$device) {
+        if (!$uuid) {
             return $report;
         }
         if (!$report) {
             $report = new Report();
             $report->token = $token;
-            $report->device = $device;
+            $report->uuid = $uuid;
             $report->created_at = strval(time());
             $report->setup = json_encode([
                 'money' => 0,
@@ -150,13 +150,13 @@ class ServerController extends Controller
 
         // 开发模式直接跳过 time/hash 校验
         if (YII_ENV_DEV) {
-            $device = Yii::$app->request->post("device");
+            $uuid = Yii::$app->request->post("uuid");
             $id = Yii::$app->request->post("id");
             $key = Yii::$app->request->post("key");
-            $params = array_filter([$device, $id, $key]);
+            $params = array_filter([$uuid, $id, $key]);
 
             if (count($params) !== 1) {
-                throw new \yii\web\HttpException(400, 'Exactly one of device, id, or key must be provided');
+                throw new \yii\web\HttpException(400, 'Exactly one of uuid, id, or key must be provided');
             }
         } else {
             $time = Yii::$app->request->get("time");
@@ -171,12 +171,12 @@ class ServerController extends Controller
                 throw new \yii\web\HttpException(400, 'token format error');
             }
 
-            $device = Yii::$app->request->post("device");
+            $uuid = Yii::$app->request->post("uuid");
             $id = Yii::$app->request->post("id");
             $key = Yii::$app->request->post("key");
-            $params = array_filter([$device, $id, $key]);
+            $params = array_filter([$uuid, $id, $key]);
             if (count($params) !== 1) {
-                throw new \yii\web\HttpException(400, 'Exactly one of device, id, or key must be provided');
+                throw new \yii\web\HttpException(400, 'Exactly one of uuid, id, or key must be provided');
             }
 
             $param = array_values($params)[0];
@@ -188,7 +188,7 @@ class ServerController extends Controller
 
 
 
-        $report = $this->getReport($token, $device);
+        $report = $this->getReport($token, $uuid);
         $checkin = $this->getCheckin($token, $id);
         $file = $this->getFile($token, $key, $checkin);
 
@@ -203,7 +203,7 @@ class ServerController extends Controller
             //  $result['data'] = [];
             //检查 expands 里面是否有 setup 如果有，则增加 setup 字段
             if (in_array("setup", $expands)) {
-                $result['data']['setup'] = $this->getSetup($report["device"]);
+                $result['data']['setup'] = $this->getSetup($report["uuid"]);
             }
 
             if (in_array("file", $expands)) {
@@ -215,24 +215,15 @@ class ServerController extends Controller
             if (in_array("applet", $expands)) {
                 $result['data']['applet'] = $checkin;
             }
-            if (in_array("server", $expands)) {
+            if (in_array("device", $expands)) {
 
                 unset($report['setup']);
                 unset($report['token']);
                 unset($report['created_at']);
                 unset($report['updated_at']);
-                $result['data']['server'] = $report;
+                $result['data']['device'] = $report;
             }
-            //检查 applet
-            /* if (in_array("applet", $expands)) {
-                 $result['applet'] = $this->getApplet();
-             }
-             if (in_array("device", $expands)) {
-                 $result['device'] = $this->getDevice();
-             }
-             if (in_array("file", $expands)) {
-                 $result['file'] = $file;
-             }*/
+         
             //在 result 中增加 'success' => true
             $result['success'] = true;
             $result['message'] = 'success';
@@ -276,9 +267,9 @@ class ServerController extends Controller
 
     public function actionDevice()
     {
-        $device = Yii::$app->request->post("device");
+        $device = Yii::$app->request->post("uuid");
         if (!isset($device)) {
-            throw new \yii\web\HttpException(400, 'device is required');
+            throw new \yii\web\HttpException(400, 'uuid is required');
         }
         return $this->doRefresh();
     }

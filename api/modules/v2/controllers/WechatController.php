@@ -46,8 +46,12 @@ class WechatController extends Controller
 
 
     return [
+      'data'=> [
+        'openid' => $response['openid'],
+        'unionid' => $unionid, // 返回 unionid（可能为 null）
+      ],
       'openid' => $response['openid'],
-      'unionid' => $unionid, // 返回 unionid（可能为 null）
+      //'unionid' => $unionid, // 返回 unionid（可能为 null）
       'success' => true,
       'message' => $unionid ? 'success' : 'unionid not available (check if user has authorized or follows related official account)'
     ];
