@@ -135,10 +135,10 @@ class ServerController extends Controller
                 '记录每一刻，热爱每一天'
             ],
             'pictures' => [
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.png',
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.png',
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.webp',
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.webp',
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.webp',
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.webp',
             ],
 
             'shot' => [1, 5, 10, 20],
