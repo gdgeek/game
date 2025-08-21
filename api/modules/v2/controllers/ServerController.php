@@ -157,7 +157,7 @@ class ServerController extends Controller
 
             if (count($params) !== 1) {
                 throw new \yii\web\HttpException(400, 'Exactly one of uuid, id, or key must be provided');
-            }
+            }   
         } else {
             $time = Yii::$app->request->get("time");
             $hash = Yii::$app->request->get("hash");
@@ -203,7 +203,12 @@ class ServerController extends Controller
             //  $result['data'] = [];
             //检查 expands 里面是否有 setup 如果有，则增加 setup 字段
             if (in_array("setup", $expands)) {
-                $result['data']['setup'] = $this->getSetup($report["uuid"]);
+
+                if(isset($report["uuid"])){
+                     $result['data']['setup'] = $this->getSetup($report["uuid"]);
+                }else{
+                    $result['data']['setup'] = $this->defaultSetup();                }
+               
             }
 
             if (in_array("file", $expands)) {
