@@ -112,7 +112,7 @@ class ServerController extends Controller
         $rf->updated_at = strval(time());
         // $rf->file_id = $file->id;
         $rf->save();
-     
+
         return $rf;
     }
     public function actionTest()
@@ -125,25 +125,25 @@ class ServerController extends Controller
 
     private function defaultSetup(): array
     {
-        return [
-            'money' => 0,
-            [
-                'slogans' => [
-                    '我在这里很想你',
-                    '今天也要加油鸭',
-                    '阳光正好，微风不燥',
-                    '记录每一刻，热爱每一天'
-                ],
-                'pictures' => [
-                    'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.png',
-                    'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.png',
-                    'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
-                    'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
-                ],
+        $setup = [
 
-                'shot' => [1, 5, 10, 20],
+            'money' => 0,
+            'slogans' => [
+                '我在这里很想你',
+                '今天也要加油鸭',
+                '阳光正好，微风不燥',
+                '记录每一刻，热爱每一天'
             ],
+            'pictures' => [
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.png',
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.png',
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
+            ],
+
+            'shot' => [1, 5, 10, 20],
         ];
+        return $setup;
     }
     private function doRefresh(): array
     {
@@ -164,7 +164,7 @@ class ServerController extends Controller
 
             if (count($params) !== 1) {
                 throw new \yii\web\HttpException(400, 'Exactly one of uuid, id, or key must be provided');
-            }   
+            }
         } else {
             $time = Yii::$app->request->get("time");
             $hash = Yii::$app->request->get("hash");
@@ -211,11 +211,12 @@ class ServerController extends Controller
             //检查 expands 里面是否有 setup 如果有，则增加 setup 字段
             if (in_array("setup", $expands)) {
 
-                if(isset($report["uuid"])){
-                     $result['data']['setup'] = $this->getSetup($report["uuid"]);
-                }else{
-                    $result['data']['setup'] = $this->defaultSetup();                }
-               
+                if (isset($report["uuid"])) {
+                    $result['data']['setup'] = $this->getSetup($report["uuid"]);
+                } else {
+                    $result['data']['setup'] = $this->defaultSetup();
+                }
+
             }
 
             if (in_array("file", $expands)) {
@@ -235,7 +236,7 @@ class ServerController extends Controller
                 unset($report['updated_at']);
                 $result['data']['device'] = $report;
             }
-         
+
             //在 result 中增加 'success' => true
             $result['success'] = true;
             $result['message'] = 'success';
