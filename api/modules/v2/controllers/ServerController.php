@@ -92,7 +92,7 @@ class ServerController extends Controller
         $checkin->save();
         return $checkin;
     }
-    private function getFile(string $token, string $key,string $unionid = null)
+    private function getFile(string $token, string|null $key,string|null $unionid = null)
     {
         $rf = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
         if (!$key) {
@@ -103,8 +103,8 @@ class ServerController extends Controller
             $rf->token = $token;
            // $rf->created_at = strval(time());
             $rf->key = $key;
-            
-            $file = File::Create($key);
+
+            $file = File::Create($key, $unionid);
             $file->save();
             //'Y-m-d H:i:s'转时间戳 类似 strval(time()) 这种结果
               

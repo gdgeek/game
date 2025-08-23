@@ -128,7 +128,7 @@ class File extends \yii\db\ActiveRecord
         return self::getObjectUrl($key, $client);
     }
 
-    public static function Create(string $key,string $unionid = null)
+    public static function Create(string $key,string|null $unionid = null)
     {
         
         $file = File::find()->where(['key' => $key])->one();
