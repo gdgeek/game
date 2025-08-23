@@ -92,7 +92,7 @@ class LocalController extends Controller
         $checkin->save();
         return $checkin;
     }
-    private function getFile(string $token, string $key, Checkin|null $checkin = null)
+    private function getFile(string $token, string $key, Checkin $checkin = null)
     {
         $file = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
         if (!$key) {
@@ -106,15 +106,13 @@ class LocalController extends Controller
         }
 
 
-        $mysql = File::Create($key);
+        $mysql = File::Create($checkin->id, $key);
         $mysql->save();
 
         $file->updated_at = strval(time());
         $file->dbid = $mysql->id;
         $file->save();
-        if($checkin){
-            //$checkin->openid;
-        }
+       
 
         return $file;
     }

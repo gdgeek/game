@@ -55,7 +55,7 @@ class QCloudController extends Controller
      */
     public function actionObjectUrl(string $key, int $expires = 900, ?string $method = 'GET')
     {
-       $file = File::Create($key);
+       $file = File::Create("sdf",$key);
        $file->save();
        return $file;
     }

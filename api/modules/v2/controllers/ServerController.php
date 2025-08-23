@@ -92,7 +92,7 @@ class ServerController extends Controller
         $checkin->save();
         return $checkin;
     }
-    private function getFile(string $token, string|null $key, Checkin|null $checkin = null)
+    private function getFile(string $token, string $key,string $unionid = null)
     {
         $rf = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
         if (!$key) {
@@ -101,16 +101,22 @@ class ServerController extends Controller
         if (!$rf) {
             $rf = new RecodeFile();
             $rf->token = $token;
-            $rf->created_at = strval(time());
+           // $rf->created_at = strval(time());
             $rf->key = $key;
+            
+            $file = File::Create($key);
+            $file->save();
+            //'Y-m-d H:i:s'转时间戳 类似 strval(time()) 这种结果
+              
+             $rf->created_at = $file->created_at;
+            $rf->updated_at = strval(time());
+            $rf->file_id = $file->id;
+
         }
 
 
-        // $file = File::Create($key);
-        // $file->save();
-
-        $rf->updated_at = strval(time());
-        // $rf->file_id = $file->id;
+      
+        
         $rf->save();
 
         return $rf;
@@ -197,7 +203,8 @@ class ServerController extends Controller
 
         $report = $this->getReport($token, $uuid);
         $checkin = $this->getCheckin($token, $id);
-        $file = $this->getFile($token, $key, $checkin);
+        
+        $file = $this->getFile($token, $key, $checkin?->id );
 
         $result['data'] = [];
         //检查 url 里面是否有 expand,如果有的话拆分成数组
