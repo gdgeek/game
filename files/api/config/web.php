@@ -321,6 +321,9 @@ $config = [
                     'class' => 'yii\rest\UrlRule',
                     'controller' => 'v2/file',
                     'pluralize' => true,
+                    'extraPatterns' => [
+                        'GET list' => 'list',
+                    ],
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
