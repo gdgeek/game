@@ -319,6 +319,11 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v2/file',
+                    'pluralize' => true,
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
                     'controller' => 'v2/tencent-cloud',
                     'pluralize' => false,
                     'extraPatterns' => [

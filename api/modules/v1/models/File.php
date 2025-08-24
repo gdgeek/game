@@ -15,6 +15,7 @@ use Yii;
  * @property int|null $size
  * @property string|null $bucket
  * @property string $created_at
+ * @property int|null $unlocked
  */
 class File extends \yii\db\ActiveRecord
 {
@@ -33,7 +34,7 @@ class File extends \yii\db\ActiveRecord
     {
         return [
             [['key'], 'required'],
-            [['size'], 'integer'],
+            [['size', 'unlocked'], 'integer'],
             [['created_at'], 'safe'],
             [['unionid', 'key', 'type', 'md5', 'bucket'], 'string', 'max' => 255],
             [['key'], 'unique'],
@@ -55,6 +56,7 @@ class File extends \yii\db\ActiveRecord
             'size' => 'Size',
             'bucket' => 'Bucket',
             'created_at' => 'Created At',
+            'unlocked' => 'Unlocked',
         ];
     }
 }
