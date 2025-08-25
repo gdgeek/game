@@ -233,7 +233,7 @@ class Server
                 unset($report['token']);
                 unset($report['created_at']);
                 unset($report['updated_at']);
-                $result['data']['device'] = $report;
+                $result['data']['device'] = $applet;
             }
 
             //在 result 中增加 'success' => true
@@ -248,7 +248,7 @@ class Server
                 'success' => true,
                 'message' => 'success',
                 'data' => [
-                    'checkin' => $checkin,
+                    'checkin' => $applet,
                     'report' => $report,
                     'file' => $file,
                 ]
