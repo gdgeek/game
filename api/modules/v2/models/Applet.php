@@ -4,7 +4,7 @@ namespace app\modules\v2\models;
 
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
-class Checkin extends \yii\redis\ActiveRecord
+class Applet extends \yii\redis\ActiveRecord
 {
 
 
@@ -23,6 +23,6 @@ class Checkin extends \yii\redis\ActiveRecord
      */
     public function attributes()
     {
-        return ['token', 'id', 'status', 'data', 'created_at', 'updated_at'];
+        return ['token', 'user_id', 'id', 'status', 'data', 'created_at', 'updated_at'];
     }
 }

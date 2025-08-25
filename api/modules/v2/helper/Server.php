@@ -3,7 +3,7 @@ namespace app\modules\v2\helper;
 
 
 use Yii;
-use app\modules\v2\models\Checkin;
+use app\modules\v2\models\Applet;
 use app\modules\v2\models\Report;
 use app\modules\v2\models\RecodeFile;
 use app\modules\v2\models\File;
@@ -56,32 +56,35 @@ class Server
         return $report;
     }
 
-    private static function GetCheckin(string $token, string|null $id): ?Checkin
+    private static function GetApplet(string $token, string|null $id): ?Applet
     {
-        $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
-
+        $applet = Applet::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
+       
         if (!$id) {
-            return $checkin;
+            return $applet;
         }
-        if (!$checkin) {
-            $checkin = new Checkin();
-            $checkin->token = $token;
-            $checkin->created_at = strval(time());
-            $checkin->id = $id;
+        if (!$applet) {
+
+            $user = Yii::$app->user->identity;
+            $applet = new Applet();
+            $applet->token = $token;
+            $applet->created_at = strval(time());
+            $applet->id = $id;
+            $applet->user_id = $user->id;
         }
 
         $status = Yii::$app->request->post("status");
         if ($status) {
-            $checkin->status = $status;
+            $applet->status = $status;
         }
         $data = Yii::$app->request->post("data");
         if ($data) {
-            $checkin->data = $data;
+            $applet->data = $data;
         }
 
-        $checkin->updated_at = strval(time());
-        $checkin->save();
-        return $checkin;
+        $applet->updated_at = strval(time());
+        $applet->save();
+        return $applet;
     }
     private static function GetFile(string $token, string|null $key, string|null $unionid = null)
     {
@@ -116,7 +119,7 @@ class Server
     {
         return self::DefaultSetup();
     }
-     private static function DefaultSetup(): array
+    private static function DefaultSetup(): array
     {
         $setup = [
 
@@ -190,7 +193,7 @@ class Server
 
 
         $report = Server::GetReport($token, $uuid);
-        $checkin = Server::GetCheckin($token, $id);
+        $checkin = Server::GetApplet($token, $id);
 
         $file = Server::GetFile($token, $key, $checkin?->id);
 

@@ -2,7 +2,7 @@
 namespace app\modules\v2\controllers;
 use Yii;
 use yii\rest\Controller;
-use app\modules\v2\models\Checkin;
+use app\modules\v2\models\Applet;
 use app\modules\v2\models\Report;
 use app\modules\v2\models\RecodeFile;
 use app\modules\v2\models\File;
@@ -63,7 +63,7 @@ class ServerController extends Controller
     {
 
         $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
-        $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
+        $checkin = Applet::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
         $file = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
         return [
             'success' => true,
