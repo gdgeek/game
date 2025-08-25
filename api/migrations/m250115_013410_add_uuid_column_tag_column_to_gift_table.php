@@ -7,6 +7,7 @@ use yii\db\Migration;
  */
 class m250115_013410_add_uuid_column_tag_column_to_gift_table extends Migration
 {
+    
     /**
      * {@inheritdoc}
      */

@@ -302,6 +302,14 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v2/applet',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'POST refresh' => 'refresh',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
                     'controller' => 'v2/wechat',
                     'pluralize' => false,
                     'extraPatterns' => [

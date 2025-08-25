@@ -128,9 +128,9 @@ class File extends \yii\db\ActiveRecord
         return self::getObjectUrl($key, $client);
     }
 
-    public static function Create(string $key,string|null $unionid = null)
+    public static function Create(string $key, string|null $unionid = null)
     {
-        
+
         $file = File::find()->where(['key' => $key])->one();
         if ($file) {
             return $file;
@@ -151,9 +151,9 @@ class File extends \yii\db\ActiveRecord
 
         //  return $result;
         $file->key = $key;
-        if($unionid){
+        if ($unionid) {
             $file->unionid = $unionid;
-        }   
+        }
         $file->type = $result['ContentType'] ?? null;
         // $file->md5 = $result['ETag'] ?? null;
         $file->size = $result['ContentLength'] ?? null;
@@ -184,11 +184,12 @@ class File extends \yii\db\ActiveRecord
     {
         return [
             [['key'], 'required'],
-            [['size'], 'integer'],
+            [['size', 'unlocked', 'user_id'], 'integer'],
             [['created_at'], 'safe'],
-            [['key', 'type', 'md5', 'bucket'], 'string', 'max' => 255],
+            [['unionid', 'key', 'type', 'md5', 'bucket', 'title'], 'string', 'max' => 255],
             [['key'], 'unique'],
             [['md5'], 'unique'],
+            [['user_id'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['user_id' => 'id']],
         ];
     }
 
@@ -199,12 +200,25 @@ class File extends \yii\db\ActiveRecord
     {
         return [
             'id' => 'ID',
+            'unionid' => 'Unionid',
             'key' => 'Key',
             'type' => 'Type',
             'md5' => 'Md5',
             'size' => 'Size',
             'bucket' => 'Bucket',
             'created_at' => 'Created At',
+            'unlocked' => 'Unlocked',
+            'title' => 'Title',
+            'user_id' => 'User ID',
         ];
+    }
+    /** 
+     * Gets query for [[User]]. 
+     * 
+     * @return \yii\db\ActiveQuery 
+     */
+    public function getUser()
+    {
+        return $this->hasOne(User::class, ['id' => 'user_id']);
     }
 }
