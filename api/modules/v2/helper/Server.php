@@ -206,8 +206,6 @@ class Server
             if (in_array("token", $expands)) {
                 $result['data']['token'] = $token;
             }
-            //  $result['data'] = [];
-            //检查 expands 里面是否有 setup 如果有，则增加 setup 字段
             if (in_array("setup", $expands)) {
 
                 if (isset($report["uuid"])) {
@@ -225,7 +223,7 @@ class Server
                 $result['data']['file'] = $file;
             }
             if (in_array("applet", $expands)) {
-                $result['data']['applet'] = $checkin;
+                $result['data']['applet'] = $applet;
             }
             if (in_array("device", $expands)) {
 
@@ -241,19 +239,12 @@ class Server
             $result['message'] = 'success';
 
             return $result;
-        } else {
+        };
 
+        $result['success'] = false;
+        $result['message'] = 'need expand';
 
-            return [
-                'success' => true,
-                'message' => 'success',
-                'data' => [
-                    'checkin' => $applet,
-                    'report' => $report,
-                    'file' => $file,
-                ]
-            ];
-        }
+        return $result;
 
     }
 
