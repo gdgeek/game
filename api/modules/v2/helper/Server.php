@@ -86,19 +86,20 @@ class Server
         $applet->save();
         return $applet;
     }
-    private static function GetFile(string $token, string|null $key, string|null $unionid = null)
+    private static function GetFile(string $token, string|null $key, Applet|null $applet = null)
     {
         $rf = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
         if (!$key) {
             return $rf;
         }
-        if (!$rf) {
+        if (!$rf && $applet) {
             $rf = new RecodeFile();
             $rf->token = $token;
             // $rf->created_at = strval(time());
             $rf->key = $key;
 
-            $file = File::Create($key, $unionid);
+            $file = File::Create($key, $applet->id);
+            $file->user_id = $applet->user_id;
             $file->save();
             //'Y-m-d H:i:s'转时间戳 类似 strval(time()) 这种结果
 
@@ -193,9 +194,9 @@ class Server
 
 
         $report = Server::GetReport($token, $uuid);
-        $checkin = Server::GetApplet($token, $id);
+        $applet = Server::GetApplet($token, $id);
 
-        $file = Server::GetFile($token, $key, $checkin?->id);
+        $file = Server::GetFile($token, $key, $applet);
 
         $result['data'] = [];
         //检查 url 里面是否有 expand,如果有的话拆分成数组
