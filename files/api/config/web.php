@@ -314,7 +314,17 @@ $config = [
                         'POST refund-notify' => 'refund-notify',
                         'GET wxpay-query-refund' => 'wxpay-query-refund',
                         'POST wxpay-refund' => 'wxpay-refund',
+                    //    'POST login' => 'login',
+                     //   'POST refresh-token' => 'refresh-token',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v2/site',
+                    'pluralize' => false,
+                    'extraPatterns' => [
                         'POST login' => 'login',
+                        'POST refresh-token' => 'refresh-token',
                     ],
                 ],
                 [

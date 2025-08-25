@@ -16,6 +16,7 @@ class WechatController extends Controller
   }
 
 
+/*
   public function actionInfo()
   {
 
@@ -24,8 +25,25 @@ class WechatController extends Controller
 
     return $app;
   }
+  public function actionRefreshToken()
+  {
+   
+    $refreshToken = Yii::$app->request->post("refreshToken");
 
-  
+    $user = User::findIdentityByAccessToken($refreshToken);
+    if (!$user) {
+      throw new \Exception("Invalid refreshToken");
+    }
+    //$token->save();
+    return [
+      'success' => true,
+      'message' => "refresh success",
+      'data' => [
+        'token' => $user->token(),
+      ]
+    ];
+  }
+
   public function actionLogin()
   {
     $code = Yii::$app->request->post("code");
@@ -44,9 +62,9 @@ class WechatController extends Controller
     // 检查是否包含 unionid
     $unionid = $response['unionid'] ?? null;
 
-    if($unionid){
-      $user = User::find()->where(['unionid'=>$unionid])->one();
-      if($user == null){
+    if ($unionid) {
+      $user = User::find()->where(['unionid' => $unionid])->one();
+      if ($user == null) {
         $user = new User();
         $user->unionid = $unionid;
         $user->openid = $response['openid'];
@@ -55,7 +73,7 @@ class WechatController extends Controller
     }
 
     return [
-      'data'=> [
+      'data' => [
         'token' => $user->token(),
         'openid' => $response['openid'],
         'unionid' => $unionid, // 返回 unionid（可能为 null）
@@ -67,7 +85,7 @@ class WechatController extends Controller
     ];
 
   }
-
+*/
 
   /**
    * 小程序支付下单接口

@@ -6,15 +6,22 @@ use yii\rest\ActiveController;
 use app\modules\v2\models\FileSearch;
 
 
+use bizley\jwt\JwtHttpBearerAuth;
+use yii\filters\auth\CompositeAuth;
+
 class FileController extends ActiveController
 {
   public $modelClass = 'app\modules\v2\models\File';
   public function behaviors()
   {
     $behaviors = parent::behaviors();
-   /* $behaviors['authenticator'] = [
-      'class' => DeviceFingerprintAuth::class,
-    ];*/
+      $behaviors['authenticator'] = [
+        'class' => CompositeAuth::class,
+        'authMethods' => [
+            JwtHttpBearerAuth::class,
+        ],
+        'except' => ['options'],
+      ];
 
     return $behaviors;
   }
