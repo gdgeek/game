@@ -107,7 +107,7 @@ $config = [
             'class' => 'app\components\Helper',
         ],
         'user' => [
-            'identityClass' => 'app\modules\v1\models\User',
+            'identityClass' => 'app\modules\v2\models\User',
             'enableAutoLogin' => true,
         ],
         'errorHandler' => [

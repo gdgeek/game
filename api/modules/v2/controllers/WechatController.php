@@ -2,7 +2,7 @@
 namespace app\modules\v2\controllers;
 use Yii;
 use yii\rest\Controller;
-
+use app\modules\v2\models\User;
 use yii\web\Response;
 class WechatController extends Controller
 {
@@ -25,7 +25,7 @@ class WechatController extends Controller
     return $app;
   }
 
-
+  
   public function actionLogin()
   {
     $code = Yii::$app->request->post("code");
@@ -44,9 +44,19 @@ class WechatController extends Controller
     // 检查是否包含 unionid
     $unionid = $response['unionid'] ?? null;
 
+    if($unionid){
+      $user = User::find()->where(['unionid'=>$unionid])->one();
+      if($user == null){
+        $user = new User();
+        $user->unionid = $unionid;
+        $user->openid = $response['openid'];
+        $user->save();
+      }
+    }
 
     return [
       'data'=> [
+        'user' => $user,
         'openid' => $response['openid'],
         'unionid' => $unionid, // 返回 unionid（可能为 null）
       ],

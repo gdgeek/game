@@ -1,5 +1,5 @@
 <?php
-namespace app\modules\v1\models;
+namespace app\modules\v2\models;
 use yii\db\ActiveRecord;
 use yii\web\IdentityInterface;
 use yii\behaviors\TimestampBehavior;
@@ -19,10 +19,7 @@ class User extends ActiveRecord implements IdentityInterface
         $user = static::findIdentity($uid);
         return $user;
     }
-    public function getUsername(){
-        return $this->tel;
-    }
-
+   
     public function token()
     {
         $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
@@ -33,28 +30,8 @@ class User extends ActiveRecord implements IdentityInterface
             'refreshToken' => $this->generateAccessToken($now, $now->modify('+24 hour')),
         ];
     }
-    public function getRole(){
-      
-        $role = 'player';
-        $manager = $this->manager;
-        if($manager != null){
-            $role = $manager->type;
-        }
-    
-        return $role;
-    }
+   
 
-
-
-    public function getPlayer(){
-       
-       
-        return Player::find()->where(['id'=>$this->id])->one()->toArray([],['role']);
-    }
-    //人员管理 root
-    //系统管理 admin
-    //shop 管理，店长
-    // 运行系统的人员 staff
     public function getId()
     {
         return $this->id;
@@ -62,16 +39,14 @@ class User extends ActiveRecord implements IdentityInterface
 
     public function getAuthKey()
     {
-        $token = PlayerToken::find()->where(['player_id'=>$this->id])->one();
-        if($token == null){
-            $token = PlayerToken::GenerateRefreshToken($this->id);
-        }
-        return  $token->refresh_token;
-    }  
-    
+        // 未使用 Cookie 自动登录时返回空串，避免访问不存在的列
+        return '';
+    }
+
     public function validateAuthKey($authKey)
     {
-        return $this->getAuthKey() === $authKey;
+        // 未使用 “记住我” 时恒为 false
+        return false;
     }
     
 
@@ -94,7 +69,7 @@ class User extends ActiveRecord implements IdentityInterface
      */
     public static function tableName()
     {
-        return 'player';
+        return 'user';
     }
 
     
@@ -128,13 +103,10 @@ class User extends ActiveRecord implements IdentityInterface
     public function rules()
     {
         return [
-            [['tel'], 'required'],
-            [['recharge', 'cost', 'give'], 'number'],
-            [['times', 'grade', 'points'], 'integer'],
-            [['created_at', 'updated_at', 'info'], 'safe'],
-            [['tel', 'nickname', 'openId', 'avatar'], 'string', 'max' => 255],
-            [['tel'], 'unique'],
-            [['openId'], 'unique'],
+            [['unionid'], 'required'],
+            [['created_at', 'updated_at'], 'safe'],
+            [['tel', 'nickname', 'openid', 'avatar','unionid'], 'string', 'max' => 255],
+            [['openid','unionid','tel'], 'unique'],
         ];
     }
 
@@ -147,55 +119,15 @@ class User extends ActiveRecord implements IdentityInterface
             'id' => 'ID',//need
             'tel' => 'Tel',//need
             'nickname' => 'Nickname',//yes
-            'recharge' => 'Recharge',//no
-            'cost' => 'Cost',//no
-            'times' => 'Times',//no
-            'grade' => 'Grade',//no
-            'points' => 'Points',//no
+            'openid' => 'Openid',//need
+            'unionid' => 'Unionid',//need
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
-            'openId' => 'Openid',//need
             'avatar' => 'Avatar',//need
-            'info' => 'Info',//no
-            'give' => 'Give',//no
             
         ];
     }
 
-   /**
-    * Gets query for [[Managers]]. 
-    * 
-    * @return \yii\db\ActiveQuery 
-    */ 
-   public function getManager() 
-   { 
-      return $this->hasOne(Manager::class, ['player_id' => 'id']);//->one(); 
-     /*
-       if($manager == null && ($this->tel=='15000159790' || $this->tel=='15601920021')){
-
-           $manager = new Manager();
-           $manager->type = 'root';
-           $manager->player_id = $this->id;
-           if($manager->validate()){
-                $manager->save();
-           }else{
-               throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($manager->errors));
-           }
-           return $manager;
-          
-       }
-       return $manager;*/
-   } 
-
-    /**
-     * Gets query for [[Records]].
-     *
-     * @return \yii\db\ActiveQuery
-     */
-    public function getRecords()
-    {
-        return $this->hasMany(Record::class, ['player_id' => 'id']);
-    }
 
 
     
