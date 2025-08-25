@@ -56,7 +56,7 @@ class WechatController extends Controller
 
     return [
       'data'=> [
-        'user' => $user,
+        'token' => $user->token(),
         'openid' => $response['openid'],
         'unionid' => $unionid, // 返回 unionid（可能为 null）
       ],
