@@ -310,7 +310,7 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
-                    'controller' => 'v2/wechat',
+                    'controller' => 'v2/wechat-pay',
                     'pluralize' => false,
                     'extraPatterns' => [
                         'GET info' => 'info',
@@ -326,6 +326,19 @@ $config = [
                      //   'POST refresh-token' => 'refresh-token',
                     ],
                 ],
+                
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v2/wechat',
+                    'pluralize' => false,
+                    'extraPatterns' => [
+                        'POST profile' => 'profile',
+                        'POST phone' => 'phone',
+                    //    'POST login' => 'login',
+                     //   'POST refresh-token' => 'refresh-token',
+                    ],
+                ],
+                
                 [
                     'class' => 'yii\rest\UrlRule',
                     'controller' => 'v2/site',

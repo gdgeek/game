@@ -27,6 +27,7 @@ class AppletController extends Controller
 
     public function actionRefresh()
     {
+
         return Server::Refresh();
     }
 
