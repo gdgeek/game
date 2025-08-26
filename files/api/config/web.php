@@ -313,7 +313,7 @@ $config = [
                     'controller' => 'v2/wechat-pay',
                     'pluralize' => false,
                     'extraPatterns' => [
-                        'GET info' => 'info',
+                      
                         'POST wxpay-order' => 'wxpay-order',
                         'POST notify' => 'notify',
                         'GET notify' => 'notify',
@@ -322,8 +322,6 @@ $config = [
                         'POST refund-notify' => 'refund-notify',
                         'GET wxpay-query-refund' => 'wxpay-query-refund',
                         'POST wxpay-refund' => 'wxpay-refund',
-                    //    'POST login' => 'login',
-                     //   'POST refresh-token' => 'refresh-token',
                     ],
                 ],
                 
@@ -332,8 +330,12 @@ $config = [
                     'controller' => 'v2/wechat',
                     'pluralize' => false,
                     'extraPatterns' => [
+                          'GET info' => 'info',
                         'POST profile' => 'profile',
                         'POST phone' => 'phone',
+                        'GET code' => 'code',
+                        'GET print' => 'print',
+                        'GET bind-phone' => 'bind-phone',
                     //    'POST login' => 'login',
                      //   'POST refresh-token' => 'refresh-token',
                     ],

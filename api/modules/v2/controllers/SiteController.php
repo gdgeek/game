@@ -38,6 +38,11 @@ class SiteController extends Controller
       ]
     ];
   }
+  public function actionPrint(){
+
+        $helper = Yii::$app->helper;
+        return $helper->play();
+  }
 
   public function actionLogin()
   {
