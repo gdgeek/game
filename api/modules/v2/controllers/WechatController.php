@@ -52,6 +52,7 @@ class WechatController extends Controller
         //$encryptedData = $request->post('encryptedData');
         //$iv = $request->post('iv');
 
+        $user = Yii::$app->user->identity;
         $wechat = Yii::$app->wechat;
         $app = $wechat->miniApp();
 
@@ -72,6 +73,7 @@ class WechatController extends Controller
                     'success' => true,
                     'message' => 'success',
                     'data' => [
+                        'user' => $user,
                         'phone' => ArrayHelper::getValue($phoneInfo, 'phoneNumber'),
                         'purePhone' => ArrayHelper::getValue($phoneInfo, 'purePhoneNumber'),
                         'countryCode' => ArrayHelper::getValue($phoneInfo, 'countryCode'),
