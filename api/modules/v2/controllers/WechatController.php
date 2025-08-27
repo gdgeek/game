@@ -45,10 +45,10 @@ class WechatController extends Controller
      *  - code: 小程序前端 getPhoneNumber 返回的 code（推荐）
      *  - 或 encryptedData + iv [+ sessionKey]（旧方案，需提供 sessionKey 或服务端自行维护）
      */
-    public function actionBindPhone($code)
+    public function actionRegister()
     {
-       // $request = Yii::$app->request;
-       // $code = $request->post('code');
+        $request = Yii::$app->request;
+        $code = $request->post('code');
         //$encryptedData = $request->post('encryptedData');
         //$iv = $request->post('iv');
 

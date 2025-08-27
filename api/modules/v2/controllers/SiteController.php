@@ -19,7 +19,7 @@ class SiteController extends Controller
 
   public function actionRefreshToken()
   {
-   
+
     $refreshToken = Yii::$app->request->post("refreshToken");
 
     $user = User::findIdentityByAccessToken($refreshToken);
@@ -38,10 +38,11 @@ class SiteController extends Controller
       ]
     ];
   }
-  public function actionPrint(){
+  public function actionPrint()
+  {
 
-        $helper = Yii::$app->helper;
-        return $helper->play();
+    $helper = Yii::$app->helper;
+    return $helper->play();
   }
 
   public function actionLogin()
