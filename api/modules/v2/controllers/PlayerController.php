@@ -22,7 +22,7 @@ class PlayerController extends ActiveController
   //列表所有不是guest的用户
   public function actionAdmin()
   {
-      $query = $this->modelClass::find()->where(['!=', 'status', 'guest']);
+      $query = $this->modelClass::find()->where(['!=', 'role', 'user']);
       return $query->all();
   }
 
