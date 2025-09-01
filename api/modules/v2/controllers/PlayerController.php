@@ -1,0 +1,29 @@
+<?php
+
+namespace app\modules\v2\controllers;
+use yii\rest\ActiveController;
+
+class PlayerController extends ActiveController
+{
+  public $modelClass = 'app\modules\v2\models\User';
+  public function behaviors()
+  {
+    $behaviors = parent::behaviors();
+    /*
+     //RootAuth
+     $behaviors['authenticator'] = [
+       'class' => RootAuth::class,
+       'except' => ['options'],
+     ];
+*/
+    return $behaviors;
+  }
+
+  //列表所有不是guest的用户
+  public function actionAdmin()
+  {
+      $query = $this->modelClass::find()->where(['!=', 'status', 'guest']);
+      return $query->all();
+  }
+
+}

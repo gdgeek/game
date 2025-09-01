@@ -331,9 +331,8 @@ $config = [
                     'pluralize' => false,
                     'extraPatterns' => [
                         'GET info' => 'info',
-                        'POST register' => 'register',
-                    //    'POST login' => 'login',
-                     //   'POST refresh-token' => 'refresh-token',
+                        'POST bind-phone' => 'bind-phone',
+                        'POST profile' => 'profile',
                     ],
                 ],
                 
@@ -344,6 +343,22 @@ $config = [
                     'extraPatterns' => [
                         'POST login' => 'login',
                         'POST refresh-token' => 'refresh-token',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v2/device',
+                    'pluralize' => true,
+                    'extraPatterns' => [
+                        'POST {id}/assign' => 'assign',
+                    ],
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v2/player',
+                    'pluralize' => true,
+                    'extraPatterns' => [
+                        'GET admin' => 'admin',
                     ],
                 ],
                 [

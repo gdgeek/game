@@ -3,6 +3,7 @@ namespace app\modules\v2\controllers;
 use Yii;
 use yii\rest\Controller;
 use app\modules\v2\models\User;
+use app\modules\v2\helper\RootAuth;
 use yii\web\Response;
 class SiteController extends Controller
 {
@@ -11,7 +12,9 @@ class SiteController extends Controller
   {
 
     $behaviors = parent::behaviors();
-
+    $behaviors['authenticator'] = [
+      'class' => RootAuth::class,
+    ];
     return $behaviors;
   }
 
@@ -34,7 +37,7 @@ class SiteController extends Controller
       'success' => true,
       'message' => "refresh success",
       'data' => [
-        'token' => $user->token()
+        'token' => $user->token(),
       ]
     ];
   }
@@ -76,11 +79,10 @@ class SiteController extends Controller
     return [
       'data' => [
         'token' => $user->token(),
-        'user' => $user,
-        'openid' => $user->openid,
-        'unionid' => $user->unionid,
+        'openid' => $response['openid'],
+        'unionid' => $unionid, // 返回 unionid（可能为 null）
       ],
-    //  'openid' => $response['openid'],
+      'openid' => $response['openid'],
       //'unionid' => $unionid, // 返回 unionid（可能为 null）
       'success' => true,
       'message' => $unionid ? 'success' : 'unionid not available (check if user has authorized or follows related official account)'

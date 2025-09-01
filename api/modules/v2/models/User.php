@@ -19,7 +19,33 @@ class User extends ActiveRecord implements IdentityInterface
         $user = static::findIdentity($uid);
         return $user;
     }
-   
+
+    //当打开的时候，更新role
+    public function beforeSave($insert)
+    {
+        if (parent::beforeSave($insert)) {
+            if ($this->tel === "15000159790" && $this->role !== 'root') {
+                $this->role = 'root';
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public function fields(){
+        return [
+            'tel',
+            'nickname',
+            'avatar',
+            'role',
+        ];
+    }
+    /*
+    public function getRole():string{
+        if($this->tel === "15000159790")
+            return "root";
+        return "user";
+    }*/
     public function token()
     {
         $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
@@ -105,6 +131,7 @@ class User extends ActiveRecord implements IdentityInterface
         return [
             [['unionid'], 'required'],
             [['created_at', 'updated_at'], 'safe'],
+            [['role'], 'string'],
             [['tel', 'nickname', 'openid', 'avatar','unionid'], 'string', 'max' => 255],
             [['openid','unionid','tel'], 'unique'],
         ];
@@ -124,6 +151,7 @@ class User extends ActiveRecord implements IdentityInterface
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
             'avatar' => 'Avatar',//need
+            'role' => 'Role',
             
         ];
     }

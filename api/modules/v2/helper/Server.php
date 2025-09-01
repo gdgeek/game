@@ -7,9 +7,10 @@ use app\modules\v2\models\Applet;
 use app\modules\v2\models\Report;
 use app\modules\v2\models\RecodeFile;
 use app\modules\v2\models\File;
+use app\modules\v2\models\Device;
 class Server
 {
-    public static function GetReport(string $token, string|null $uuid)
+    public static function GetDevice(string $token, string|null $uuid)
     {
         $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
         if (!$uuid) {
@@ -38,8 +39,32 @@ class Server
                             20,
                         ]
                 ]
-
             ]); // 示例数据
+
+           /* $device = Device::findOne(['uuid' => $uuid]);
+            if ($device) {
+                $report->device_id = $device->id;
+            } else {
+                //创建一个新的 device
+                $device = new Device();
+                $device->uuid = $uuid;
+                $device->save();
+                $report->device_id = $device->id;
+            }*/
+        }
+        if (!$report->device_id) {
+            $device = Device::findOne(['uuid' => $report->uuid]);
+            if ($device) {
+                $report->device_id = $device->id;
+            } else {
+                //创建一个新的 device
+                $device = new Device();
+                //得到客户端ip
+                $device->ip = Yii::$app->request->userIP;
+                $device->uuid = $uuid;
+                $device->save();
+                $report->device_id = $device->id;
+            }
         }
         $status = Yii::$app->request->post("status");
         if ($status) {
@@ -59,7 +84,7 @@ class Server
     private static function GetApplet(string $token, string|null $id): ?Applet
     {
         $applet = Applet::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
-       
+
         if (!$id) {
             return $applet;
         }
@@ -193,7 +218,7 @@ class Server
 
 
 
-        $report = Server::GetReport($token, $uuid);
+        $report = Server::GetDevice($token, $uuid);
         $applet = Server::GetApplet($token, $id);
 
         $file = Server::GetFile($token, $key, $applet);
@@ -239,7 +264,8 @@ class Server
             $result['message'] = 'success';
 
             return $result;
-        };
+        }
+        ;
 
         $result['success'] = false;
         $result['message'] = 'need expand';

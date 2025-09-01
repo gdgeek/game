@@ -5,13 +5,23 @@ use Yii;
 use yii\rest\Controller;
 use yii\web\BadRequestHttpException;
 use yii\helpers\ArrayHelper;
+
+use bizley\jwt\JwtHttpBearerAuth;
+use yii\filters\auth\CompositeAuth;
 class WechatController extends Controller
 {
     public function behaviors()
     {
-        $b = parent::behaviors();
-        // 按需加上认证，已在请求头里带 Authorization: Bearer xxx
-        return $b;
+        $behaviors = parent::behaviors();
+        $behaviors['authenticator'] = [
+            'class' => CompositeAuth::class,
+            'authMethods' => [
+                JwtHttpBearerAuth::class,
+            ],
+            'except' => ['options'],
+        ];
+
+        return $behaviors;
     }
 
     public function actionPrint()
@@ -38,6 +48,34 @@ class WechatController extends Controller
 
     }
 
+    public function actionProfile(){
+        $request = Yii::$app->request;
+        $avatar = $request->post('avatar');
+        $nickname = $request->post(name: 'nickname');
+         $user = Yii::$app->user->identity;
+
+         $dirty = false;
+         if($avatar && $user->avatar != $avatar){
+             $user->avatar = $avatar;
+             $dirty = true;
+         }
+         if($nickname && $user->nickname != $nickname){
+             $user->nickname = $nickname;
+             $dirty = true;
+         }
+         if($dirty){
+             $user->save();
+         }
+         return [
+            'success' => true,
+            'message' => 'Profile updated successfully',
+            'data' => [
+                'user' => $user,
+            ],
+         ];
+
+    }
+
     /**
      * 绑定手机号（推荐：新版 getPhoneNumber 返回的 code）
      * POST /v2/wechat/bind-phone
@@ -45,10 +83,11 @@ class WechatController extends Controller
      *  - code: 小程序前端 getPhoneNumber 返回的 code（推荐）
      *  - 或 encryptedData + iv [+ sessionKey]（旧方案，需提供 sessionKey 或服务端自行维护）
      */
-    public function actionRegister()
+    public function actionBindPhone()
     {
         $request = Yii::$app->request;
         $code = $request->post('code');
+        
         //$encryptedData = $request->post('encryptedData');
         //$iv = $request->post('iv');
 
@@ -69,15 +108,19 @@ class WechatController extends Controller
                 }
 
                 $phoneInfo = $resp['phone_info'] ?? [];
+                $phoneNumber = ArrayHelper::getValue($phoneInfo, 'phoneNumber');
+                if($user->tel != $phoneNumber){
+                    $user->tel = $phoneNumber;
+                    $user->save();
+                }
                 return [
                     'success' => true,
                     'message' => 'success',
                     'data' => [
                         'user' => $user,
-                        'phone' => ArrayHelper::getValue($phoneInfo, 'phoneNumber'),
+                        'phone' =>$phoneNumber,
                         'purePhone' => ArrayHelper::getValue($phoneInfo, 'purePhoneNumber'),
                         'countryCode' => ArrayHelper::getValue($phoneInfo, 'countryCode'),
-                        'raw' => $resp,
                     ],
                 ];
             } catch (\Throwable $e) {
