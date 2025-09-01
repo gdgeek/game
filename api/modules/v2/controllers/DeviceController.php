@@ -17,22 +17,23 @@ class DeviceController extends ActiveController
   public function behaviors()
   {
     $behaviors = parent::behaviors();
-    
-     //RootAuth
-     $behaviors['authenticator'] = [
-       'class' => RootAuth::class,
-       'except' => ['options'],
-     ];
+    $behaviors['authenticator'] = [
+      'class' => CompositeAuth::class,
+      'authMethods' => [
+        JwtHttpBearerAuth::class,
+      ],
+      'except' => ['options'],
+    ];
 
     return $behaviors;
   }
 
+  /*
   public function actionAssign($id)
   {
     $phone = Yii::$app->request->post('phone');
     $user = User::findOne(['tel' => $phone]);
-    if($user)
-    {
+    if ($user) {
       $control = new Control();
       $control->device_id = $id;
       $control->user_id = $user->id;
@@ -42,7 +43,11 @@ class DeviceController extends ActiveController
     }
 
     throw new \yii\web\NotFoundHttpException('User not found');
+  }*/
+
+  public function actionManage($user_id)
+  {
+    $query = Control::find()->where(['user_id' => $user_id]);
+    return $query->all();
   }
-
-
 }

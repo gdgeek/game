@@ -61,7 +61,7 @@ class Device extends \yii\db\ActiveRecord
     {
         return 'device';
     }
-
+    
     /**
      * {@inheritdoc}
      */

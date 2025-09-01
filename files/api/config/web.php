@@ -350,15 +350,15 @@ $config = [
                     'controller' => 'v2/device',
                     'pluralize' => true,
                     'extraPatterns' => [
-                        'POST {id}/assign' => 'assign',
+                        'GET manage' => 'manage',
                     ],
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
-                    'controller' => 'v2/player',
+                    'controller' => 'v2/root',
                     'pluralize' => true,
                     'extraPatterns' => [
-                        'GET admin' => 'admin',
+                        'POST assign' => 'assign',
                     ],
                 ],
                 [
