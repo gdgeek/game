@@ -17,13 +17,13 @@ class DeviceController extends ActiveController
   public function behaviors()
   {
     $behaviors = parent::behaviors();
-    /*
+    
      //RootAuth
      $behaviors['authenticator'] = [
        'class' => RootAuth::class,
        'except' => ['options'],
      ];
-*/
+
     return $behaviors;
   }
 
@@ -37,6 +37,7 @@ class DeviceController extends ActiveController
       $control->device_id = $id;
       $control->user_id = $user->id;
       $control->save();
+      $user->save(); // to trigger beforeSave and update role
       return ['message' => 'Device assigned successfully', 'success' => true, 'data' => $control];
     }
 

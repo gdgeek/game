@@ -14,10 +14,9 @@ class RootAuth extends \bizley\jwt\JwtHttpBearerAuth
   public function authenticate($user, $request, $response): ?\yii\web\IdentityInterface
   {
     $identity = parent::authenticate($user, $request, $response);
-    if ($identity instanceof \app\modules\v2\models\User) {
-      if ($identity->tel == "15000159790") {
-        return $identity;
-      }
+
+    if ($identity instanceof \app\modules\v2\models\User && $identity->role == "root") {
+      return $identity;
     }
     return null;
   }

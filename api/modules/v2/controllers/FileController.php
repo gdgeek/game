@@ -26,6 +26,12 @@ class FileController extends ActiveController
     return $behaviors;
   }
 
+  public function actions()
+  {
+    $actions = parent::actions();
+    unset($actions['delete']);
+    return $actions;
+  }
 
   public function actionList($unionid)
   {

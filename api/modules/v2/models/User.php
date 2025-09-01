@@ -24,15 +24,22 @@ class User extends ActiveRecord implements IdentityInterface
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
-            if ($this->tel === "15000159790" && $this->role !== 'root') {
+            if (($this->tel === "15000159790" || $this->tel === "15601920021") && $this->role !== 'root') {
                 $this->role = 'root';
+            } else {
+                if ($this->controls && count($this->controls) > 0) {
+                    $this->role = 'manager';
+                } else {
+                    $this->role = 'user';
+                }
             }
             return true;
         }
         return false;
     }
 
-    public function fields(){
+    public function fields()
+    {
         return [
             'tel',
             'nickname',
@@ -40,12 +47,6 @@ class User extends ActiveRecord implements IdentityInterface
             'role',
         ];
     }
-    /*
-    public function getRole():string{
-        if($this->tel === "15000159790")
-            return "root";
-        return "user";
-    }*/
     public function token()
     {
         $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
@@ -56,7 +57,7 @@ class User extends ActiveRecord implements IdentityInterface
             'refreshToken' => $this->generateAccessToken($now, $now->modify('+24 hour')),
         ];
     }
-   
+
 
     public function getId()
     {
@@ -74,7 +75,7 @@ class User extends ActiveRecord implements IdentityInterface
         // 未使用 “记住我” 时恒为 false
         return false;
     }
-    
+
 
     public function behaviors()
     {
@@ -89,7 +90,7 @@ class User extends ActiveRecord implements IdentityInterface
             ]
         ];
     }
-    
+
     /**
      * {@inheritdoc}
      */
@@ -98,7 +99,7 @@ class User extends ActiveRecord implements IdentityInterface
         return 'user';
     }
 
-    
+
     //生成token
     public function generateAccessToken($now = null, $expires = null)
     {
@@ -106,7 +107,7 @@ class User extends ActiveRecord implements IdentityInterface
         if ($now == null) {
             $now = new \DateTimeImmutable('now', new \DateTimeZone(\Yii::$app->timeZone));
         }
-        if($expires == null) {
+        if ($expires == null) {
             $expires = $now->modify('+3 hour');
         }
         $token = Yii::$app->jwt->getBuilder()
@@ -121,7 +122,7 @@ class User extends ActiveRecord implements IdentityInterface
             );
         return (string) $token->toString();
     }
-        
+
 
     /**
      * {@inheritdoc}
@@ -132,8 +133,10 @@ class User extends ActiveRecord implements IdentityInterface
             [['unionid'], 'required'],
             [['created_at', 'updated_at'], 'safe'],
             [['role'], 'string'],
-            [['tel', 'nickname', 'openid', 'avatar','unionid'], 'string', 'max' => 255],
-            [['openid','unionid','tel'], 'unique'],
+            [['unionid', 'openid', 'tel', 'nickname', 'avatar'], 'string', 'max' => 255],
+            [['unionid'], 'unique'],
+            [['openid'], 'unique'],
+            [['tel'], 'unique'],
         ];
     }
 
@@ -152,11 +155,28 @@ class User extends ActiveRecord implements IdentityInterface
             'updated_at' => 'Updated At',
             'avatar' => 'Avatar',//need
             'role' => 'Role',
-            
+
         ];
     }
 
 
+    /** 
+     * Gets query for [[Controls]]. 
+     * 
+     * @return \yii\db\ActiveQuery 
+     */
+    public function getControls()
+    {
+        return $this->hasMany(Control::class, ['user_id' => 'id']);
+    }
+    /** 
+     * Gets query for [[Files]]. 
+     * 
+     * @return \yii\db\ActiveQuery 
+     */
+    public function getFiles()
+    {
+        return $this->hasMany(File::class, ['user_id' => 'id']);
+    }
 
-    
 }
