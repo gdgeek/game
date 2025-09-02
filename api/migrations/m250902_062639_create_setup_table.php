@@ -15,6 +15,11 @@ class m250902_062639_create_setup_table extends Migration
      */
     public function safeUp()
     {
+          
+        if ($this->db->driverName === 'mysql') {
+            // http://stackoverflow.com/questions/766809/whats-the-difference-between-utf8-general-ci-and-utf8-unicode-ci
+            $tableOptions = 'CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE=InnoDB';
+        }
         $this->createTable('{{%setup}}', [
             'id' => $this->primaryKey(),
             'money' => $this->integer()->defaultValue(0),
@@ -25,7 +30,7 @@ class m250902_062639_create_setup_table extends Migration
             'title' => $this->string(),
             'scene_id' => $this->integer(),
             'device_id' => $this->integer(),
-        ]);
+        ],$tableOptions);
 
         // creates index for column `device_id`
         $this->createIndex(
