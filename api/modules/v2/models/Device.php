@@ -45,14 +45,7 @@ class Device extends ActiveRecord
        
         return $fields;
     }
-    public function extraFields()
-    {
-        return [
-            'control' => function ($model) {
-                return $model->control;
-            },
-        ];
-    }
+ 
 
     /**
      * {@inheritdoc}
