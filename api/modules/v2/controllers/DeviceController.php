@@ -8,6 +8,7 @@ use app\modules\v2\models\FileSearch;
 use app\modules\v2\helper\RootAuth;
 use Yii;
 use app\modules\v2\models\Device;
+use app\modules\v2\models\DeviceSearch;
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
 
@@ -47,9 +48,17 @@ class DeviceController extends ActiveController
 
   public function actionManage()
   {
+    //改成 DeviceSearch
+    $searchModel = new DeviceSearch();
+
     $user = Yii::$app->user->identity;
+    $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
+    $dataProvider->innerJoinWith('control')->where(['control.user_id' => $user->id]);
+
     //通过 Control 拿到 devices joinLeft
-    $query = Device::find()->innerJoinWith('control')->where(['control.user_id' => $user->id]);
-    return $query->all();
+    //改成 dataProvider
+     
+   //$query = Device::find()->innerJoinWith('control')->where(['control.user_id' => $user->id]);
+    return $dataProvider;
   }
 }
