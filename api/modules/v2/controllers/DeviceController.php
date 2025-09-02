@@ -7,7 +7,7 @@ use yii\rest\ActiveController;
 use app\modules\v2\models\FileSearch;
 use app\modules\v2\helper\RootAuth;
 use Yii;
-use app\modules\v2\models\User;
+use app\modules\v2\models\Device;
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
 
@@ -48,7 +48,8 @@ class DeviceController extends ActiveController
   public function actionManage()
   {
     $user = Yii::$app->user->identity;
-    $query = Control::find()->where(['user_id' => $user->id]);
+    //通过 Control 拿到 devices joinLeft
+    $query = Device::find()->innerJoinWith('control')->where(['control.user_id' => $user->id]);
     return $query->all();
   }
 }
