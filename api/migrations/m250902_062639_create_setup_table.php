@@ -22,7 +22,7 @@ class m250902_062639_create_setup_table extends Migration
         }
         $this->createTable('{{%setup}}', [
             'id' => $this->primaryKey(),
-            'money' => $this->integer()->defaultValue(0),
+            'money' => $this->float()->defaultValue(0),
             'slogans' => $this->json(),
             'pictures' => $this->json(),
             'thumbs' => $this->json(),
