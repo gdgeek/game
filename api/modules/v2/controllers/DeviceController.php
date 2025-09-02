@@ -45,20 +45,31 @@ class DeviceController extends ActiveController
 
     throw new \yii\web\NotFoundHttpException('User not found');
   }*/
-
+  /**
+   * /
+   * @return Yii\data\ActiveDataProvider
+   * 
+   * 
+   *   public function actionOpen()
+    {
+        $searchModel = new VerseSearch();
+        $papeSize = \Yii::$app->request->get('pageSize', 15);
+        $dataProvider = $searchModel->search(Yii::$app->request->queryParams,  $papeSize);
+        $query = $dataProvider->query;
+        $query->select('verse.*')->leftJoin('verse_open', '`verse_open`.`verse_id` = `verse`.`id`')->andWhere(['NOT', ['verse_open.id' => null]]);
+        return $dataProvider;
+    }
+   */
   public function actionManage()
   {
     //改成 DeviceSearch
     $searchModel = new DeviceSearch();
+    $pageSize = Yii::$app->request->get('pageSize', 15);
 
     $user = Yii::$app->user->identity;
-    $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
-    $dataProvider->query->innerJoinWith('control')->where(['control.user_id' => $user->id]);
-
-    //通过 Control 拿到 devices joinLeft
-    //改成 dataProvider
-     
-   //$query = Device::find()->innerJoinWith('control')->where(['control.user_id' => $user->id]);
+    $dataProvider = $searchModel->search(Yii::$app->request->queryParams,  $pageSize);
+    $query = $dataProvider->query;
+    $query->select('device.*')->leftJoin('control', '`control`.`device_id` = `device`.`id`')->andWhere(['control.user_id' => $user->id]);
     return $dataProvider;
   }
 }
