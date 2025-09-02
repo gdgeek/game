@@ -53,7 +53,7 @@ class DeviceController extends ActiveController
 
     $user = Yii::$app->user->identity;
     $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
-    $dataProvider->innerJoinWith('control')->where(['control.user_id' => $user->id]);
+    $dataProvider->query->innerJoinWith('control')->where(['control.user_id' => $user->id]);
 
     //通过 Control 拿到 devices joinLeft
     //改成 dataProvider
