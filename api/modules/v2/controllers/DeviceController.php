@@ -45,9 +45,10 @@ class DeviceController extends ActiveController
     throw new \yii\web\NotFoundHttpException('User not found');
   }*/
 
-  public function actionManage($user_id)
+  public function actionManage()
   {
-    $query = Control::find()->where(['user_id' => $user_id]);
+    $user = Yii::$app->user->identity;
+    $query = Control::find()->where(['user_id' => $user->id]);
     return $query->all();
   }
 }
