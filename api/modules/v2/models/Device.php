@@ -7,6 +7,7 @@ use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
 use yii\db\ActiveRecord;
+use app\modules\v2\models\User; 
 
 /**
  * This is the model class for table "device".
@@ -45,7 +46,18 @@ class Device extends ActiveRecord
        
         return $fields;
     }
- 
+    public function extraFields()
+    {
+        return [
+            'admin' => function ($model) {
+                //拿到所有control 关联的 user，然后返回user数组，通过查询
+                return User::find()
+                    ->innerJoin('control', 'control.user_id = user.id')
+                    ->where(['control.device_id' => $model->id])
+                    ->all();
+            },
+        ];
+    }
 
     /**
      * {@inheritdoc}
