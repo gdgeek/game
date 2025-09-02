@@ -36,6 +36,24 @@ class Device extends ActiveRecord
         ];
     }
     
+    public function fields()
+    {
+        $fields = parent::fields();
+
+        // Remove fields that you don't want to expose
+        unset($fields['created_at'], $fields['updated_at']);
+       
+        return $fields;
+    }
+    public function extraFields()
+    {
+        return [
+            'control' => function ($model) {
+                return $model->control;
+            },
+        ];
+    }
+
     /**
      * {@inheritdoc}
      */
