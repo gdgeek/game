@@ -57,6 +57,12 @@ class Device extends ActiveRecord
                     ->all();
             },
             'setup' => function ($model) {
+                if($model->setup == null){
+                    $setup = new Setup();
+                    $setup->device_id = $model->id;
+                    $setup->save();
+                    return $setup;
+                }
                 return $model->setup;
             }
         ];
