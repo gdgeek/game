@@ -162,7 +162,6 @@ class Server
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.webp',
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.webp',
             ],
-
             'shot' => [1, 5, 10, 20],
         ];
         return $setup;

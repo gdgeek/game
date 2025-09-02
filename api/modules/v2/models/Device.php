@@ -7,7 +7,7 @@ use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
 use yii\db\ActiveRecord;
-use app\modules\v2\models\User; 
+use app\modules\v2\models\User;
 
 /**
  * This is the model class for table "device".
@@ -36,14 +36,14 @@ class Device extends ActiveRecord
             ]
         ];
     }
-    
+
     public function fields()
     {
         $fields = parent::fields();
 
         // Remove fields that you don't want to expose
         unset($fields['created_at'], $fields['updated_at']);
-       
+
         return $fields;
     }
     public function extraFields()
@@ -56,6 +56,9 @@ class Device extends ActiveRecord
                     ->where(['control.device_id' => $model->id])
                     ->all();
             },
+            'setup' => function ($model) {
+                return $model->setup;
+            }
         ];
     }
 
@@ -73,7 +76,7 @@ class Device extends ActiveRecord
     public function rules()
     {
         return [
-            [['created_at', 'updated_at', 'setup'], 'safe'],
+            [['created_at', 'updated_at'], 'safe'],
             [['uuid', 'tag', 'ip'], 'string', 'max' => 255],
             [['uuid'], 'unique'],
             [['tag'], 'unique'],
@@ -92,7 +95,18 @@ class Device extends ActiveRecord
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
             'ip' => 'Ip',
-            'setup' => 'Setup',
         ];
+    }
+
+   
+
+     /**
+     * Gets query for [[Setup]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getSetup()
+    {
+        return $this->hasOne(Setup::class, ['device_id' => 'id']);
     }
 }
