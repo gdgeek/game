@@ -156,6 +156,7 @@ class Server
                 '阳光正好，微风不燥',
                 '记录每一刻，热爱每一天'
             ],
+            
             'pictures' => [
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.webp',
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.webp',

@@ -355,6 +355,11 @@ $config = [
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
+                    'controller' => 'v2/setup',
+                    'pluralize' => true,
+                ],
+                [
+                    'class' => 'yii\rest\UrlRule',
                     'controller' => 'v2/root',
                     'pluralize' => true,
                     'extraPatterns' => [

@@ -29,37 +29,6 @@ class DeviceController extends ActiveController
     return $behaviors;
   }
 
-  /*
-  public function actionAssign($id)
-  {
-    $phone = Yii::$app->request->post('phone');
-    $user = User::findOne(['tel' => $phone]);
-    if ($user) {
-      $control = new Control();
-      $control->device_id = $id;
-      $control->user_id = $user->id;
-      $control->save();
-      $user->save(); // to trigger beforeSave and update role
-      return ['message' => 'Device assigned successfully', 'success' => true, 'data' => $control];
-    }
-
-    throw new \yii\web\NotFoundHttpException('User not found');
-  }*/
-  /**
-   * /
-   * @return Yii\data\ActiveDataProvider
-   * 
-   * 
-   *   public function actionOpen()
-    {
-        $searchModel = new VerseSearch();
-        $papeSize = \Yii::$app->request->get('pageSize', 15);
-        $dataProvider = $searchModel->search(Yii::$app->request->queryParams,  $papeSize);
-        $query = $dataProvider->query;
-        $query->select('verse.*')->leftJoin('verse_open', '`verse_open`.`verse_id` = `verse`.`id`')->andWhere(['NOT', ['verse_open.id' => null]]);
-        return $dataProvider;
-    }
-   */
   public function actionManage()
   {
     //改成 DeviceSearch
