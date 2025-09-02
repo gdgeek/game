@@ -35,7 +35,8 @@ class Setup extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['money', 'scene_id', 'device_id'], 'integer'],
+            [['scene_id', 'device_id'], 'integer'],
+            [['money'], 'number'],
             [['slogans', 'pictures', 'thumbs', 'shot'], 'safe'],
             [['title'], 'string', 'max' => 255],
             [['device_id'], 'exist', 'skipOnError' => true, 'targetClass' => Device::class, 'targetAttribute' => ['device_id' => 'id']],
