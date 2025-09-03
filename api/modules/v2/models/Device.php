@@ -18,7 +18,7 @@ use app\modules\v2\models\User;
  * @property string $created_at
  * @property string $updated_at
  * @property string|null $ip
- * @property string|null $setup
+ * @property Setup $setup
  */
 class Device extends ActiveRecord
 {

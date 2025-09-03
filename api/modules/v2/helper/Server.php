@@ -8,6 +8,7 @@ use app\modules\v2\models\Report;
 use app\modules\v2\models\RecodeFile;
 use app\modules\v2\models\File;
 use app\modules\v2\models\Device;
+use app\modules\v2\models\Setup;
 class Server
 {
     public static function GetDevice(string $token, string|null $uuid)
@@ -21,7 +22,7 @@ class Server
             $report->token = $token;
             $report->uuid = $uuid;
             $report->created_at = strval(time());
-         
+
         }
         if (!$report->device_id) {
             $device = Device::findOne(['uuid' => $report->uuid]);
@@ -117,68 +118,33 @@ class Server
         $device = Device::findOne(['uuid' => $uuid]);
         if ($device && $device->setup) {
             $setup = $device->setup;
-            return [
-                'money' => $setup['money'], 
-                'slogans' => $setup['slogans'], 
-                'pictures' => $setup['thumbs'], 
-                'thumbs' => $setup['thumbs'],
-                'shot' => $setup['shot'],
-            ];
+            return $setup->getData();
         }
-        return self::DefaultSetup();
+        return Setup::DefaultData();
     }
 
-     public static function GetInfo(string|null $uuid)
+   
+    public static function GetInfo(string|null $uuid)
     {
-        if($uuid){
+        if ($uuid) {
             $device = Device::findOne(['uuid' => $uuid]);
-            if ($device && $device->setup) {
-                $setup = $device->setup;
-                return [
-                    'title' => $setup['title'],
-                    'pictures' => $setup['pictures'],
-                    'scene_id' => $setup['scene_id'],
-                ];
+            if (!$device) {
+                $device = new Device();
+                $device->uuid = $uuid;
+                $setup = Setup::Create($device,  Setup::DefaultData(), Setup::DefaultInfo());
+                $device->save();
             }
+
+            $setup = $device->setup;
+            if ($setup) {
+                return $setup->getInfo();
+            }
+
         }
-        return self::DefaultInfo();
+        return Setup::DefaultInfo();
     }
 
-    private static function DefaultInfo(): array
-    {
-        return [
-            'title' => '未知',
-            'pictures' => [
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.png',
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.png',
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
-            ],
-            'scene_id' => 0,
-        ];
-    }
-    private static function DefaultSetup(): array
-    {
-        $setup = [
-
-            'money' => 0,
-            'slogans' => [
-                '我在这里很想你',
-                '今天也要加油鸭',
-                '阳光正好，微风不燥',
-                '记录每一刻，热爱每一天'
-            ],
-
-            'pictures' => [
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.webp',
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.webp',
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.webp',
-                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.webp',
-            ],
-            'shots' => [1, 5, 10, 20],
-        ];
-        return $setup;
-    }
+   
     public static function Refresh(): array
     {
 
@@ -248,7 +214,7 @@ class Server
                 if (isset($report["uuid"])) {
                     $result['data']['setup'] = self::GetSetup($report["uuid"]);
                 } else {
-                    $result['data']['setup'] = self::DefaultSetup();
+                    $result['data']['setup'] =  Setup::DefaultData();
                 }
 
             }
@@ -256,7 +222,7 @@ class Server
                 if (isset($report["uuid"])) {
                     $result['data']['info'] = self::GetInfo($report["uuid"]);
                 } else {
-                    $result['data']['info'] = self::DefaultInfo();
+                    $result['data']['info'] = Setup::DefaultInfo();
                 }
             }
 
