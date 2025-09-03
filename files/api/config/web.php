@@ -298,6 +298,7 @@ $config = [
                         'GET refresh' => 'refresh',
                         'GET log' => 'log',
                         'GET test' => 'test',
+                        'GET info' => 'info',
                     ],
                 ],
                 [

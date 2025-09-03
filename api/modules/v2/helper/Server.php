@@ -128,7 +128,7 @@ class Server
         return self::DefaultSetup();
     }
 
-     private static function GetInfo(string|null $uuid)
+     public static function GetInfo(string|null $uuid)
     {
         if($uuid){
             $device = Device::findOne(['uuid' => $uuid]);

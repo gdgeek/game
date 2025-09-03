@@ -21,12 +21,12 @@ class ServerController extends Controller
 
     private function doRefresh(): array
     {
-       // $server = new Server();
+        // $server = new Server();
         return Server::Refresh();
-       
+
     }
 
-    
+
     public function actionFile()
     {
         $key = Yii::$app->request->post("key");
@@ -57,6 +57,18 @@ class ServerController extends Controller
 
         return Server::Refresh();
 
+    }
+    public function actionInfo($uuid)
+    {
+        $info = Server::GetInfo($uuid);
+        return [
+            'success' => true,
+            'message' => 'success',
+            'data' => [
+                'info' => $info,
+
+            ]
+        ];
     }
 
     public function actionLog($token)
