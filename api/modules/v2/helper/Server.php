@@ -21,36 +21,7 @@ class Server
             $report->token = $token;
             $report->uuid = $uuid;
             $report->created_at = strval(time());
-            $report->setup = json_encode([
-                'money' => 0,
-                [
-                    'pictures' =>
-                        [
-                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.png',
-                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.png',
-                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
-                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
-                        ],
-                    'shot' =>
-                        [
-                            1,
-                            5,
-                            10,
-                            20,
-                        ]
-                ]
-            ]); // 示例数据
-
-           /* $device = Device::findOne(['uuid' => $uuid]);
-            if ($device) {
-                $report->device_id = $device->id;
-            } else {
-                //创建一个新的 device
-                $device = new Device();
-                $device->uuid = $uuid;
-                $device->save();
-                $report->device_id = $device->id;
-            }*/
+         
         }
         if (!$report->device_id) {
             $device = Device::findOne(['uuid' => $report->uuid]);
@@ -141,9 +112,50 @@ class Server
 
         return $rf;
     }
-    private static function GetSetup(string|null $device)
+    private static function GetSetup(string|null $uuid)
     {
+        $device = Device::findOne(['uuid' => $uuid]);
+        if ($device && $device->setup) {
+            $setup = $device->setup;
+            return [
+                'money' => $setup['money'], 
+                'slogans' => $setup['slogans'], 
+                'pictures' => $setup['thumbs'], 
+                'thumbs' => $setup['thumbs'],
+                'shot' => $setup['shot'],
+            ];
+        }
         return self::DefaultSetup();
+    }
+
+     private static function GetInfo(string|null $uuid)
+    {
+        if($uuid){
+            $device = Device::findOne(['uuid' => $uuid]);
+            if ($device && $device->setup) {
+                $setup = $device->setup;
+                return [
+                    'title' => $setup['title'],
+                    'pictures' => $setup['pictures'],
+                    'scene_id' => $setup['scene_id'],
+                ];
+            }
+        }
+        return self::DefaultInfo();
+    }
+
+    private static function DefaultInfo(): array
+    {
+        return [
+            'title' => '未知',
+            'pictures' => [
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.png',
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.png',
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
+                'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
+            ],
+            'scene_id' => 0,
+        ];
     }
     private static function DefaultSetup(): array
     {
@@ -156,14 +168,14 @@ class Server
                 '阳光正好，微风不燥',
                 '记录每一刻，热爱每一天'
             ],
-            
+
             'pictures' => [
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.webp',
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.webp',
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.webp',
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.webp',
             ],
-            'shot' => [1, 5, 10, 20],
+            'shots' => [1, 5, 10, 20],
         ];
         return $setup;
     }
@@ -239,6 +251,13 @@ class Server
                     $result['data']['setup'] = self::DefaultSetup();
                 }
 
+            }
+            if (in_array("info", $expands)) {
+                if (isset($report["uuid"])) {
+                    $result['data']['info'] = self::GetInfo($report["uuid"]);
+                } else {
+                    $result['data']['info'] = self::DefaultInfo();
+                }
             }
 
             if (in_array("file", $expands)) {
