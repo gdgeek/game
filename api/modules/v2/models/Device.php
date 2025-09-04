@@ -42,12 +42,13 @@ class Device extends ActiveRecord
         $fields = parent::fields();
 
         // Remove fields that you don't want to expose
-        unset($fields['created_at'], $fields['updated_at']);
+        //unset($fields['created_at'], $fields['updated_at']);
 
         return $fields;
     }
     public function extraFields()
     {
+
         return [
             'admin' => function ($model) {
                 //拿到所有control 关联的 user，然后返回user数组，通过查询

@@ -352,20 +352,13 @@ $config = [
                     'pluralize' => true,
                     'extraPatterns' => [
                         'GET manage' => 'manage',
+                        'POST assign' => 'assign',
                     ],
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',
                     'controller' => 'v2/setup',
                     'pluralize' => true,
-                ],
-                [
-                    'class' => 'yii\rest\UrlRule',
-                    'controller' => 'v2/root',
-                    'pluralize' => true,
-                    'extraPatterns' => [
-                        'POST assign' => 'assign',
-                    ],
                 ],
                 [
                     'class' => 'yii\rest\UrlRule',

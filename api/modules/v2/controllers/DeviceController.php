@@ -19,12 +19,19 @@ class DeviceController extends ActiveController
   {
     $behaviors = parent::behaviors();
     $behaviors['authenticator'] = [
-      'class' => CompositeAuth::class,
-      'authMethods' => [
-        JwtHttpBearerAuth::class,
-      ],
+      'class' => JwtHttpBearerAuth::class,
       'except' => ['options'],
     ];
+
+    //如果是 Assign 的话2 用 RootAuth
+    if (Yii::$app->request->getMethod() == 'DELETE' || Yii::$app->request->get('action') == 'assign') {
+      $behaviors['authenticator'] = ['class' => RootAuth::class];
+    }  else {
+      $behaviors['authenticator'] = [
+        'class' => JwtHttpBearerAuth::class,
+        'except' => ['options'],
+      ];
+    }
 
     return $behaviors;
   }
@@ -36,9 +43,27 @@ class DeviceController extends ActiveController
     $pageSize = Yii::$app->request->get('pageSize', 15);
 
     $user = Yii::$app->user->identity;
-    $dataProvider = $searchModel->search(Yii::$app->request->queryParams,  $pageSize);
+    $dataProvider = $searchModel->search(Yii::$app->request->queryParams, $pageSize);
     $query = $dataProvider->query;
     $query->select('device.*')->leftJoin('control', '`control`.`device_id` = `device`.`id`')->andWhere(['control.user_id' => $user->id]);
     return $dataProvider;
+  }
+
+
+  public function actionAssign()
+  {
+    $phone = Yii::$app->request->post('phone');
+    $device_id = Yii::$app->request->post('device_id');
+    $user = User::findOne(['tel' => $phone]);
+    if ($user) {
+      $control = new Control();
+      $control->device_id = $device_id;
+      $control->user_id = $user->id;
+      $control->save();
+      $user->save(); // to trigger beforeSave and update role
+      return ['message' => 'Device assigned successfully', 'success' => true, 'data' => $control];
+    }
+
+    throw new \yii\web\NotFoundHttpException('User not found');
   }
 }
