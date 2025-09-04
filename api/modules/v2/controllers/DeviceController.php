@@ -55,7 +55,7 @@ class DeviceController extends ActiveController
   {
     return "test" . $device_id;
   }
-  public function actionUnassignn($device_id, $user_id)
+  public function actionUnassign($device_id, $user_id)
   {
     $control = Control::findOne(['device_id' => $device_id, 'user_id' => $user_id]);
     if ($control) {
