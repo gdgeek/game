@@ -5,6 +5,7 @@ use app\modules\v2\models\Control;
 use app\modules\v2\models\File;
 use yii\rest\ActiveController;
 use app\modules\v2\models\FileSearch;
+use app\modules\v2\models\User;
 use app\modules\v2\helper\RootAuth;
 use Yii;
 use app\modules\v2\models\Device;
@@ -17,7 +18,9 @@ class DeviceController extends ActiveController
   public $modelClass = 'app\modules\v2\models\Device';
   public function behaviors()
   {
+    return parent::behaviors();
     $behaviors = parent::behaviors();
+
     $behaviors['authenticator'] = [
       'class' => JwtHttpBearerAuth::class,
       'except' => ['options'],
@@ -26,7 +29,7 @@ class DeviceController extends ActiveController
     //如果是 Assign 的话2 用 RootAuth
     if (Yii::$app->request->getMethod() == 'DELETE' || Yii::$app->request->get('action') == 'assign') {
       $behaviors['authenticator'] = ['class' => RootAuth::class];
-    }  else {
+    } else {
       $behaviors['authenticator'] = [
         'class' => JwtHttpBearerAuth::class,
         'except' => ['options'],
@@ -49,11 +52,14 @@ class DeviceController extends ActiveController
     return $dataProvider;
   }
 
-
-  public function actionAssign()
-  {
+  public function actionTest($device_id){
+    return "test".$device_id;
+  }
+  public function actionAssign($device_id)
+  {//POST ${id}/assign' => 'assign', 得到$id
+    
     $phone = Yii::$app->request->post('phone');
-    $device_id = Yii::$app->request->post('device_id');
+   // $device_id = Yii::$app->request->post('device_id');
     $user = User::findOne(['tel' => $phone]);
     if ($user) {
       $control = new Control();

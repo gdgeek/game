@@ -353,6 +353,8 @@ $config = [
                     'extraPatterns' => [
                         'GET manage' => 'manage',
                         'POST assign' => 'assign',
+                        'POST <device_id>/assign' => 'assign',
+                        'GET <device_id>/test' => 'test',
                     ],
                 ],
                 [
