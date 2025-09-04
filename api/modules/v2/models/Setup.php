@@ -159,6 +159,7 @@ class Setup extends \yii\db\ActiveRecord
             'title' => $this->title,
             'pictures' => $this->pictures,
             'scene_id' => $this->scene_id,
+            'updated_at' => $this->updated_at,
         ];
     }
 }
