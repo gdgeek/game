@@ -64,10 +64,7 @@ class ServerController extends Controller
         return [
             'success' => true,
             'message' => 'success',
-            'data' => [
-                'info' => $info,
-
-            ]
+            'data' =>$info,
         ];
     }
 

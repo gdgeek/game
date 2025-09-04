@@ -54,7 +54,7 @@ class Setup extends \yii\db\ActiveRecord
             'slogans' => 'Slogans',
             'pictures' => 'Pictures',
             'thumbs' => 'Thumbs',
-            'shots' => 'ShotS',
+            'shots' => 'Shots',
             'title' => 'Title',
             'scene_id' => 'Scene ID',
             'device_id' => 'Device ID',
