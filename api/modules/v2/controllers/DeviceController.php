@@ -18,7 +18,6 @@ class DeviceController extends ActiveController
   public $modelClass = 'app\modules\v2\models\Device';
   public function behaviors()
   {
-    return parent::behaviors();
     $behaviors = parent::behaviors();
 
     $behaviors['authenticator'] = [
