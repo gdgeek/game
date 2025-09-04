@@ -51,14 +51,25 @@ class DeviceController extends ActiveController
     return $dataProvider;
   }
 
-  public function actionTest($device_id){
-    return "test".$device_id;
+  public function actionTest($device_id)
+  {
+    return "test" . $device_id;
+  }
+  public function actionUnassignn($device_id, $user_id)
+  {
+    $control = Control::findOne(['device_id' => $device_id, 'user_id' => $user_id]);
+    if ($control) {
+      $control->delete();
+      return ['message' => 'Device unassigned successfully', 'success' => true];
+    } else {
+      throw new \yii\web\NotFoundHttpException('Control not found');
+    }
   }
   public function actionAssign($device_id)
   {//POST ${id}/assign' => 'assign', 得到$id
-    
+
     $phone = Yii::$app->request->post('phone');
-   // $device_id = Yii::$app->request->post('device_id');
+    // $device_id = Yii::$app->request->post('device_id');
     $user = User::findOne(['tel' => $phone]);
     if ($user) {
       $control = new Control();

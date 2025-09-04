@@ -354,7 +354,7 @@ $config = [
                         'GET manage' => 'manage',
                         'POST assign' => 'assign',
                         'POST <device_id>/assign' => 'assign',
-                        'GET <device_id>/test' => 'test',
+                        'DELETE <device_id>/assign/<user_id>' => 'unassign',
                     ],
                 ],
                 [
