@@ -111,6 +111,7 @@ class Setup extends \yii\db\ActiveRecord
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
             ],
             'scene_id' => 0,
+            'updated_at' => date('Y-m-d H:i:s'),
         ];
     }
     public static function DefaultData(): array
