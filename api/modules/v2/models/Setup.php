@@ -3,24 +3,42 @@
 namespace app\modules\v2\models;
 
 use Yii;
+use yii\behaviors\TimestampBehavior;
+use yii\db\Expression;
 
 /**
  * This is the model class for table "setup".
  *
  * @property int $id
- * @property int|null $money
+ * @property float|null $money
  * @property string|null $slogans
  * @property string|null $pictures
  * @property string|null $thumbs
- * @property string|null $shots
  * @property string|null $title
  * @property int|null $scene_id
  * @property int|null $device_id
+ * @property string|null $shots 
+ * @property string|null $updated_at 
  *
  * @property Device $device
  */
 class Setup extends \yii\db\ActiveRecord
 {
+
+
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => TimestampBehavior::class,
+                'attributes' => [
+                    \yii\db\BaseActiveRecord::EVENT_BEFORE_INSERT => ['updated_at'],
+                    \yii\db\BaseActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
+                ],
+                'value' => new Expression('NOW()'),
+            ]
+        ];
+    }
     /**
      * {@inheritdoc}
      */
@@ -37,7 +55,7 @@ class Setup extends \yii\db\ActiveRecord
         return [
             [['scene_id', 'device_id'], 'integer'],
             [['money'], 'number'],
-            [['slogans', 'pictures', 'thumbs', 'shots'], 'safe'],
+            [['slogans', 'pictures', 'thumbs', 'shots', 'updated_at'], 'safe'],
             [['title'], 'string', 'max' => 255],
             [['device_id'], 'exist', 'skipOnError' => true, 'targetClass' => Device::class, 'targetAttribute' => ['device_id' => 'id']],
         ];
@@ -54,10 +72,11 @@ class Setup extends \yii\db\ActiveRecord
             'slogans' => 'Slogans',
             'pictures' => 'Pictures',
             'thumbs' => 'Thumbs',
-            'shots' => 'Shots',
             'title' => 'Title',
             'scene_id' => 'Scene ID',
             'device_id' => 'Device ID',
+            'shots' => 'Shots',
+            'updated_at' => 'Updated At',
         ];
     }
 
