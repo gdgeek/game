@@ -19,12 +19,28 @@ class User extends ActiveRecord implements IdentityInterface
         $user = static::findIdentity($uid);
         return $user;
     }
-
+    public function afterFind()
+    {
+        parent::afterFind();
+        $role = 'user';
+        // Ensure role is up-to-date after retrieving from database
+        if (($this->tel === "15000159790" || $this->tel === "15601920021")) {
+             $role = 'root';
+        } else {
+            if ($this->controls && count($this->controls) > 0) {
+                 $role = 'manager';
+            } 
+        }
+        if($this->role !== $role){
+            $this->role = $role;
+            $this->save(false, ['role']); // Save only the 'role' attribute without validation
+        }
+    }
     //当打开的时候，更新role
     public function beforeSave($insert)
     {
         if (parent::beforeSave($insert)) {
-            if (($this->tel === "15000159790" || $this->tel === "15601920021") && $this->role !== 'root') {
+            if (($this->tel === "15000159790" || $this->tel === "15601920021")) {
                 $this->role = 'root';
             } else {
                 if ($this->controls && count($this->controls) > 0) {
