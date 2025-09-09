@@ -30,26 +30,6 @@ class LocalController extends Controller
             $report->token = $token;
             $report->device = $device;
             $report->created_at = strval(time());
-            $report->setup = json_encode([
-                'money' => 0,
-                [
-                    'pictures' =>
-                        [
-                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t1.png',
-                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t2.png',
-                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
-                            'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
-                        ],
-                    'shot' =>
-                        [
-                            1,
-                            5,
-                            10,
-                            20,
-                        ]
-                ]
-
-            ]); // 示例数据
         }
         $status = Yii::$app->request->post("status");
         if ($status) {
