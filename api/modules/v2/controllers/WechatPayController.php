@@ -7,6 +7,14 @@ use yii\web\Response;
 
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
+use OpenApi\Annotations as OA;
+
+/**
+ * @OA\Tag(
+ *     name="微信支付",
+ *     description="微信支付相关接口"
+ * )
+ */
 class WechatPayController extends Controller
 {
 
@@ -28,6 +36,21 @@ class WechatPayController extends Controller
 
   /**
    * 小程序支付下单接口
+   * @OA\Post(
+   *     path="/v2/wechat-pay/wxpay-order",
+   *     tags={"微信支付"},
+   *     summary="小程序支付下单",
+   *     @OA\RequestBody(
+   *         required=true,
+   *         @OA\JsonContent(
+   *             @OA\Property(property="openid", type="string", description="用户 OpenID"),
+   *             @OA\Property(property="out_trade_no", type="string", description="商户订单号"),
+   *             @OA\Property(property="amount", type="integer", description="金额(分)"),
+   *             @OA\Property(property="description", type="string", description="商品描述")
+   *         )
+   *     ),
+   *     @OA\Response(response=200, description="下单成功")
+   * )
    */
   public function actionWxpayOrder()
   {
@@ -107,6 +130,18 @@ class WechatPayController extends Controller
 
   /**
    * 支付通知回调
+   * @OA\Post(
+   *     path="/v2/wechat-pay/notify",
+   *     tags={"微信支付"},
+   *     summary="支付结果通知",
+   *     @OA\Response(response=200, description="成功")
+   * )
+   * @OA\Get(
+   *     path="/v2/wechat-pay/notify",
+   *     tags={"微信支付"},
+   *     summary="支付结果通知(GET)",
+   *     @OA\Response(response=200, description="成功")
+   * )
    */
   public function actionNotify()
   {
@@ -136,6 +171,19 @@ class WechatPayController extends Controller
 
   /**
    * 根据商户订单号查询微信支付订单
+   * @OA\Get(
+   *     path="/v2/wechat-pay/wxpay-query-order-by-out-trade-no",
+   *     tags={"微信支付"},
+   *     summary="查询订单(按商户单号)",
+   *     @OA\Parameter(
+   *         name="out_trade_no",
+   *         in="query",
+   *         required=true,
+   *         description="商户订单号",
+   *         @OA\Schema(type="string")
+   *     ),
+   *     @OA\Response(response=200, description="查询结果")
+   * )
    */
   public function actionWxpayQueryOrderByOutTradeNo()
   {
@@ -186,6 +234,22 @@ class WechatPayController extends Controller
 
   /**
    * 申请退款
+   * @OA\Post(
+   *     path="/v2/wechat-pay/wxpay-refund",
+   *     tags={"微信支付"},
+   *     summary="申请退款",
+   *     @OA\RequestBody(
+   *         required=true,
+   *         @OA\JsonContent(
+   *             @OA\Property(property="out_trade_no", type="string", description="商户订单号"),
+   *             @OA\Property(property="out_refund_no", type="string", description="商户退款单号"),
+   *             @OA\Property(property="refund_amount", type="integer", description="退款金额(分)"),
+   *             @OA\Property(property="total_amount", type="integer", description="订单总金额(分)"),
+   *             @OA\Property(property="reason", type="string", description="退款原因")
+   *         )
+   *     ),
+   *     @OA\Response(response=200, description="申请成功")
+   * )
    */
   public function actionWxpayRefund()
   {
@@ -272,6 +336,19 @@ class WechatPayController extends Controller
 
   /**
    * 查询退款
+   * @OA\Get(
+   *     path="/v2/wechat-pay/wxpay-query-refund",
+   *     tags={"微信支付"},
+   *     summary="查询退款",
+   *     @OA\Parameter(
+   *         name="out_refund_no",
+   *         in="query",
+   *         required=true,
+   *         description="商户退款单号",
+   *         @OA\Schema(type="string")
+   *     ),
+   *     @OA\Response(response=200, description="查询结果")
+   * )
    */
   public function actionWxpayQueryRefund()
   {
@@ -319,6 +396,12 @@ class WechatPayController extends Controller
 
   /**
    * 退款回调通知
+   * @OA\Post(
+   *     path="/v2/wechat-pay/refund-notify",
+   *     tags={"微信支付"},
+   *     summary="退款结果通知",
+   *     @OA\Response(response=200, description="成功")
+   * )
    */
   public function actionRefundNotify()
   {
@@ -352,6 +435,19 @@ class WechatPayController extends Controller
 
   /**
    * 根据微信支付订单号查询订单
+   * @OA\Get(
+   *     path="/v2/wechat-pay/wxpay-query-order-by-transaction-id",
+   *     tags={"微信支付"},
+   *     summary="查询订单(按微信单号)",
+   *     @OA\Parameter(
+   *         name="transaction_id",
+   *         in="query",
+   *         required=true,
+   *         description="微信支付订单号",
+   *         @OA\Schema(type="string")
+   *     ),
+   *     @OA\Response(response=200, description="查询结果")
+   * )
    */
   public function actionWxpayQueryOrderByTransactionId()
   {

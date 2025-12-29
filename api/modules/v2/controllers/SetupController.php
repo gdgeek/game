@@ -11,7 +11,14 @@ use app\modules\v2\models\Setup;
 
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
+use OpenApi\Annotations as OA;
 
+/**
+ * @OA\Tag(
+ *     name="设置",
+ *     description="系统设置接口"
+ * )
+ */
 class SetupController extends ActiveController
 {
   public $modelClass = 'app\modules\v2\models\Setup';

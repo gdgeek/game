@@ -5,6 +5,7 @@ namespace app\modules\v2\models;
 use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
+use OpenApi\Annotations as OA;
 
 /**
  * This is the model class for table "setup".
@@ -21,6 +22,12 @@ use yii\db\Expression;
  * @property string|null $updated_at 
  *
  * @property Device $device
+ *
+ * @OA\Schema(
+ *     schema="Setup",
+ *     title="设置",
+ *     description="设置信息模型"
+ * )
  */
 class Setup extends \yii\db\ActiveRecord
 {

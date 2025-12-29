@@ -3,6 +3,7 @@
 namespace app\modules\v2\models;
 
 use Yii;
+use OpenApi\Annotations as OA;
 
 /**
  * This is the model class for table "control".
@@ -13,6 +14,12 @@ use Yii;
  *
  * @property Device $device
  * @property User $user
+ *
+ * @OA\Schema(
+ *     schema="Control",
+ *     title="设备控制",
+ *     description="用户与设备的关联控制模型"
+ * )
  */
 class Control extends \yii\db\ActiveRecord
 {

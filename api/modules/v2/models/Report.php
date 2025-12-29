@@ -4,6 +4,15 @@ namespace app\modules\v2\models;
 
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
+use OpenApi\Annotations as OA;
+
+/**
+ * @OA\Schema(
+ *     schema="Report",
+ *     title="报告",
+ *     description="Redis 报告模型"
+ * )
+ */
 class Report extends \yii\redis\ActiveRecord
 {
 

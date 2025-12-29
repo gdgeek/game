@@ -5,9 +5,16 @@ namespace app\modules\v2\models;
 use yii\base\Model;
 use yii\data\ActiveDataProvider;
 use app\modules\v2\models\Device;
+use OpenApi\Annotations as OA;
 
 /**
  * DeviceSearch represents the model behind the search form of `app\modules\v2\models\Device`.
+ *
+ * @OA\Schema(
+ *     schema="DeviceSearch",
+ *     title="设备搜索",
+ *     description="设备搜索模型"
+ * )
  */
 class DeviceSearch extends Device
 {

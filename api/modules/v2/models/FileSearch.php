@@ -5,9 +5,16 @@ namespace app\modules\v2\models;
 use yii\base\Model;
 use yii\data\ActiveDataProvider;
 use app\modules\v2\models\File;
+use OpenApi\Annotations as OA;
 
 /**
  * FileSearch represents the model behind the search form of `app\modules\v2\models\File`.
+ *
+ * @OA\Schema(
+ *     schema="FileSearch",
+ *     title="文件搜索",
+ *     description="文件搜索模型"
+ * )
  */
 class FileSearch extends File
 {

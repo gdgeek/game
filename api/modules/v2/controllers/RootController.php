@@ -6,6 +6,14 @@ use app\modules\v2\models\User;
 use app\modules\v2\helper\RootAuth;
 use app\modules\v2\models\Control;
 use yii\web\Response;
+use OpenApi\Annotations as OA;
+
+/**
+ * @OA\Tag(
+ *     name="Root管理",
+ *     description="Root 权限接口"
+ * )
+ */
 class RootController extends Controller
 {
 

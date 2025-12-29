@@ -4,6 +4,15 @@ namespace app\modules\v2\models;
 
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
+use OpenApi\Annotations as OA;
+
+/**
+ * @OA\Schema(
+ *     schema="Applet",
+ *     title="小程序实例",
+ *     description="小程序相关数据模型"
+ * )
+ */
 class Applet extends \yii\redis\ActiveRecord
 {
 

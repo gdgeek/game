@@ -17,7 +17,15 @@ use Yii;
  */
 // 引入 COS SDK (需: composer require qcloud/cos-sdk-v5:^2.0)
 use Qcloud\Cos\Client;
+use OpenApi\Annotations as OA;
 
+/**
+ * @OA\Schema(
+ *     schema="File",
+ *     title="文件",
+ *     description="文件与 COS 对象模型"
+ * )
+ */
 class File extends \yii\db\ActiveRecord
 {
 

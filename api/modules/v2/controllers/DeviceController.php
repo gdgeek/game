@@ -12,7 +12,14 @@ use app\modules\v2\models\Device;
 use app\modules\v2\models\DeviceSearch;
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
+use OpenApi\Annotations as OA;
 
+/**
+ * @OA\Tag(
+ *     name="设备",
+ *     description="设备管理接口"
+ * )
+ */
 class DeviceController extends ActiveController
 {
   public $modelClass = 'app\modules\v2\models\Device';
@@ -38,7 +45,16 @@ class DeviceController extends ActiveController
     return $behaviors;
   }
 
-  public function actionManage()
+    /**
+     * @OA\Get(
+     *     path="/v2/devices/manage",
+     *     tags={"设备"},
+     *     summary="设备管理列表",
+     *     @OA\Parameter(name="pageSize", in="query", @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="列表数据")
+     * )
+     */
+    public function actionManage()
   {
     //改成 DeviceSearch
     $searchModel = new DeviceSearch();
@@ -55,7 +71,17 @@ class DeviceController extends ActiveController
   {
     return "test" . $device_id;
   }
-  public function actionUnassign($device_id, $user_id)
+    /**
+     * @OA\Delete(
+     *     path="/v2/devices/{device_id}/assign/{user_id}",
+     *     tags={"设备"},
+     *     summary="取消分配",
+     *     @OA\Parameter(name="device_id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="user_id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="成功")
+     * )
+     */
+    public function actionUnassign($device_id, $user_id)
   {
     $control = Control::findOne(['device_id' => $device_id, 'user_id' => $user_id]);
     if ($control) {
@@ -65,7 +91,22 @@ class DeviceController extends ActiveController
       throw new \yii\web\NotFoundHttpException('Control not found');
     }
   }
-  public function actionAssign($device_id)
+    /**
+     * @OA\Post(
+     *     path="/v2/devices/{device_id}/assign",
+     *     tags={"设备"},
+     *     summary="分配设备给用户",
+     *     @OA\Parameter(name="device_id", in="path", required=true, @OA\Schema(type="integer")),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="phone", type="string", description="用户手机号")
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="成功")
+     * )
+     */
+    public function actionAssign($device_id)
   {//POST ${id}/assign' => 'assign', 得到$id
 
     $phone = Yii::$app->request->post('phone');

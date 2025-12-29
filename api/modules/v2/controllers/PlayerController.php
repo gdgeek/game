@@ -2,7 +2,14 @@
 
 namespace app\modules\v2\controllers;
 use yii\rest\ActiveController;
+use OpenApi\Annotations as OA;
 
+/**
+ * @OA\Tag(
+ *     name="玩家",
+ *     description="玩家管理接口"
+ * )
+ */
 class PlayerController extends ActiveController
 {
   public $modelClass = 'app\modules\v2\models\User';

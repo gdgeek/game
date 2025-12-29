@@ -8,6 +8,14 @@ use yii\helpers\ArrayHelper;
 
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
+use OpenApi\Annotations as OA;
+
+/**
+ * @OA\Tag(
+ *     name="微信",
+ *     description="微信相关接口"
+ * )
+ */
 class WechatController extends Controller
 {
     public function behaviors()
@@ -48,6 +56,33 @@ class WechatController extends Controller
 
     }
 
+    /**
+     * @OA\Post(
+     *     path="/v2/wechat/profile",
+     *     tags={"微信"},
+     *     summary="更新用户资料",
+     *     description="更新当前登录用户的头像和昵称",
+     *     security={{"Bearer":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="avatar", type="string", description="头像 URL"),
+     *             @OA\Property(property="nickname", type="string", description="昵称")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="更新成功",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean"),
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="user", ref="#/components/schemas/User")
+     *             )
+     *         )
+     *     )
+     * )
+     */
     public function actionProfile(){
         $request = Yii::$app->request;
         $avatar = $request->post('avatar');
@@ -77,6 +112,36 @@ class WechatController extends Controller
     }
 
     /**
+     * @OA\Post(
+     *     path="/v2/wechat/bind-phone",
+     *     tags={"微信"},
+     *     summary="绑定手机号",
+     *     description="使用微信 getPhoneNumber 返回的 code 绑定手机号",
+     *     security={{"Bearer":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"code"},
+     *             @OA\Property(property="code", type="string", description="小程序 getPhoneNumber 返回的 code")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="绑定成功",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean"),
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="user", ref="#/components/schemas/User"),
+     *                 @OA\Property(property="phone", type="string"),
+     *                 @OA\Property(property="purePhone", type="string"),
+     *                 @OA\Property(property="countryCode", type="string")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=400, description="绑定失败")
+     * )
+     *
      * 绑定手机号（推荐：新版 getPhoneNumber 返回的 code）
      * POST /v2/wechat/bind-phone
      * body:
@@ -95,7 +160,7 @@ class WechatController extends Controller
         $wechat = Yii::$app->wechat;
         $app = $wechat->miniApp();
 
-        // 优先走“新版 code”接口：wxa/business/getuserphonenumber
+        // 优先走"新版 code"接口：wxa/business/getuserphonenumber
         if ($code) {
             try {
                 $resp = $app->getClient()

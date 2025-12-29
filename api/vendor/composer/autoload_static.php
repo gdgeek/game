@@ -108,6 +108,7 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         'O' => 
         array (
             'Overtrue\\Socialite\\' => 19,
+            'OpenApi\\' => 8,
         ),
         'N' => 
         array (
@@ -144,6 +145,7 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         'D' => 
         array (
             'Doctrine\\Common\\Lexer\\' => 22,
+            'Doctrine\\Common\\Annotations\\' => 28,
             'DeepCopy\\' => 9,
         ),
         'C' => 
@@ -364,6 +366,10 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         array (
             0 => __DIR__ . '/..' . '/overtrue/socialite/src',
         ),
+        'OpenApi\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/zircote/swagger-php/src',
+        ),
         'Nyholm\\Psr7\\' => 
         array (
             0 => __DIR__ . '/..' . '/nyholm/psr7/src',
@@ -423,6 +429,10 @@ class ComposerStaticInit72ac0b8252822528c034bbf39a2eb746
         'Doctrine\\Common\\Lexer\\' => 
         array (
             0 => __DIR__ . '/..' . '/doctrine/lexer/src',
+        ),
+        'Doctrine\\Common\\Annotations\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/doctrine/annotations/lib/Doctrine/Common/Annotations',
         ),
         'DeepCopy\\' => 
         array (

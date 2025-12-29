@@ -135,6 +135,9 @@ $config = [
             'showScriptName' => false,
             'enableStrictParsing' => true,
             'rules' => [
+                // Swagger API 文档路由
+                'GET swagger' => 'swagger/index',
+                'GET swagger/json-schema' => 'swagger/json-schema',
 
                 [
                     'pattern' => 'apple-app-site-association',
@@ -314,7 +317,6 @@ $config = [
                     'controller' => 'v2/wechat-pay',
                     'pluralize' => false,
                     'extraPatterns' => [
-                      
                         'POST wxpay-order' => 'wxpay-order',
                         'POST notify' => 'notify',
                         'GET notify' => 'notify',

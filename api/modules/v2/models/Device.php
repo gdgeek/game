@@ -8,6 +8,7 @@ use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
 use yii\db\ActiveRecord;
 use app\modules\v2\models\User;
+use OpenApi\Annotations as OA;
 
 /**
  * This is the model class for table "device".
@@ -19,6 +20,12 @@ use app\modules\v2\models\User;
  * @property string $updated_at
  * @property string|null $ip
  * @property Setup $setup
+ *
+ * @OA\Schema(
+ *     schema="Device",
+ *     title="设备",
+ *     description="设备信息模型"
+ * )
  */
 class Device extends ActiveRecord
 {

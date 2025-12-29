@@ -4,6 +4,14 @@ use Yii;
 use yii\rest\Controller;
 use app\modules\v2\models\User;
 use yii\web\Response;
+use OpenApi\Annotations as OA;
+
+/**
+ * @OA\Tag(
+ *     name="认证",
+ *     description="用户认证相关接口"
+ * )
+ */
 class SiteController extends Controller
 {
 
@@ -16,7 +24,35 @@ class SiteController extends Controller
   }
 
 
-
+  /**
+   * @OA\Post(
+   *     path="/v2/site/refresh-token",
+   *     tags={"认证"},
+   *     summary="刷新访问令牌",
+   *     description="使用 refreshToken 获取新的访问令牌",
+   *     @OA\RequestBody(
+   *         required=true,
+   *         @OA\JsonContent(
+   *             @OA\Property(property="refreshToken", type="string", description="刷新令牌")
+   *         )
+   *     ),
+   *     @OA\Response(
+   *         response=200,
+   *         description="刷新成功",
+   *         @OA\JsonContent(
+   *             @OA\Property(property="success", type="boolean"),
+   *             @OA\Property(property="message", type="string"),
+   *             @OA\Property(property="data", type="object",
+   *                 @OA\Property(property="token", type="object",
+   *                     @OA\Property(property="accessToken", type="string"),
+   *                     @OA\Property(property="expires", type="string"),
+   *                     @OA\Property(property="refreshToken", type="string")
+   *                 )
+   *             )
+   *         )
+   *     )
+   * )
+   */
   public function actionRefreshToken()
   {
 
@@ -45,6 +81,36 @@ class SiteController extends Controller
     return $helper->play();
   }
 
+  /**
+   * @OA\Post(
+   *     path="/v2/site/login",
+   *     tags={"认证"},
+   *     summary="微信小程序登录",
+   *     description="使用微信 code 进行登录，获取访问令牌",
+   *     @OA\RequestBody(
+   *         required=true,
+   *         @OA\JsonContent(
+   *             required={"code"},
+   *             @OA\Property(property="code", type="string", description="微信 wx.login 返回的 code")
+   *         )
+   *     ),
+   *     @OA\Response(
+   *         response=200,
+   *         description="登录成功",
+   *         @OA\JsonContent(
+   *             @OA\Property(property="success", type="boolean"),
+   *             @OA\Property(property="message", type="string"),
+   *             @OA\Property(property="data", type="object",
+   *                 @OA\Property(property="token", type="object"),
+   *                 @OA\Property(property="user", ref="#/components/schemas/User"),
+   *                 @OA\Property(property="openid", type="string"),
+   *                 @OA\Property(property="unionid", type="string")
+   *             )
+   *         )
+   *     ),
+   *     @OA\Response(response=400, description="code is required")
+   * )
+   */
   public function actionLogin()
   {
     $code = Yii::$app->request->post("code");

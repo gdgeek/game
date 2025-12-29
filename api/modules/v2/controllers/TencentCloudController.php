@@ -15,7 +15,14 @@ use TencentCloud\Sts\V20180813\StsClient;
 use Yii;
 
 use yii\rest\Controller;
+use OpenApi\Annotations as OA;
 
+/**
+ * @OA\Tag(
+ *     name="腾讯云",
+ *     description="腾讯云 COS/STS 相关接口"
+ * )
+ */
 class TencentCloudController extends Controller
 {
 
@@ -46,11 +53,27 @@ class TencentCloudController extends Controller
     {
         return [];
     }
+    /**
+     * @OA\Get(
+     *     path="/v2/tencent-cloud/cloud",
+     *     tags={"腾讯云"},
+     *     summary="获取云配置",
+     *     @OA\Response(response=200, description="配置信息")
+     * )
+     */
     public function actionCloud()
     {
         $cloud = Yii::$app->secret->cloud;
         return $cloud;
     }
+    /**
+     * @OA\Get(
+     *     path="/v2/tencent-cloud/store",
+     *     tags={"腾讯云"},
+     *     summary="获取存储凭证",
+     *     @OA\Response(response=200, description="临时密钥")
+     * )
+     */
     public function actionStore()
     {
         $cloud = Yii::$app->secret->cloud;
@@ -79,6 +102,14 @@ class TencentCloudController extends Controller
     }
 
 
+    /**
+     * @OA\Get(
+     *     path="/v2/tencent-cloud/token",
+     *     tags={"腾讯云"},
+     *     summary="获取 STS Token (内部)",
+     *     @OA\Response(response=200, description="Token对象")
+     * )
+     */
     public function actionToken()
     {
        

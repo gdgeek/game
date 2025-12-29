@@ -7,6 +7,14 @@ use app\modules\v2\models\Report;
 use app\modules\v2\models\RecodeFile;
 use app\modules\v2\models\File;
 use app\modules\v2\helper\Server;
+use OpenApi\Annotations as OA;
+
+/**
+ * @OA\Tag(
+ *     name="服务器",
+ *     description="服务器状态管理接口"
+ * )
+ */
 class ServerController extends Controller
 {
 
@@ -27,6 +35,20 @@ class ServerController extends Controller
     }
 
 
+    /**
+     * @OA\Post(
+     *     path="/v2/server/file",
+     *     tags={"服务器"},
+     *     summary="文件上传/刷新",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="key", type="string", description="文件 Key")
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="成功")
+     * )
+     */
     public function actionFile()
     {
         $key = Yii::$app->request->post("key");
@@ -35,6 +57,20 @@ class ServerController extends Controller
         }
         return Server::Refresh();
     }
+    /**
+     * @OA\Post(
+     *     path="/v2/server/applet",
+     *     tags={"服务器"},
+     *     summary="小程序刷新",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="id", type="string", description="小程序 ID")
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="成功")
+     * )
+     */
     public function actionApplet()
     {
         $id = Yii::$app->request->post("id");
@@ -44,6 +80,20 @@ class ServerController extends Controller
         return Server::Refresh();
     }
 
+    /**
+     * @OA\Post(
+     *     path="/v2/server/device",
+     *     tags={"服务器"},
+     *     summary="设备刷新",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="uuid", type="string", description="设备 UUID")
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="成功")
+     * )
+     */
     public function actionDevice()
     {
         $device = Yii::$app->request->post("uuid");
@@ -52,12 +102,41 @@ class ServerController extends Controller
         }
         return Server::Refresh();
     }
+    /**
+     * @OA\Get(
+     *     path="/v2/server/refresh",
+     *     tags={"服务器"},
+     *     summary="获取刷新状态",
+     *     @OA\Response(response=200, description="成功")
+     * )
+     * @OA\Post(
+     *     path="/v2/server/refresh",
+     *     tags={"服务器"},
+     *     summary="触发刷新",
+     *     @OA\Response(response=200, description="成功")
+     * )
+     */
     public function actionRefresh()
     {
 
         return Server::Refresh();
 
     }
+    /**
+     * @OA\Get(
+     *     path="/v2/server/info",
+     *     tags={"服务器"},
+     *     summary="获取服务器信息",
+     *     @OA\Parameter(
+     *         name="uuid",
+     *         in="query",
+     *         required=true,
+     *         description="设备 UUID",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(response=200, description="成功")
+     * )
+     */
     public function actionInfo($uuid)
     {
         $info = Server::GetInfo($uuid);
@@ -68,6 +147,21 @@ class ServerController extends Controller
         ];
     }
 
+    /**
+     * @OA\Get(
+     *     path="/v2/server/log",
+     *     tags={"服务器"},
+     *     summary="获取日志",
+     *     @OA\Parameter(
+     *         name="token",
+     *         in="query",
+     *         required=true,
+     *         description="Token",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(response=200, description="成功")
+     * )
+     */
     public function actionLog($token)
     {
 

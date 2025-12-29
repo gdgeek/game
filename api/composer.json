@@ -1,7 +1,12 @@
 {
     "name": "yiisoft/yii2-app-basic",
     "description": "Yii 2 Basic Project Template",
-    "keywords": ["yii2", "framework", "basic", "project template"],
+    "keywords": [
+        "yii2",
+        "framework",
+        "basic",
+        "project template"
+    ],
     "homepage": "https://www.yiiframework.com/",
     "type": "project",
     "license": "BSD-3-Clause",
@@ -24,7 +29,9 @@
         "tencentcloud/sts": "^3.0",
         "w7corp/easywechat": "^6.17",
         "yiisoft/yii2-redis": "^2.0",
-        "qcloud/cos-sdk-v5": "^2.0"
+        "qcloud/cos-sdk-v5": "^2.0",
+        "zircote/swagger-php": "^4.0",
+        "doctrine/annotations": "^2.0"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.1.0",
@@ -40,7 +47,7 @@
     },
     "config": {
         "allow-plugins": {
-            "yiisoft/yii2-composer" : true
+            "yiisoft/yii2-composer": true
         },
         "process-timeout": 1800,
         "fxp-asset": {
@@ -73,6 +80,10 @@
         }
     },
     "repositories": [
+        {
+            "type": "composer",
+            "url": "https://asset-packagist.org"
+        },
         {
             "type": "composer",
             "url": "https://mirrors.huaweicloud.com/repository/php"

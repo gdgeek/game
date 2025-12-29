@@ -5,6 +5,21 @@ use yii\web\IdentityInterface;
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
 use Yii;
+use OpenApi\Annotations as OA;
+
+/**
+ * @OA\Schema(
+ *     schema="User",
+ *     required={"unionid"},
+ *     @OA\Property(property="id", type="integer", description="用户ID"),
+ *     @OA\Property(property="tel", type="string", description="手机号"),
+ *     @OA\Property(property="nickname", type="string", description="昵称"),
+ *     @OA\Property(property="avatar", type="string", description="头像URL"),
+ *     @OA\Property(property="role", type="string", enum={"user", "manager", "root"}, description="用户角色"),
+ *     @OA\Property(property="openid", type="string", description="微信 OpenID"),
+ *     @OA\Property(property="unionid", type="string", description="微信 UnionID")
+ * )
+ */
 class User extends ActiveRecord implements IdentityInterface
 {
     public static function findIdentity($id)
