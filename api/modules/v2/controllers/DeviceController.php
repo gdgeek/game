@@ -47,9 +47,6 @@ class DeviceController extends ActiveController
     return $behaviors;
   }
 
-
-  
-
     /**
      * @OA\Get(
      *     path="/v2/devices/manage",
