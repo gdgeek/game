@@ -28,6 +28,34 @@ class SwaggerController extends Controller
     public $enableCsrfValidation = false;
 
     /**
+     * 在执行任何操作前进行身份验证
+     * 使用 HTTP Basic Authentication 保护 Swagger 文档
+     * 凭据配置在 config/params.php 的 'swagger' 键中
+     */
+    public function beforeAction($action)
+    {
+        // 从配置文件读取凭据
+        $swaggerConfig = Yii::$app->params['swagger'] ?? null;
+
+        if (!$swaggerConfig) {
+            throw new \yii\web\ServerErrorHttpException('Swagger 配置未找到');
+        }
+
+        // 检查 HTTP Basic Auth 凭据
+        $username = $_SERVER['PHP_AUTH_USER'] ?? null;
+        $password = $_SERVER['PHP_AUTH_PW'] ?? null;
+
+        if ($username !== $swaggerConfig['username'] || $password !== $swaggerConfig['password']) {
+            header('WWW-Authenticate: Basic realm="Swagger API Documentation"');
+            header('HTTP/1.0 401 Unauthorized');
+            echo '需要认证才能访问 API 文档';
+            exit;
+        }
+
+        return parent::beforeAction($action);
+    }
+
+    /**
      * 渲染 Swagger UI 界面
      */
     public function actionIndex()
