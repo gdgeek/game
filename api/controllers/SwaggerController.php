@@ -33,7 +33,7 @@ class SwaggerController extends Controller
     public function actionIndex()
     {
         $swaggerUiUrl = Yii::$app->request->baseUrl . '/swagger-ui';
-        $jsonSchemaUrl = Yii::$app->urlManager->createAbsoluteUrl(['swagger/json-schema']);
+        $jsonSchemaUrl = Yii::$app->urlManager->createUrl(['swagger/json-schema']);
         
         return <<<HTML
 <!DOCTYPE html>
