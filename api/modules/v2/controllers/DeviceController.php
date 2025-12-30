@@ -27,6 +27,8 @@ class DeviceController extends ActiveController
   {
     $behaviors = parent::behaviors();
 
+
+    
     $behaviors['authenticator'] = [
       'class' => JwtHttpBearerAuth::class,
       'except' => ['options'],
