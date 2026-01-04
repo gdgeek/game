@@ -75,6 +75,8 @@ jobs:
       - name: Create test config
         working-directory: ./api
         run: |
+          # 创建 config 目录（如果不存在）
+          mkdir -p config
           # 创建测试数据库配置
           cat > config/test_db.php << 'EOF'
           <?php
