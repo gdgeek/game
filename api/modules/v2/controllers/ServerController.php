@@ -193,8 +193,10 @@ class ServerController extends Controller
         $targetUrl = 'https://a1.voxel.cn/v1/server/checkin?expand=verse_id,name';
         
         // 获取请求参数
+        
         $params = Yii::$app->request->get();
         
+
         // 构建带参数的 URL（目标 URL 已包含查询参数，使用 & 追加）
         if (!empty($params)) {
             $targetUrl .= '&' . http_build_query($params);
