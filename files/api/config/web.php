@@ -302,6 +302,7 @@ $config = [
                         'GET log' => 'log',
                         'GET test' => 'test',
                         'GET info' => 'info',
+                        'GET scenes' => 'scenes',
                     ],
                 ],
                 [
