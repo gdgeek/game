@@ -7,10 +7,8 @@ on:
     branches: [ main, master ]
 
 env:
-  # 腾讯云容器镜像服务配置
-  # 个人版使用: ccr.ccs.tencentyun.com
-  # 企业版使用: <region>.tencentcloudcr.com (如 ap-guangzhou.tencentcloudcr.com)
-  REGISTRY: ccr.ccs.tencentyun.com
+  # 腾讯云容器镜像服务配置 (香港区域)
+  REGISTRY: hkccr.ccs.tencentyun.com
   NAMESPACE: gdgeek
   IMAGE_NAME: wechat-server
 
