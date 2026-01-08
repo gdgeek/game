@@ -98,6 +98,7 @@ $config = [
             //  'class' => 'yii\caching\FileCache',
             'class' => 'yii\redis\Cache',
             'redis' => [
+                'class' => 'yii\redis\Connection',
                 'hostname' => getenv('REDIS_HOST'),
                 'port' => getenv('REDIS_PORT'),
                 'database' => getenv('REDIS_DB'),
