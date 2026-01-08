@@ -83,10 +83,6 @@
         {
             "type": "composer",
             "url": "https://asset-packagist.org"
-        },
-        {
-            "type": "composer",
-            "url": "https://mirrors.huaweicloud.com/repository/php"
         }
     ]
 }
