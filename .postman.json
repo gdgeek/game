@@ -1,0 +1,38 @@
+{
+  "baseUrl": "http://localhost:8081",
+  "wechatWorkspace": {
+    "id": "b6351a60-8503-42f8-ac6e-07c1e1cf65e9",
+    "name": "wechat",
+    "description": "专门用于微信小程序和服务器API的开发测试",
+    "url": "https://app.getpostman.com/workspace/b6351a60-8503-42f8-ac6e-07c1e1cf65e9"
+  },
+  "postmanCollection": {
+    "id": "fa6b5ee9-0e9b-49df-8ad5-ad2e46108e9d",
+    "uid": "20134188-fa6b5ee9-0e9b-49df-8ad5-ad2e46108e9d",
+    "name": "7D Game Server API v2 - WeChat Server",
+    "workspace": "b6351a60-8503-42f8-ac6e-07c1e1cf65e9",
+    "url": "https://app.getpostman.com/workspace/b6351a60-8503-42f8-ac6e-07c1e1cf65e9/collection/20134188-fa6b5ee9-0e9b-49df-8ad5-ad2e46108e9d"
+  },
+  "postmanEnvironment": {
+    "id": "2eea2546-092b-412f-9a97-17b42cf875fe",
+    "uid": "20134188-2eea2546-092b-412f-9a97-17b42cf875fe",
+    "name": "WeChat Local Environment"
+  },
+  "migration": {
+    "completed": "2026-01-08T13:55:00Z",
+    "from": "7D Game workspace",
+    "to": "wechat workspace",
+    "reason": "用户要求将测试迁移到专门的微信工作空间"
+  },
+  "summary": {
+    "created": "2026-01-08T13:55:00Z",
+    "description": "成功创建wechat工作空间并迁移API测试集合",
+    "achievements": [
+      "✅ 创建了新的'wechat'工作空间",
+      "✅ 复制了完整的API测试集合",
+      "✅ 创建了微信专用的环境变量",
+      "✅ 添加了微信小程序相关配置",
+      "✅ 保持了所有测试脚本和配置"
+    ]
+  }
+}

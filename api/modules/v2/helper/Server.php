@@ -62,6 +62,9 @@ class Server
         }
         if (!$applet) {
             $user = Yii::$app->user->identity;
+            if (!$user) {
+                throw new \yii\web\HttpException(401, 'User not authenticated');
+            }
             $applet = new Applet();
             $applet->token = $token;
             $applet->created_at = strval(time());
@@ -104,10 +107,9 @@ class Server
             $rf->file_id = $file->id;
         }
 
-
-
-
-        $rf->save();
+        if ($rf) {
+            $rf->save();
+        }
 
         return $rf;
     }

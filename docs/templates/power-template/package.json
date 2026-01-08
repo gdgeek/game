@@ -1,0 +1,68 @@
+{
+  "name": "{{PACKAGE_NAME}}",
+  "version": "{{VERSION}}",
+  "description": "{{POWER_DESCRIPTION}}",
+  "main": "src/server.py",
+  "scripts": {
+    "start": "python src/server.py",
+    "dev": "python src/server.py --debug",
+    "test": "python -m pytest tests/",
+    "lint": "flake8 src/ tests/",
+    "format": "black src/ tests/"
+  },
+  "keywords": [
+    "{{KEYWORD_1}}",
+    "{{KEYWORD_2}}",
+    "{{KEYWORD_3}}",
+    "kiro-power",
+    "mcp-server"
+  ],
+  "author": "{{AUTHOR_NAME}} <{{AUTHOR_EMAIL}}>",
+  "license": "{{LICENSE}}",
+  "repository": {
+    "type": "git",
+    "url": "{{REPOSITORY_URL}}"
+  },
+  "bugs": {
+    "url": "{{ISSUES_URL}}"
+  },
+  "homepage": "{{HOMEPAGE_URL}}",
+  "dependencies": {
+    "mcp": "^{{MCP_VERSION}}",
+    "asyncio": "*"
+  },
+  "devDependencies": {
+    "pytest": "^{{PYTEST_VERSION}}",
+    "pytest-asyncio": "^{{PYTEST_ASYNCIO_VERSION}}",
+    "black": "^{{BLACK_VERSION}}",
+    "flake8": "^{{FLAKE8_VERSION}}"
+  },
+  "python_requires": ">=3.8",
+  "classifiers": [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: {{LICENSE}} License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Tools",
+    "Topic :: Utilities"
+  ],
+  "kiro": {
+    "powerName": "{{POWER_NAME}}",
+    "keywords": ["{{KEYWORD_1}}", "{{KEYWORD_2}}", "{{KEYWORD_3}}"],
+    "mcpServer": {
+      "command": "uvx",
+      "args": ["{{PACKAGE_NAME}}@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "steeringFiles": [
+      "steering/getting-started.md",
+      "steering/advanced-usage.md"
+    ]
+  }
+}
