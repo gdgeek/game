@@ -115,7 +115,7 @@ class Setup extends \yii\db\ActiveRecord
     public static function DefaultInfo(): array
     {
         // 默认的 scene_id
-        $defaultSceneId = 0;
+        $defaultSceneId = 626;
 
         try {
             // 尝试从 A1Server 获取场景数据
@@ -178,7 +178,7 @@ class Setup extends \yii\db\ActiveRecord
     {
         $setup = new self();
         $setup->device_id = $device->id;
-            throw new \yii\web\HttpException(400, $device->id);
+        //  throw new \yii\web\HttpException(400, $device->id);
         $setup->money = $data['money'];
         $setup->slogans = $data['slogans'];
         $setup->thumbs = $data['thumbs'];
