@@ -258,20 +258,28 @@ class Server
             }
 
             if (in_array("file", $expands)) {
-                unset($file['token']);
-                //    unset($file['created_at']);
-                unset($file['updated_at']);
-                $result['data']['file'] = $file;
+                // 将 RecodeFile 对象转换为数组
+                $fileData = $file ? $file->toArray() : [];
+                // 移除不需要的字段
+                unset($fileData['token']);
+                //    unset($fileData['created_at']);
+                unset($fileData['updated_at']);
+                $result['data']['file'] = $fileData;
             }
             if (in_array("applet", $expands)) {
-                $result['data']['applet'] = $applet;
+                // 将 Applet 对象转换为数组
+                $appletData = $applet ? $applet->toArray() : [];
+                $result['data']['applet'] = $appletData;
             }
             if (in_array("device", $expands)) {
-                unset($report['setup']);
-                unset($report['token']);
-                unset($report['created_at']);
-                unset($report['updated_at']);
-                $result['data']['device'] = $applet;
+                // 将 Report 对象转换为数组
+                $deviceData = $report ? $report->toArray() : [];
+                // 移除不需要的字段
+                unset($deviceData['setup']);
+                unset($deviceData['token']);
+                unset($deviceData['created_at']);
+                unset($deviceData['updated_at']);
+                $result['data']['device'] = $deviceData;
             }
 
             //在 result 中增加 'success' => true
