@@ -181,7 +181,7 @@ class ServerController extends Controller
     public function actionTest()
     {
 
-        return A1Server::forwardCheckinRequest();
+        return "1";
     }
 
     /**
