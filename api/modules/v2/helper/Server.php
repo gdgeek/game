@@ -243,15 +243,15 @@ class Server
                 $result['data']['token'] = $token;
             }
             if (in_array("setup", $expands)) {
-                if (isset($report["uuid"])) {
-                    $result['data']['setup'] = self::getSetup($report["uuid"]);
+                if ($report && $report->uuid) {
+                    $result['data']['setup'] = self::getSetup($report->uuid);
                 } else {
-                    $result['data']['setup'] =  Setup::DefaultData();
+                    $result['data']['setup'] = Setup::DefaultData();
                 }
             }
             if (in_array("info", $expands)) {
-                if (isset($report["uuid"])) {
-                    $result['data']['info'] = self::getInfo($report["uuid"]);
+                if ($report && $report->uuid) {
+                    $result['data']['info'] = self::getInfo($report->uuid);
                 } else {
                     $result['data']['info'] = Setup::DefaultInfo();
                 }
