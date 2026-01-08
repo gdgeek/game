@@ -172,7 +172,7 @@ class Server
                 return $setup->getInfo();
             }
         }
-        return $uuid;
+        //return $uuid;
         // 如果UUID为空或获取失败，返回默认信息配置
         return Setup::DefaultInfo();
     }
