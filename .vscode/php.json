@@ -1,0 +1,21 @@
+{
+  "php.problems.enabled": true,
+  "php.format.codeStyle": "PSR-12",
+  "php.completion.parameters": true,
+  "php.completion.autoimport": true,
+  "php.completion.namespaces": true,
+  "php.completion.keywords": true,
+  "php.completion.variables": true,
+  "php.completion.functions": true,
+  "php.completion.constructors": true,
+  "php.hover.parameters": true,
+  "php.hover.return": true,
+  "php.intellisense.mode": "full",
+  "php.workspace.includePath": [
+    "./api",
+    "./api/vendor",
+    "./api/models",
+    "./api/controllers",
+    "./api/modules"
+  ]
+}

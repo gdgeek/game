@@ -1,0 +1,162 @@
+{
+  "Yii2 Controller Action": {
+    "prefix": "yii-action",
+    "body": [
+      "/**",
+      " * @OA\\${1:Get}(",
+      " *     path=\"${2:/api/path}\",",
+      " *     tags={\"${3:Tag}\"},",
+      " *     summary=\"${4:Summary}\",",
+      " *     @OA\\Response(response=200, description=\"成功\")",
+      " * )",
+      " */",
+      "public function action${5:Name}(${6:})",
+      "{",
+      "    ${7:// 实现代码}",
+      "    return [",
+      "        'success' => true,",
+      "        'message' => 'success',",
+      "        'data' => ${8:$result}",
+      "    ];",
+      "}"
+    ],
+    "description": "创建 Yii2 控制器动作方法"
+  },
+  
+  "PHP DocBlock": {
+    "prefix": "phpdoc",
+    "body": [
+      "/**",
+      " * ${1:方法或类的描述}",
+      " * ",
+      " * @param ${2:type} $${3:param} ${4:参数描述}",
+      " * @return ${5:type} ${6:返回值描述}",
+      " * @throws ${7:\\Exception} ${8:异常描述}",
+      " * @author ${9:Your Name}",
+      " * @since ${10:1.0.0}",
+      " */"
+    ],
+    "description": "创建 PHP 文档块"
+  },
+  
+  "PHP Class DocBlock": {
+    "prefix": "class-doc",
+    "body": [
+      "/**",
+      " * ${1:类描述}",
+      " * ",
+      " * ${2:详细描述}",
+      " * ",
+      " * @package ${3:app\\modules\\v2\\models}",
+      " * @author ${4:Your Name}",
+      " * @version ${5:1.0.0}",
+      " * @since ${6:1.0.0}",
+      " * ",
+      " * @property ${7:int} $${8:id} ${9:属性描述}",
+      " */"
+    ],
+    "description": "创建 PHP 类文档块"
+  },
+  
+  "Yii2 Model Method": {
+    "prefix": "yii-model-method",
+    "body": [
+      "/**",
+      " * ${1:方法描述}",
+      " * ",
+      " * @param ${2:string} $${3:param} ${4:参数描述}",
+      " * @return ${5:array} ${6:返回值描述}",
+      " */",
+      "public ${7:static }function ${8:methodName}(${9:$param})",
+      "{",
+      "    ${10:// 实现代码}",
+      "    return ${11:$result};",
+      "}"
+    ],
+    "description": "创建 Yii2 模型方法"
+  },
+  
+  "Yii2 ActiveRecord Find": {
+    "prefix": "yii-find",
+    "body": [
+      "$${1:model} = ${2:ModelName}::findOne(['${3:field}' => $${4:value}]);",
+      "if (!$${1:model}) {",
+      "    ${5:// 处理未找到的情况}",
+      "}"
+    ],
+    "description": "Yii2 ActiveRecord 查找记录"
+  },
+  
+  "Yii2 Exception": {
+    "prefix": "yii-exception",
+    "body": [
+      "throw new \\yii\\web\\HttpException(${1:400}, '${2:错误消息}');"
+    ],
+    "description": "抛出 Yii2 HTTP 异常"
+  },
+  
+  "Yii2 Log": {
+    "prefix": "yii-log",
+    "body": [
+      "Yii::${1|error,warning,info|}('${2:日志消息}', __METHOD__);"
+    ],
+    "description": "Yii2 日志记录"
+  },
+  
+  "PHP Class with Namespace": {
+    "prefix": "php-class",
+    "body": [
+      "<?php",
+      "",
+      "namespace ${1:app\\modules\\v2\\${2:models}};",
+      "",
+      "use Yii;",
+      "${3:// 其他 use 语句}",
+      "",
+      "/**",
+      " * ${4:类描述}",
+      " * ",
+      " * @author ${5:Your Name}",
+      " */",
+      "class ${6:ClassName}",
+      "{",
+      "    ${7:// 类内容}",
+      "}"
+    ],
+    "description": "创建带命名空间的 PHP 类"
+  },
+  
+  "cURL Request": {
+    "prefix": "curl-request",
+    "body": [
+      "$ch = curl_init();",
+      "curl_setopt_array($ch, [",
+      "    CURLOPT_URL => '${1:https://api.example.com}',",
+      "    CURLOPT_RETURNTRANSFER => true,",
+      "    CURLOPT_TIMEOUT => ${2:30},",
+      "    CURLOPT_SSL_VERIFYPEER => false,",
+      "    ${3:// 其他选项}",
+      "]);",
+      "",
+      "$response = curl_exec($ch);",
+      "$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);",
+      "$error = curl_error($ch);",
+      "",
+      "if (function_exists('curl_close')) {",
+      "    @curl_close($ch);",
+      "}",
+      "",
+      "if ($error) {",
+      "    throw new \\yii\\web\\HttpException(500, '请求失败: ' . $error);",
+      "}",
+      "",
+      "$data = json_decode($response, true);",
+      "if (json_last_error() === JSON_ERROR_NONE) {",
+      "    return $data;",
+      "}",
+      "",
+      "return $response;"
+    ],
+    "description": "创建 cURL 请求代码块"
+  }
+}

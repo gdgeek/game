@@ -14,8 +14,103 @@
   },
   "[php]": {
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
+    "editor.formatOnPaste": true,
+    "editor.formatOnType": true,
+    "editor.defaultFormatter": "bmewburn.vscode-intelephense-client",
+    "editor.suggest.insertMode": "replace",
+    "editor.quickSuggestions": {
+      "other": true,
+      "comments": false,
+      "strings": true
+    },
+    "editor.parameterHints.enabled": true,
+    "editor.suggest.showKeywords": true,
+    "editor.suggest.showSnippets": true,
+    "editor.tabCompletion": "on",
+    "editor.wordBasedSuggestions": "matchingDocuments",
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
   },
   "phpcbf.executablePath": "/opt/homebrew/bin/phpcbf",
-  "phpcbf.standard": "PSR12"
+  "phpcbf.standard": "PSR12",
+  
+  // PHP Tools 配置
+  "php.problems.enabled": true,
+  "php.format.codeStyle": "PSR-12",
+  "php.format.rules.spaceWithinDeclParens": false,
+  "php.format.rules.spaceWithinCallParens": false,
+  "php.format.rules.spaceWithinArrayInitParens": false,
+  "php.format.rules.spaceAroundConcatenation": true,
+  "php.format.rules.spaceAfterCast": true,
+  "php.format.rules.declKeepRightParenAndOpenBraceOnOneLine": true,
+  "php.completion.parameters": true,
+  "php.completion.autoimport": true,
+  "php.completion.namespaces": true,
+  "php.completion.keywords": true,
+  "php.completion.variables": true,
+  "php.completion.functions": true,
+  "php.completion.constructors": true,
+  "php.hover.parameters": true,
+  "php.hover.return": true,
+  "php.intellisense.mode": "full",
+  "php.workspace.includePath": [
+    "./api",
+    "./api/vendor",
+    "./api/models",
+    "./api/controllers",
+    "./api/modules"
+  ],
+  
+  // 文档格式化配置
+  "php.docblock.returnVoid": true,
+  "php.docblock.generateMagicMethods": true,
+  "php.docblock.generateReturnTag": true,
+  "php.docblock.generateParamTags": true,
+  "php.docblock.generateThrowsTag": true,
+  
+  // Intelephense 配置（主要使用）
+  "intelephense.files.maxSize": 5000000,
+  "intelephense.completion.insertUseDeclaration": true,
+  "intelephense.completion.fullyQualifyGlobalConstantsAndFunctions": false,
+  "intelephense.diagnostics.enable": true,
+  "intelephense.diagnostics.run": "onType",
+  "intelephense.format.enable": true,
+  "intelephense.format.braces": "psr12",
+  "intelephense.phpdoc.useFullyQualifiedNames": false,
+  "intelephense.phpdoc.returnVoid": false,
+  "intelephense.completion.maxItems": 100,
+  
+  // GitHub Copilot 配置
+  "github.copilot.enable": {
+    "*": true,
+    "yaml": false,
+    "plaintext": false,
+    "markdown": true,
+    "php": true
+  },
+  "github.copilot.editor.enableAutoCompletions": true,
+  
+  // 通用 AI 补全配置
+  "editor.inlineSuggest.enabled": true,
+  "editor.suggest.preview": true,
+  "editor.acceptSuggestionOnCommitCharacter": true,
+  "editor.acceptSuggestionOnEnter": "on",
+  "editor.suggestSelection": "first",
+  
+  // 通用格式化配置
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 4,
+  "editor.detectIndentation": true,
+  "editor.trimAutoWhitespace": true,
+  
+  // 命令面板格式化选项
+  "editor.action.formatDocument.multiple": true,
+  
+  // 禁用内置 PHP 支持（使用 PHP Tools 代替）
+  "php.suggest.basic": false,
+  "php.validate.enable": false
 }

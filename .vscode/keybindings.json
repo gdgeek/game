@@ -1,0 +1,37 @@
+[
+  {
+    "key": "shift+alt+f",
+    "command": "editor.action.formatDocument",
+    "when": "editorHasDocumentFormattingProvider && editorTextFocus && !editorReadonly && !inCompositeEditor"
+  },
+  {
+    "key": "ctrl+k ctrl+f",
+    "command": "editor.action.formatSelection",
+    "when": "editorHasDocumentSelectionFormattingProvider && editorTextFocus && !editorReadonly"
+  },
+  {
+    "key": "ctrl+shift+i",
+    "command": "editor.action.formatDocument",
+    "when": "resourceExtname == .php"
+  },
+  {
+    "key": "alt+shift+a",
+    "command": "editor.action.blockComment",
+    "when": "editorTextFocus && !editorReadonly"
+  },
+  {
+    "key": "ctrl+/",
+    "command": "editor.action.commentLine",
+    "when": "editorTextFocus && !editorReadonly"
+  },
+  {
+    "key": "ctrl+shift+/",
+    "command": "php.docblock.generate",
+    "when": "resourceExtname == .php && editorTextFocus"
+  },
+  {
+    "key": "ctrl+alt+d",
+    "command": "php.docblock.generate",
+    "when": "resourceExtname == .php && editorTextFocus"
+  }
+]

@@ -9,6 +9,7 @@ use app\modules\v2\models\RecodeFile;
 use app\modules\v2\models\File;
 use app\modules\v2\models\Device;
 use app\modules\v2\models\Setup;
+use Exception;
 
 class Server
 {
@@ -124,22 +125,55 @@ class Server
     }
 
 
+    /**
+     * 根据设备UUID获取设备信息配置
+     * 
+     * 此方法用于获取指定设备的信息配置。如果设备不存在，会自动创建新设备并初始化默认配置。
+     * 
+     * @param string|null $uuid 设备的唯一标识符UUID，可以为null
+     * @return array 返回设备的信息配置数组，如果获取失败则返回默认信息配置
+     * 
+     * 处理流程：
+     * 1. 如果UUID不为空，尝试查找对应的设备
+     * 2. 如果设备不存在，创建新设备并设置UUID
+     * 3. 为新设备创建默认的Setup配置（包含数据和信息）
+     * 4. 保存设备到数据库
+     * 5. 获取设备关联的setup配置
+     * 6. 如果setup存在，返回其信息配置
+     * 7. 如果UUID为空或获取失败，返回默认信息配置
+     */
     public static function getInfo(string|null $uuid)
     {
+        // 检查UUID是否提供
         if ($uuid) {
+
+            // 根据UUID查找现有设备
             $device = Device::findOne(['uuid' => $uuid]);
+
+            // 如果设备不存在，创建新设备
             if (!$device) {
+
                 $device = new Device();
                 $device->uuid = $uuid;
-                $setup = Setup::Create($device, Setup::DefaultData(), Setup::DefaultInfo());
+
+                // 为新设备创建默认的Setup配置
+                // Setup::Create() 会创建包含默认数据和信息的配置
                 $device->save();
+                $setup = Setup::Create($device, Setup::DefaultData(), Setup::DefaultInfo());
+
+                // 保存设备到数据库
+
             }
 
+            // 获取设备关联的setup配置
             $setup = $device->setup;
             if ($setup) {
+                // 返回setup的信息配置
                 return $setup->getInfo();
             }
         }
+        return $uuid;
+        // 如果UUID为空或获取失败，返回默认信息配置
         return Setup::DefaultInfo();
     }
 

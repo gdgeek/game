@@ -1,0 +1,18 @@
+{
+  "recommendations": [
+    "bmewburn.vscode-intelephense-client",
+    "github.copilot",
+    "github.copilot-chat",
+    "ms-vscode.vscode-json",
+    "redhat.vscode-yaml",
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    "ms-vscode.vscode-eslint"
+  ],
+  "unwantedRecommendations": [
+    "felixfbecker.php-debug",
+    "felixfbecker.php-intellisense"
+  ]
+}

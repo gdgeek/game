@@ -105,8 +105,41 @@ class Setup extends \yii\db\ActiveRecord
         ];
     }
 
+    /**
+     * 获取默认信息配置
+     * 
+     * 从 A1Server 获取场景数据，并使用第一个场景的 scene_id 作为默认值
+     * 
+     * @return array 默认信息配置数组
+     */
     public static function DefaultInfo(): array
     {
+        // 默认的 scene_id
+        $defaultSceneId = 0;
+
+        try {
+            // 尝试从 A1Server 获取场景数据
+            $scenesData = \app\modules\v2\helper\A1Server::forwardCheckinRequest();
+
+            // 检查返回的数据是否为数组且不为空
+            if (is_array($scenesData) && !empty($scenesData)) {
+                // 如果有 data 字段，使用 data 中的第一个元素
+                if (isset($scenesData['data']) && is_array($scenesData['data']) && !empty($scenesData['data'])) {
+                    $firstScene = $scenesData['data'][0];
+                    if (isset($firstScene['scene_id'])) {
+                        $defaultSceneId = (int)$firstScene['scene_id'];
+                    }
+                }
+                // 如果直接是场景数组，使用第一个元素
+                elseif (isset($scenesData[0]) && isset($scenesData[0]['scene_id'])) {
+                    $defaultSceneId = (int)$scenesData[0]['scene_id'];
+                }
+            }
+        } catch (\Exception $e) {
+            // 如果获取失败，记录错误并使用默认值
+            Yii::error("获取 A1Server 场景数据失败: " . $e->getMessage(), __METHOD__);
+        }
+
         return [
             'title' => '未知',
             'pictures' => [
@@ -115,7 +148,7 @@ class Setup extends \yii\db\ActiveRecord
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
             ],
-            'scene_id' => 0,
+            'scene_id' => $defaultSceneId,
             'updated_at' => date('Y-m-d H:i:s'),
         ];
     }
@@ -145,6 +178,7 @@ class Setup extends \yii\db\ActiveRecord
     {
         $setup = new self();
         $setup->device_id = $device->id;
+            throw new \yii\web\HttpException(400, $device->id);
         $setup->money = $data['money'];
         $setup->slogans = $data['slogans'];
         $setup->thumbs = $data['thumbs'];

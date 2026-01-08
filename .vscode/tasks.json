@@ -1,0 +1,76 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "PHP: Format Document",
+      "type": "shell",
+      "command": "phpcbf",
+      "args": ["--standard=PSR12", "${file}"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PHP: Check Syntax",
+      "type": "shell",
+      "command": "php",
+      "args": ["-l", "${file}"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PHP: Code Sniffer",
+      "type": "shell",
+      "command": "phpcs",
+      "args": ["--standard=PSR12", "--report=full", "${file}"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PHP: Format All Files",
+      "type": "shell",
+      "command": "find",
+      "args": [
+        "./api",
+        "-name",
+        "*.php",
+        "-not",
+        "-path",
+        "*/vendor/*",
+        "-not",
+        "-path",
+        "*/runtime/*",
+        "-exec",
+        "phpcbf",
+        "--standard=PSR12",
+        "{}",
+        ";"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
