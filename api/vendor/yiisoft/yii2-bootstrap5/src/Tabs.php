@@ -1,14 +1,16 @@
 <?php
+
 /**
- * @link http://www.yiiframework.com/
+ * @link https://www.yiiframework.com/
  * @copyright Copyright (c) 2008 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @license https://www.yiiframework.com/license/
  */
 
 declare(strict_types=1);
 
 namespace yii\bootstrap5;
 
+use Yii;
 use Exception;
 use Throwable;
 use yii\base\InvalidConfigException;
@@ -75,6 +77,7 @@ class Tabs extends Widget
      * - headerOptions: array, optional, the HTML attributes of the tab header.
      * - linkOptions: array, optional, the HTML attributes of the tab header link tags.
      * - content: string, optional, the content (HTML) of the tab pane.
+     * - view: array, optional, the view that should be rendered with Yii::$app->controller->view->render
      * - url: string, optional, an external URL. When this is specified, clicking on this tab will bring
      *   the browser to this URL. This option is available since version 2.0.4.
      * - options: array, optional, the HTML attributes of the tab pane container.
@@ -139,18 +142,19 @@ class Tabs extends Widget
     protected $panes = [];
 
 
-    /**
-     * {@inheritdoc}
-     */
-    public function init()
+    public function init(): void
     {
         parent::init();
-        Html::addCssClass($this->options, ['widget' => 'nav', $this->navType]);
-        Html::addCssClass($this->tabContentOptions, ['panel' => 'tab-content']);
+        Html::addCssClass($this->options, [
+            'widget' => 'nav',
+            $this->navType,
+        ]);
+        Html::addCssClass($this->tabContentOptions, [
+            'panel' => 'tab-content',
+        ]);
     }
 
     /**
-     * {@inheritdoc}
      * @throws InvalidConfigException
      * @throws Throwable
      */
@@ -160,17 +164,18 @@ class Tabs extends Widget
         $this->prepareItems($this->items);
 
         return Nav::widget([
-                'dropdownClass' => $this->dropdownClass,
-                'options' => ArrayHelper::merge(['role' => 'tablist'], $this->options),
-                'items' => $this->items,
-                'encodeLabels' => $this->encodeLabels,
-            ]) . $this->renderPanes($this->panes);
+            'dropdownClass' => $this->dropdownClass,
+            'options' => ArrayHelper::merge([
+                'role' => 'tablist',
+            ], $this->options),
+            'items' => $this->items,
+            'encodeLabels' => $this->encodeLabels,
+        ]) . $this->renderPanes($this->panes);
     }
 
     /**
      * Renders tab panes.
      *
-     * @param array $panes
      * @return string the rendering result.
      */
     public function renderPanes(array $panes): string
@@ -181,12 +186,10 @@ class Tabs extends Widget
     /**
      * Renders tab items as specified on [[items]].
      *
-     * @param array $items
-     * @param string $prefix
      * @throws InvalidConfigException
      * @throws Exception
      */
-    protected function prepareItems(array &$items, string $prefix = '')
+    protected function prepareItems(array &$items, string $prefix = ''): void
     {
         if (!$this->hasActiveTab()) {
             $this->activateFirstVisibleTab();
@@ -225,14 +228,23 @@ class Tabs extends Widget
                 }
             }
 
-            Html::addCssClass($options, ['widget' => 'tab-pane']);
+            Html::addCssClass($options, [
+                'widget' => 'tab-pane',
+            ]);
             if ($selected) {
-                Html::addCssClass($options, ['activate' => 'active']);
+                Html::addCssClass($options, [
+                    'activate' => 'active',
+                ]);
             }
 
             if ($this->renderTabContent) {
                 $tag = ArrayHelper::remove($options, 'tag', 'div');
-                $this->panes[] = Html::tag($tag, $item['content'] ?? '', $options);
+                $view = ArrayHelper::getValue($item, 'view');
+                $content = ArrayHelper::getValue($item, 'content', '');
+                if (!$content && $view) {
+                    $content = Yii::$app->view->renderFile($view[0], ArrayHelper::getValue($view, 1, []), Yii::$app->controller);
+                }
+                $this->panes[] = Html::tag($tag, $content, $options);
             }
         }
     }
@@ -260,7 +272,7 @@ class Tabs extends Widget
      * not explicitly set to inactive (`'active' => false`).
      * @throws Exception
      */
-    protected function activateFirstVisibleTab()
+    protected function activateFirstVisibleTab(): void
     {
         foreach ($this->items as $i => $item) {
             $active = ArrayHelper::getValue($item, 'active', null);

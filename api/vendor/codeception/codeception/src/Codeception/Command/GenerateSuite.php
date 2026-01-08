@@ -8,6 +8,7 @@ use Codeception\Configuration;
 use Codeception\Lib\Generator\Actor as ActorGenerator;
 use Codeception\Util\Template;
 use Exception;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -22,11 +23,15 @@ use function ucfirst;
  * Create new test suite. Requires suite name and actor name
  *
  * * ``
- * * `codecept g:suite api` -> api + ApiTester
- * * `codecept g:suite integration Code` -> integration + CodeTester
- * * `codecept g:suite frontend Front` -> frontend + FrontTester
+ * * `codecept g:suite Api` -> api + ApiTester
+ * * `codecept g:suite Integration Code` -> integration + CodeTester
+ * * `codecept g:suite Frontend Front` -> frontend + FrontTester
  *
  */
+#[AsCommand(
+    name: 'generate:suite',
+    description: 'Generates new test suite'
+)]
 class GenerateSuite extends Command
 {
     use Shared\FileSystemTrait;
@@ -35,31 +40,21 @@ class GenerateSuite extends Command
 
     protected function configure(): void
     {
-        $this->setDefinition([
-            new InputArgument('suite', InputArgument::REQUIRED, 'suite to be generated'),
-            new InputArgument('actor', InputArgument::OPTIONAL, 'name of new actor class'),
-        ]);
+        $this
+            ->addArgument('suite', InputArgument::REQUIRED, 'suite to be generated')
+            ->addArgument('actor', InputArgument::OPTIONAL, 'name of new actor class');
     }
 
-    public function getDescription(): string
-    {
-        return 'Generates new test suite';
-    }
-
-    public function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->addStyles($output);
         $suite = ucfirst((string)$input->getArgument('suite'));
-        $actor = $input->getArgument('actor');
+        $config = $this->getGlobalConfig();
+        $actor = $input->getArgument('actor') ?: $suite . $config['actor_suffix'];
 
         if ($this->containsInvalidCharacters($suite)) {
             $output->writeln("<error>Suite name '{$suite}' contains invalid characters. ([A-Za-z0-9_]).</error>");
-            return 1;
-        }
-
-        $config = $this->getGlobalConfig();
-        if (!$actor) {
-            $actor = $suite . $config['actor_suffix'];
+            return Command::FAILURE;
         }
 
         $dir = Configuration::testsDir();
@@ -70,7 +65,6 @@ class GenerateSuite extends Command
         $this->createDirectoryFor($dir . $suite);
 
         if ($config['settings']['bootstrap']) {
-            // generate bootstrap file
             $this->createFile(
                 $dir . $suite . DIRECTORY_SEPARATOR . $config['settings']['bootstrap'],
                 "<?php\n",
@@ -85,30 +79,19 @@ modules:
     # enable helpers as array
     enabled: []
 EOF;
-
-        $this->createFile(
-            $dir . $suite . '.suite.yml',
-            $yamlSuiteConfig = (new Template($yamlSuiteConfigTemplate))
-                ->place('actor', $actor)
-                ->place('suite_namespace', $config['namespace'] . '\\' . $suite)
-                ->produce()
-        );
-
+        $yamlSuiteConfig = (new Template($yamlSuiteConfigTemplate))
+            ->place('actor', $actor)
+            ->place('suite_namespace', $config['namespace'] . '\\' . $suite)
+            ->produce();
+        $this->createFile($dir . $suite . '.suite.yml', $yamlSuiteConfig);
         Configuration::append(Yaml::parse($yamlSuiteConfig));
         $actorGenerator = new ActorGenerator(Configuration::config());
 
         $content = $actorGenerator->produce();
-
-        $file = $this->createDirectoryFor(
-            Configuration::supportDir(),
-            $actor
-        ) . $this->getShortClassName($actor);
-        $file .=  '.php';
-
+        $file = $this->createDirectoryFor(Configuration::supportDir(), $actor) . $this->getShortClassName($actor) . '.php';
         $this->createFile($file, $content);
 
-        $output->writeln("Actor <info>" . $actor . "</info> was created in {$file}");
-
+        $output->writeln("Actor <info>{$actor}</info> was created in {$file}");
         $output->writeln("Suite config <info>{$suite}.suite.yml</info> was created.");
         $output->writeln(' ');
         $output->writeln("Next steps:");
@@ -117,7 +100,7 @@ EOF;
         $output->writeln("3. Run tests of this suite with <bold>codecept run {$suite}</bold> command");
 
         $output->writeln("<info>Suite {$suite} generated</info>");
-        return 0;
+        return Command::SUCCESS;
     }
 
     private function containsInvalidCharacters(string $suite): bool

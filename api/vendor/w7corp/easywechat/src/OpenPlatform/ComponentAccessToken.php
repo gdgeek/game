@@ -7,7 +7,6 @@ namespace EasyWeChat\OpenPlatform;
 use EasyWeChat\Kernel\Contracts\RefreshableAccessToken as RefreshableAccessTokenInterface;
 use EasyWeChat\Kernel\Exceptions\HttpException;
 use EasyWeChat\OpenPlatform\Contracts\VerifyTicket as VerifyTicketInterface;
-use JetBrains\PhpStorm\ArrayShape;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\Psr16Cache;
@@ -48,15 +47,6 @@ class ComponentAccessToken implements RefreshableAccessTokenInterface
         return $this;
     }
 
-    /**
-     * @throws \EasyWeChat\Kernel\Exceptions\HttpException
-     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
-     * @throws \Psr\SimpleCache\InvalidArgumentException
-     */
     public function getToken(): string
     {
         $token = $this->cache->get($this->getKey());
@@ -68,31 +58,14 @@ class ComponentAccessToken implements RefreshableAccessTokenInterface
         return $this->refresh();
     }
 
-    /**
-     * @return array<string, string>
-     *
-     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
-     * @throws \Psr\SimpleCache\InvalidArgumentException
-     * @throws \EasyWeChat\Kernel\Exceptions\HttpException
-     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
-     */
-    #[ArrayShape(['component_access_token' => 'string'])]
+    #[\JetBrains\PhpStorm\ArrayShape(['component_access_token' => 'string'])]
     public function toQuery(): array
     {
         return ['component_access_token' => $this->getToken()];
     }
 
     /**
-     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
-     * @throws \Psr\SimpleCache\InvalidArgumentException
-     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
-     * @throws \EasyWeChat\Kernel\Exceptions\HttpException
-     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
+     * @throws HttpException
      */
     public function refresh(): string
     {

@@ -6,21 +6,11 @@ namespace EasyWeChat\OfficialAccount;
 
 use EasyWeChat\Kernel\Contracts\RefreshableJsApiTicket as RefreshableJsApiTicketInterface;
 use EasyWeChat\Kernel\Exceptions\HttpException;
-use JetBrains\PhpStorm\ArrayShape;
 
 use function sprintf;
 
 class JsApiTicket extends AccessToken implements RefreshableJsApiTicketInterface
 {
-    /**
-     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
-     * @throws \Psr\SimpleCache\InvalidArgumentException
-     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
-     * @throws \EasyWeChat\Kernel\Exceptions\HttpException
-     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
-     */
     public function getTicket(): string
     {
         $key = $this->getKey();
@@ -33,6 +23,9 @@ class JsApiTicket extends AccessToken implements RefreshableJsApiTicketInterface
         return $this->refreshTicket();
     }
 
+    /**
+     * @throws HttpException
+     */
     public function refreshTicket(): string
     {
         $response = $this->httpClient->request('GET', '/cgi-bin/ticket/getticket', ['query' => ['type' => 'jsapi']])
@@ -49,16 +42,8 @@ class JsApiTicket extends AccessToken implements RefreshableJsApiTicketInterface
 
     /**
      * @return array<string,mixed>
-     *
-     * @throws \EasyWeChat\Kernel\Exceptions\HttpException
-     * @throws \Psr\SimpleCache\InvalidArgumentException
-     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
      */
-    #[ArrayShape([
+    #[\JetBrains\PhpStorm\ArrayShape([
         'url' => 'string',
         'nonceStr' => 'string',
         'timestamp' => 'int',

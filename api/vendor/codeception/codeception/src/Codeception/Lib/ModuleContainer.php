@@ -75,7 +75,7 @@ class ModuleContainer
 
     private array $actions = [];
 
-    public function __construct(private Di $di, private array $config)
+    public function __construct(private readonly Di $di, private array $config)
     {
         $this->di->set($this);
     }
@@ -97,14 +97,14 @@ class ModuleContainer
         if (!class_exists($moduleClass)) {
             if (isset(self::$packages[$moduleName])) {
                 $package = self::$packages[$moduleName];
-                throw new ConfigurationException("Module {$moduleName} is not installed.\nUse Composer to install corresponding package:\n\ncomposer require {$package} --dev");
+                throw new ConfigurationException("Codeception's module {$moduleName} not found. Install it with:\n\ncomposer require {$package} --dev");
             }
             throw new ConfigurationException("Module {$moduleName} could not be found and loaded");
         }
 
         $config = $this->getModuleConfig($moduleName);
 
-        if (empty($config) && !$active) {
+        if ($config === [] && !$active) {
             // For modules that are a dependency of other modules we want to skip the validation of the config.
             // This config validation is performed in \Codeception\Module::__construct().
             // Explicitly setting $config to null skips this validation.
@@ -171,7 +171,7 @@ class ModuleContainer
     /**
      * Should a method be included as an action?
      */
-    private function includeMethodAsAction(Module $module, ReflectionMethod $method, array $configuredParts = null): bool
+    private function includeMethodAsAction(Module $module, ReflectionMethod $method, ?array $configuredParts = null): bool
     {
         // Filter out excluded actions
         if ($module::$excludeActions && in_array($method->name, $module::$excludeActions)) {
@@ -189,7 +189,7 @@ class ModuleContainer
         if (
             !$module::$includeInheritedActions &&
             !in_array($method->name, $module::$onlyActions) &&
-            $method->getDeclaringClass()->getName() != $module::class
+            $method->getDeclaringClass()->getName() !== $module::class
         ) {
             return false;
         }
@@ -202,7 +202,7 @@ class ModuleContainer
         // If a part is configured for the module, only include actions from that part
         if ($configuredParts) {
             $moduleParts = Annotation::forMethod($module, $method->name)->fetchAll('part');
-            if (!array_uintersect($moduleParts, $configuredParts, 'strcasecmp')) {
+            if (array_uintersect($moduleParts, $configuredParts, 'strcasecmp') === []) {
                 return false;
             }
         }
@@ -246,7 +246,7 @@ class ModuleContainer
     public function getModule(string $moduleName): Module
     {
         if (!$this->hasModule($moduleName)) {
-            $this->throwMissingModuleExceptionWithSuggestion(__CLASS__, $moduleName);
+            $this->throwMissingModuleExceptionWithSuggestion(self::class, $moduleName);
         }
 
         return $this->modules[$moduleName];
@@ -333,7 +333,7 @@ class ModuleContainer
             throw new ModuleException($module, 'Module requires method _inject to be defined to accept dependencies');
         }
 
-        $dependencies = array_map(fn ($dependency): ?object => $this->create($dependency, false), $this->getConfiguredDependencies($moduleName));
+        $dependencies = array_map(fn($dependency): ?object => $this->create($dependency, false), $this->getConfiguredDependencies($moduleName));
 
         call_user_func_array([$module, '_inject'], $dependencies);
     }
@@ -343,7 +343,7 @@ class ModuleContainer
      *
      * @throws ModuleException|ModuleRequireException
      */
-    private function checkForMissingDependencies(string $moduleName, $module): void
+    private function checkForMissingDependencies(string $moduleName, DependsOnModule $module): void
     {
         $dependencies = $this->getModuleDependencies($module);
         $configuredDependenciesCount = count($this->getConfiguredDependencies($moduleName));
@@ -370,7 +370,7 @@ class ModuleContainer
     {
         $depends = $module->_depends();
 
-        if (!$depends) {
+        if ($depends === []) {
             return [];
         }
 
@@ -493,7 +493,7 @@ class ModuleContainer
      *
      * @return class-string|Module|string
      */
-    private function normalizeConflictSpecification(string $conflicts)
+    private function normalizeConflictSpecification(string $conflicts): string|Module
     {
         if (interface_exists($conflicts) || class_exists($conflicts)) {
             return $conflicts;

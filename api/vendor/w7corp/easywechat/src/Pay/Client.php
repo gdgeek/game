@@ -26,13 +26,14 @@ use Symfony\Component\HttpClient\HttpClient as SymfonyHttpClient;
 use Symfony\Component\HttpClient\HttpClientTrait;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\Mime\Part\DataPart;
-use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
+use function array_key_exists;
 use function is_array;
-use function is_string;
+use function ltrim;
 use function str_starts_with;
+use function strcasecmp;
 
 /**
  * @method ResponseInterface get(string $uri, array $options = [])
@@ -54,7 +55,7 @@ class Client implements HttpClientInterface
     use RequestWithPresets;
 
     /**
-     * @var array<string, mixed>
+     * @var array{base_uri:string,headers:array{'Content-Type':string,Accept:string}}
      */
     protected array $defaultOptions = [
         'base_uri' => 'https://api.mch.weixin.qq.com/',
@@ -64,11 +65,21 @@ class Client implements HttpClientInterface
         ],
     ];
 
-    public const V3_URI_PREFIXES = [
+    protected const V3_URI_PREFIXES = [
         '/v3/',
-        '/sandbox/v3/',
         '/hk/v3/',
         '/global/v3/',
+    ];
+
+    /**
+     * Special absolute path string over `GET` method
+     */
+    protected const V2_URI_OVER_GETS = [
+        '/appauth/getaccesstoken', // secret API which's respond `JSON`, must keep in the first
+        '/papay/entrustweb',
+        '/papay/h5entrustweb',
+        '/papay/partner/entrustweb',
+        '/papay/partner/h5entrustweb',
     ];
 
     protected bool $throw = true;
@@ -96,12 +107,10 @@ class Client implements HttpClientInterface
     /**
      * @param  array<string, array|mixed>  $options
      *
-     * @throws TransportExceptionInterface
-     * @throws Exception
+     * @throws InvalidArgumentException
      */
     public function request(string $method, string $url, array $options = []): ResponseInterface
     {
-        /** @var array{headers?:array<string, string>, xml?:array|string, body?:array|string} $options */
         if (empty($options['headers'])) {
             $options['headers'] = [];
         }
@@ -118,14 +127,9 @@ class Client implements HttpClientInterface
                 $options['headers']['Authorization'] = $this->createSignature($method, $url, $_options);
             }
         } else {
-            // v2 全部为 xml 请求
-            if (! empty($options['xml'])) {
+            if (! strcasecmp($method, 'POST') && ! empty($options['xml'])) {
                 if (is_array($options['xml'])) {
                     $options['xml'] = Xml::build($this->attachLegacySignature($options['xml']));
-                }
-
-                if (! is_string($options['xml'])) {
-                    throw new \InvalidArgumentException('The `xml` option must be a string or array.');
                 }
 
                 $options['body'] = $options['xml'];
@@ -134,6 +138,10 @@ class Client implements HttpClientInterface
 
             if (! empty($options['body']) && is_array($options['body'])) {
                 $options['body'] = Xml::build($this->attachLegacySignature($options['body']));
+            }
+
+            if (! strcasecmp($method, 'GET') && in_array($url, self::V2_URI_OVER_GETS) && is_array($options['query'] ?? null)) {
+                $options['query'] = $this->attachLegacySignature($options['query']);
             }
 
             if (! isset($options['headers']['Content-Type']) && ! isset($options['headers']['content-type'])) {
@@ -148,17 +156,31 @@ class Client implements HttpClientInterface
 
         return new Response(
             $this->client->request($method, $url, $options),
-            failureJudge: $this->isV3Request($url) ? null : fn (Response $response) => $response->toArray()['return_code'] === 'FAIL' || $response->toArray()['result_code'] === 'FAIL',
+            failureJudge: $this->isV3Request($url) ? null : function (Response $response) use ($url): bool {
+                $arr = $response->toArray();
+
+                if ($url === self::V2_URI_OVER_GETS[0]) {
+                    return ! (array_key_exists('retcode', $arr) && $arr['retcode'] === 0);
+                }
+
+                return ! (
+                    // protocol code, most similar to the HTTP status code in APIv3
+                    array_key_exists('return_code', $arr) && $arr['return_code'] === 'SUCCESS'
+                ) || (
+                    // business code, most similar to the Response.JSON.code in APIv3
+                    array_key_exists('result_code', $arr) && $arr['result_code'] !== 'SUCCESS'
+                );
+            },
             throw: $this->throw
         );
     }
 
     protected function isV3Request(string $url): bool
     {
-        $uri = new Uri($url);
+        $uri = '/'.ltrim((new Uri($url))->getPath(), '/');
 
         foreach (self::V3_URI_PREFIXES as $prefix) {
-            if (str_starts_with('/'.ltrim($uri->getPath(), '/'), $prefix)) {
+            if (str_starts_with($uri, $prefix)) {
                 return true;
             }
         }
@@ -166,22 +188,24 @@ class Client implements HttpClientInterface
         return false;
     }
 
-    public function withSerialHeader(?string $serial = null)
+    /**
+     * @throws InvalidArgumentException
+     */
+    public function withSerialHeader(?string $serial = null): static
     {
         $platformCerts = $this->merchant->getPlatformCerts();
         if (empty($platformCerts)) {
             throw new InvalidConfigException('Missing platform certificate.');
         }
-        
-        $serial = $serial ?? array_key_first($platformCerts);
+
+        $serial ??= array_key_first($platformCerts);
         $this->withHeader('Wechatpay-Serial', $serial);
+
         return $this;
     }
 
     /**
      * @param  array<int, mixed>  $arguments
-     *
-     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
      */
     public function __call(string $name, array $arguments): mixed
     {
@@ -192,10 +216,6 @@ class Client implements HttpClientInterface
         return $this->client->$name(...$arguments);
     }
 
-    /**
-     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
-     * @throws \EasyWeChat\Kernel\Exceptions\RuntimeException
-     */
     public function uploadMedia(string $uri, string $pathOrContents, ?array $meta = null, ?string $filename = null): ResponseInterface
     {
         $isFile = is_file($pathOrContents);
@@ -240,10 +260,6 @@ class Client implements HttpClientInterface
         return (new LegacySignature($this->merchant))->sign($body);
     }
 
-    /**
-     * @throws InvalidArgumentException
-     * @throws InvalidConfigException
-     */
     public static function createMockClient(MockHttpClient $mockHttpClient): HttpClientInterface|Mock
     {
         $mockMerchant = new Merchant(
@@ -263,7 +279,7 @@ aO0PlkMw1RLPdZbEZmldbGrIrOh/0XqSzNZ+mtB6H0eB7TSaoGFtdp/AWy3tb67m
 QpYIkVd4qmYE0qdpIQBMYOV1w7v1pYn6Z5QdKG4keemADTn4QaZZHrryTcHNYVsZ
 2OZ3aybrevSV3wDGnYGk2nt2xtkdfaNfFn4dGW+p4an5M4fRK+CnYpeTgI6POABk
 pwIDAQAB
------END PUBLIC KEY-----'
+-----END PUBLIC KEY-----',
             ]
         );
 

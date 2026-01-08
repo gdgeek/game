@@ -22,6 +22,8 @@ use Symfony\Component\VarDumper\Exception\ThrowingCasterException;
  * @author Nicolas Grekas <p@tchwork.com>
  *
  * @final
+ *
+ * @internal
  */
 class ExceptionCaster
 {

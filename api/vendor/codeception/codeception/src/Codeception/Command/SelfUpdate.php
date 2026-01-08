@@ -8,6 +8,7 @@ use Codeception\Codecept;
 use Exception;
 use Humbug\SelfUpdate\Updater;
 use Phar;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -21,16 +22,22 @@ use function sprintf;
  *
  * @author Franck Cassedanne <franck@cassedanne.com>
  */
+#[AsCommand(
+    name: 'self-update',
+    aliases: ['selfupdate']
+)]
 class SelfUpdate extends Command
 {
     /**
      * @var string
      */
     public const NAME = 'Codeception';
+
     /**
      * @var string
      */
     public const GITHUB_REPO = 'Codeception/Codeception';
+
     /**
      * @var string
      */
@@ -41,21 +48,10 @@ class SelfUpdate extends Command
      */
     protected string $filename;
 
-    /**
-     * {@inheritdoc}
-     */
     protected function configure(): void
     {
         $this->filename = $_SERVER['argv'][0] ?? Phar::running(false);
-        $this
-            ->setAliases(['selfupdate'])
-            ->setDescription(
-                sprintf(
-                    'Upgrade <comment>%s</comment> to the latest version',
-                    $this->filename
-                )
-            );
-        parent::configure();
+        $this->setDescription(sprintf('Upgrade <comment>%s</comment> to the latest version', $this->filename));
     }
 
     protected function getCurrentVersion(): string
@@ -63,48 +59,30 @@ class SelfUpdate extends Command
         return Codecept::VERSION;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $currentVersion = $this->getCurrentVersion();
-
         $output->writeln(
-            sprintf(
-                '<info>%s</info> version <comment>%s</comment>',
-                self::NAME,
-                $currentVersion
-            )
+            sprintf('<info>%s</info> version <comment>%s</comment>', self::NAME, $this->getCurrentVersion())
         );
 
-        $url = self::PHAR_URL;
-
         $updater = new Updater(null, false);
-        $updater->getStrategy()->setPharUrl($url . 'codecept.phar');
-        $updater->getStrategy()->setVersionUrl($url . 'codecept.version');
+        $updater->getStrategy()->setPharUrl(self::PHAR_URL . 'codecept.phar');
+        $updater->getStrategy()->setVersionUrl(self::PHAR_URL . 'codecept.version');
 
         try {
             if ($updater->hasUpdate()) {
                 $output->writeln("\n<info>Updating...</info>");
                 $updater->update();
 
-                $output->writeln(
-                    sprintf("\n<comment>%s</comment> has been updated.\n", $this->filename)
-                );
+                $output->writeln("\n<comment>{$this->filename}</comment> has been updated.\n");
             } else {
                 $output->writeln('You are already using the latest version.');
             }
-        } catch (Exception $e) {
-            $output->writeln(
-                sprintf(
-                    "<error>\n%s\n</error>",
-                    $e->getMessage()
-                )
-            );
-            return 1;
+        } catch (Exception $exception) {
+            $output->writeln("<error>\n{$exception->getMessage()}\n</error>");
+            return Command::FAILURE;
         }
 
-        return 0;
+        return Command::SUCCESS;
     }
 }

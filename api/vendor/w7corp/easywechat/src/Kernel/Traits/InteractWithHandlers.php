@@ -6,7 +6,6 @@ namespace EasyWeChat\Kernel\Traits;
 
 use Closure;
 use EasyWeChat\Kernel\Exceptions\InvalidArgumentException;
-use JetBrains\PhpStorm\ArrayShape;
 
 use function array_reverse;
 use function array_unshift;
@@ -34,9 +33,6 @@ trait InteractWithHandlers
         return $this->handlers;
     }
 
-    /**
-     * @throws InvalidArgumentException
-     */
     public function with(callable|string $handler): static
     {
         return $this->withHandler($handler);
@@ -54,10 +50,8 @@ trait InteractWithHandlers
 
     /**
      * @return array{hash: string, handler: callable}
-     *
-     * @throws InvalidArgumentException
      */
-    #[ArrayShape(['hash' => 'string', 'handler' => 'callable'])]
+    #[\JetBrains\PhpStorm\ArrayShape(['hash' => 'string', 'handler' => 'callable'])]
     public function createHandlerItem(callable|string $handler): array
     {
         return [
@@ -69,13 +63,13 @@ trait InteractWithHandlers
     /**
      * @throws InvalidArgumentException
      */
-    protected function getHandlerHash(callable|string $handler): string
+    protected function getHandlerHash(callable|array|string $handler): string
     {
         return match (true) {
             is_string($handler) => $handler,
-            is_array($handler) => is_string($handler[0]) ? $handler[0].'::'.$handler[1] : get_class(
-                $handler[0]
-            ).$handler[1],
+            is_array($handler) => is_string($handler[0])
+                ? $handler[0].'::'.$handler[1]
+                : get_class($handler[0]).$handler[1],
             $handler instanceof Closure => spl_object_hash($handler),
             is_callable($handler) => spl_object_hash($handler),
             default => throw new InvalidArgumentException('Invalid handler: '.gettype($handler)),
@@ -103,17 +97,11 @@ trait InteractWithHandlers
         throw new InvalidArgumentException(sprintf('Invalid handler: %s.', $handler));
     }
 
-    /**
-     * @throws InvalidArgumentException
-     */
     public function prepend(callable|string $handler): static
     {
         return $this->prependHandler($handler);
     }
 
-    /**
-     * @throws InvalidArgumentException
-     */
     public function prependHandler(callable|string $handler): static
     {
         array_unshift($this->handlers, $this->createHandlerItem($handler));
@@ -143,9 +131,6 @@ trait InteractWithHandlers
         return $this;
     }
 
-    /**
-     * @throws InvalidArgumentException
-     */
     public function indexOf(callable|string $handler): int
     {
         foreach ($this->handlers as $index => $item) {
@@ -157,9 +142,6 @@ trait InteractWithHandlers
         return -1;
     }
 
-    /**
-     * @throws InvalidArgumentException
-     */
     public function when(mixed $value, callable|string $handler): static
     {
         if (is_callable($value)) {
@@ -184,9 +166,6 @@ trait InteractWithHandlers
         return $next($payload);
     }
 
-    /**
-     * @throws InvalidArgumentException
-     */
     public function has(callable|string $handler): bool
     {
         return $this->indexOf($handler) > -1;

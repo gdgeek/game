@@ -10,6 +10,7 @@ use Codeception\SuiteManager;
 use Codeception\Test\Cest;
 use Codeception\Test\Interfaces\Descriptive;
 use Codeception\Test\Interfaces\ScenarioDriven;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -26,10 +27,14 @@ use function preg_replace;
 /**
  * Generates user-friendly text scenarios from scenario-driven tests (Cest).
  *
- * * `codecept g:scenarios acceptance` - for all acceptance tests
- * * `codecept g:scenarios acceptance --format html` - in html format
- * * `codecept g:scenarios acceptance --path doc` - generate scenarios to `doc` dir
+ * * `codecept g:scenarios Acceptance` - for all acceptance tests
+ * * `codecept g:scenarios Acceptance --format html` - in html format
+ * * `codecept g:scenarios Acceptance --path doc` - generate scenarios to `doc` dir
  */
+#[AsCommand(
+    name: 'generate:scenarios',
+    description: 'Generates text representation for all scenarios'
+)]
 class GenerateScenarios extends Command
 {
     use Shared\FileSystemTrait;
@@ -37,18 +42,11 @@ class GenerateScenarios extends Command
 
     protected function configure(): void
     {
-        $this->setDefinition([
-            new InputArgument('suite', InputArgument::REQUIRED, 'suite from which texts should be generated'),
-            new InputOption('path', 'p', InputOption::VALUE_REQUIRED, 'Use specified path as destination instead of default'),
-            new InputOption('single-file', '', InputOption::VALUE_NONE, 'Render all scenarios to only one file'),
-            new InputOption('format', 'f', InputOption::VALUE_REQUIRED, 'Specify output format: html or text (default)', 'text'),
-        ]);
-        parent::configure();
-    }
-
-    public function getDescription(): string
-    {
-        return 'Generates text representation for all scenarios';
+        $this
+            ->addArgument('suite', InputArgument::REQUIRED, 'suite from which texts should be generated')
+            ->addOption('path', 'p', InputOption::VALUE_REQUIRED, 'Use specified path as destination instead of default')
+            ->addOption('single-file', '', InputOption::VALUE_NONE, 'Render all scenarios to only one file')
+            ->addOption('format', 'f', InputOption::VALUE_REQUIRED, 'Specify output format: html or text (default)', 'text');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -57,13 +55,11 @@ class GenerateScenarios extends Command
 
         $suiteConf = $this->getSuiteConfig($suite);
 
-        $path = $input->getOption('path')
-            ? $input->getOption('path')
-            : Configuration::dataDir() . 'scenarios';
+        $path = $input->getOption('path') ?: Configuration::dataDir() . 'scenarios';
 
         $format = $input->getOption('format');
 
-        @mkdir($path);
+        @mkdir($path, 0777, true);
 
         if (!is_writable($path)) {
             throw new ConfigurationException(
@@ -71,7 +67,7 @@ class GenerateScenarios extends Command
             );
         }
 
-        $path = $path . DIRECTORY_SEPARATOR . $suite;
+        $path .= DIRECTORY_SEPARATOR . $suite;
         if (!$input->getOption('single-file')) {
             @mkdir($path);
         }
@@ -83,7 +79,9 @@ class GenerateScenarios extends Command
         }
 
         $tests = $this->getTests($suiteManager);
-        $scenarios = "";
+        $scenarios = '';
+
+        $output->writeln('<comment>This command is deprecated and will be removed in the next major version of Codeception.</comment>');
 
         foreach ($tests as $test) {
             if (!$test instanceof ScenarioDriven || !$test instanceof Descriptive) {
@@ -111,13 +109,14 @@ class GenerateScenarios extends Command
         if ($input->getOption('single-file')) {
             $this->createFile($path . $this->formatExtension($format), $this->decorate($scenarios, $format), true);
         }
-        return 0;
+
+        return Command::SUCCESS;
     }
 
     protected function decorate(string $text, string $format): string
     {
         if ($format === 'html') {
-            return "<html><body>$text</body></html>";
+            return "<html><body>{$text}</body></html>";
         }
         return $text;
     }
@@ -130,10 +129,7 @@ class GenerateScenarios extends Command
 
     protected function formatExtension(string $format): string
     {
-        if ($format === 'html') {
-            return '.html';
-        }
-        return '.txt';
+        return '.' . ($format === 'html' ? 'html' : 'txt');
     }
 
     private function underscore(string $name): string

@@ -1,6 +1,20 @@
 Yii Framework 2 debug extension Change Log
 ==========================================
 
+2.1.27 June 08, 2025
+--------------------
+
+- no changes in this release.
+
+
+2.1.26 February 13, 2025
+------------------------
+
+- Bug #528: Fix `yii\debug\Panel::getTraceLine()` to handle backtrace for internal PHP functions (zymeli)
+- Enh #430: Allow to configure toolbar position via `Module::$toolbarPosition` property (sasha-x)
+- Enh #459: Add `yii\debug\Module::$authManager` to select RBAC manager used by UserPanel (default is `authManager`) (jafaripur)
+
+
 2.1.25 September 26, 2023
 -------------------------
 

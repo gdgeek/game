@@ -19,11 +19,7 @@ use EasyWeChat\OpenWork\Contracts\Application as ApplicationInterface;
 use EasyWeChat\OpenWork\Contracts\SuiteTicket as SuiteTicketInterface;
 use Overtrue\Socialite\Contracts\ProviderInterface as SocialiteProviderInterface;
 use Overtrue\Socialite\Providers\OpenWeWork;
-use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
+use Psr\Log\LoggerAwareTrait;
 
 use function array_merge;
 
@@ -34,6 +30,7 @@ class Application implements ApplicationInterface
     use InteractWithConfig;
     use InteractWithHttpClient;
     use InteractWithServerRequest;
+    use LoggerAwareTrait;
 
     protected ?ServerInterface $server = null;
 
@@ -114,11 +111,6 @@ class Application implements ApplicationInterface
         return $this;
     }
 
-    /**
-     * @throws \ReflectionException
-     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
-     * @throws \Throwable
-     */
     public function getServer(): Server|ServerInterface
     {
         if (! $this->server) {
@@ -210,12 +202,7 @@ class Application implements ApplicationInterface
     }
 
     /**
-     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
-     * @throws \EasyWeChat\Kernel\Exceptions\HttpException
-     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
+     * @throws HttpException
      */
     public function getAuthorization(
         string $corpId,
@@ -241,14 +228,6 @@ class Application implements ApplicationInterface
         return new Authorization($response);
     }
 
-    /**
-     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
-     * @throws \EasyWeChat\Kernel\Exceptions\HttpException
-     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
-     */
     public function getAuthorizerAccessToken(
         string $corpId,
         string $permanentCode,
@@ -275,14 +254,6 @@ class Application implements ApplicationInterface
         ))->setPresets($this->config->all());
     }
 
-    /**
-     * @throws HttpException
-     * @throws TransportExceptionInterface
-     * @throws ServerExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws ClientExceptionInterface
-     */
     public function getAuthorizerClient(string $corpId, string $permanentCode, ?AccessTokenInterface $suiteAccessToken = null): AccessTokenAwareClient
     {
         return (new AccessTokenAwareClient(
@@ -293,14 +264,6 @@ class Application implements ApplicationInterface
         ))->setPresets($this->config->all());
     }
 
-    /**
-     * @throws HttpException
-     * @throws TransportExceptionInterface
-     * @throws ServerExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws ClientExceptionInterface
-     */
     public function getJsApiTicket(string $corpId, string $permanentCode, ?AccessTokenInterface $suiteAccessToken = null): JsApiTicket
     {
         return new JsApiTicket(

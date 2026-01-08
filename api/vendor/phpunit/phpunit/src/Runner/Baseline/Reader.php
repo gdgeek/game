@@ -50,7 +50,8 @@ final readonly class Reader
         } catch (XmlException $e) {
             throw new CannotLoadBaselineException(
                 sprintf(
-                    'Cannot read baseline: %s',
+                    'Cannot read baseline %s: %s',
+                    $baselineFile,
                     trim($e->getMessage()),
                 ),
             );
@@ -89,8 +90,8 @@ final readonly class Reader
                     $description = $issueElement->textContent;
 
                     assert($line > 0);
-                    assert(!empty($hash));
-                    assert(!empty($description));
+                    assert($hash !== '');
+                    assert($description !== '');
 
                     $baseline->add(Issue::from($file, $line, $hash, $description));
                 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Codeception\Util;
 
-use Codeception\Command\Console;
 use Codeception\Lib\Console\Output;
 use Codeception\Lib\PauseShell;
 use Symfony\Component\Console\Helper\QuestionHelper;
@@ -29,15 +28,12 @@ class Debug
      */
     public static function debug(mixed $message): void
     {
-        if (!self::$output) {
-            return;
-        }
-        self::$output->debug($message);
+        self::$output?->debug($message);
     }
 
     public static function isEnabled(): bool
     {
-        return (bool)self::$output;
+        return self::$output instanceof Output;
     }
 
     public static function pause(array $vars = []): void
@@ -49,33 +45,34 @@ class Debug
         $pauseShell = new PauseShell();
         $psy = $pauseShell->getShell();
         $psy->setScopeVariables($vars);
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 3);
-        foreach ($backtrace as $backtraceStep) {
+
+        foreach (debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 3) as $backtraceStep) {
             $class = $backtraceStep['class'] ?? null;
             $fn = $backtraceStep['function'] ?? null;
-            if ($class === Debug::class && $fn === 'pause') {
+
+            if (
+                ($class === self::class && $fn === 'pause') ||
+                ($fn === 'codecept_pause' && !$class) ||
+                !isset($backtraceStep['object'])
+            ) {
                 continue;
             }
-            if ($fn === 'codecept_pause' && !$class) {
-                continue;
-            }
-            if (!isset($backtraceStep['object'])) {
-                continue;
-            }
+
             $pauseShell->addMessage('Use $this-> to access current object');
             $psy->setBoundObject($backtraceStep['object']);
             break;
         }
+
         $psy->run();
     }
 
     public static function confirm($question)
     {
-        if (!self::$output) {
-            return;
+        if (!self::$output instanceof Output) {
+            return null;
         }
 
-        $questionHelper = new QuestionHelper();
-        return $questionHelper->ask(new ArgvInput(), self::$output, new ConfirmationQuestion($question));
+        return (new QuestionHelper())
+            ->ask(new ArgvInput(), self::$output, new ConfirmationQuestion($question));
     }
 }

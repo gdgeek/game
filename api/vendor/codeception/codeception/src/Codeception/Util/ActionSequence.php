@@ -7,12 +7,11 @@ namespace Codeception\Util;
 use Closure;
 use Codeception\Step\Action;
 use Exception;
+use Stringable;
 
 use function call_user_func_array;
 use function codecept_debug;
-use function get_class;
 use function implode;
-use function is_array;
 use function str_replace;
 
 /**
@@ -53,11 +52,9 @@ use function str_replace;
  * @method $this seeOptionIsSelected($selector, $optionText)
  * @method $this dontSeeOptionIsSelected($selector, $optionText)
  */
-class ActionSequence
+class ActionSequence implements Stringable
 {
-    /**
-     * @var Action[]
-     */
+    /** @var Action[] */
     protected array $actions = [];
 
     /**
@@ -113,22 +110,18 @@ class ActionSequence
             codecept_debug("- {$step}");
             try {
                 call_user_func_array([$context, $step->getAction()], $step->getArguments());
-            } catch (Exception $exception) {
-                $class = get_class($exception); // rethrow exception for a specific action
-                throw new $class($exception->getMessage() . "\nat {$step}");
+            } catch (Exception $e) {
+                throw new ($e::class)($e->getMessage() . "\nat {$step}"); // rethrow exception for a specific action
             }
         }
     }
 
     public function __toString(): string
     {
-        $actionsLog = [];
-
-        foreach ($this->actions as $step) {
-            $args = str_replace('"', "'", $step->getArgumentsAsString(20));
-            $actionsLog[] = $step->getAction() . ": {$args}";
-        }
-
-        return implode(', ', $actionsLog);
+        return implode(', ', array_map(
+            static fn(Action $step): string =>
+                $step->getAction() . ': ' . str_replace('"', "'", $step->getArgumentsAsString(20)),
+            $this->actions
+        ));
     }
 }

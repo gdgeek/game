@@ -1,8 +1,9 @@
 <?php
+
 /**
- * @link http://www.yiiframework.com/
+ * @link https://www.yiiframework.com/
  * @copyright Copyright (c) 2008 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @license https://www.yiiframework.com/license/
  */
 
 declare(strict_types=1);
@@ -61,21 +62,18 @@ class ButtonGroup extends Widget
     public $encodeLabels = true;
 
 
-    /**
-     * {@inheritdoc}
-     */
-    public function init()
+    public function init(): void
     {
         parent::init();
-        Html::addCssClass($this->options, ['widget' => 'btn-group']);
+        Html::addCssClass($this->options, [
+            'widget' => 'btn-group',
+        ]);
         if (!isset($this->options['role'])) {
             $this->options['role'] = 'group';
         }
     }
 
     /**
-     * {@inheritdoc}
-     * @return string
      * @throws Throwable
      */
     public function run(): string

@@ -6,8 +6,11 @@ require_once __DIR__ .'/ResetMocks.php';
 
 use Codeception\Stub;
 use Codeception\Stub\StubMarshaler;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\NoMoreReturnValuesConfiguredException;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Runner\Version as PHPUnitVersion;
 
 final class StubTest extends TestCase
 {
@@ -16,6 +19,7 @@ final class StubTest extends TestCase
 
     public function setUp(): void
     {
+        require_once $file = __DIR__. '/_data/DummyAbstractClass.php';
         require_once $file = __DIR__. '/_data/DummyOverloadableClass.php';
         require_once $file = __DIR__. '/_data/DummyClass.php';
         $this->dummy = new DummyClass(true);
@@ -229,6 +233,7 @@ final class StubTest extends TestCase
     /**
      * @dataProvider matcherAndFailMessageProvider
      */
+    #[DataProvider('matcherAndFailMessageProvider')]
     public function testExpectedMethodIsCalledFail(StubMarshaler $stubMarshaler, string $failMessage)
     {
         $mock = Stub::makeEmptyExcept('DummyClass', 'call', ['targetMethod' => $stubMarshaler], $this);
@@ -269,17 +274,18 @@ final class StubTest extends TestCase
             [1, Stub\Expected::once()],
             [2, Stub\Expected::atLeastOnce()],
             [3, Stub\Expected::exactly(3)],
-            [1, Stub\Expected::once(fn(): bool => true), true],
-            [2, Stub\Expected::atLeastOnce(fn(): array => []), []],
-            [1, Stub\Expected::exactly(1, fn() => null), null],
-            [1, Stub\Expected::exactly(1, fn(): string => 'hello world!'), 'hello world!'],
-            [1, Stub\Expected::exactly(1, 'hello world!'), 'hello world!'],
+            [1, Stub\Expected::once(fn(): bool => true)],
+            [2, Stub\Expected::atLeastOnce(fn(): array => [])],
+            [1, Stub\Expected::exactly(1, fn() => null)],
+            [1, Stub\Expected::exactly(1, fn(): string => 'hello world!')],
+            [1, Stub\Expected::exactly(1, 'hello world!')],
         ];
     }
 
     /**
      * @dataProvider matcherProvider
      */
+    #[DataProvider('matcherProvider')]
     public function testMethodMatcherWithMake(int $count, StubMarshaler $matcher, $expected = false)
     {
         $dummy = Stub::make('DummyClass', ['goodByeWorld' => $matcher], $this);
@@ -290,6 +296,7 @@ final class StubTest extends TestCase
     /**
      * @dataProvider matcherProvider
      */
+    #[DataProvider('matcherProvider')]
     public function testMethodMatcherWithMakeEmpty(int $count, StubMarshaler $matcher)
     {
         $dummy = Stub::makeEmpty('DummyClass', ['goodByeWorld' => $matcher], $this);
@@ -300,6 +307,7 @@ final class StubTest extends TestCase
     /**
      * @dataProvider matcherProvider
      */
+    #[DataProvider('matcherProvider')]
     public function testMethodMatcherWithMakeEmptyExcept(int $count, StubMarshaler $matcher)
     {
         $dummy = Stub::makeEmptyExcept('DummyClass', 'getCheckMe', ['goodByeWorld' => $matcher], $this);
@@ -310,6 +318,7 @@ final class StubTest extends TestCase
     /**
      * @dataProvider matcherProvider
      */
+    #[DataProvider('matcherProvider')]
     public function testMethodMatcherWithConstruct(int $count, StubMarshaler $matcher)
     {
         $dummy = Stub::construct('DummyClass', [], ['goodByeWorld' => $matcher], $this);
@@ -320,6 +329,7 @@ final class StubTest extends TestCase
     /**
      * @dataProvider matcherProvider
      */
+    #[DataProvider('matcherProvider')]
     public function testMethodMatcherWithConstructEmpty(int $count, StubMarshaler $matcher)
     {
         $dummy = Stub::constructEmpty('DummyClass', [], ['goodByeWorld' => $matcher], $this);
@@ -330,6 +340,7 @@ final class StubTest extends TestCase
     /**
      * @dataProvider matcherProvider
      */
+    #[DataProvider('matcherProvider')]
     public function testMethodMatcherWithConstructEmptyExcept(int $count, StubMarshaler $matcher)
     {
         $dummy = Stub::constructEmptyExcept(
@@ -363,7 +374,14 @@ final class StubTest extends TestCase
         $this->assertEquals('amy', $dummy->helloWorld());
 
         // Expected null value when no more values
-        $this->assertNull($dummy->helloWorld());
+        // For PHP 10.5.30 or higher an exception is thrown
+        // https://github.com/sebastianbergmann/phpunit/commit/490879817a1417fd5fa1149a47b6f2f1b70ada6a
+        if (version_compare(PHPUnitVersion::id(), '10.5.30', '>=')) {
+            $this->expectException(NoMoreReturnValuesConfiguredException::class);
+            $dummy->helloWorld();
+        } else {
+            $this->assertNull($dummy->helloWorld());
+        }
     }
 
     public function testStubPrivateProperties()
@@ -386,6 +404,17 @@ final class StubTest extends TestCase
     {
         $stub = Stub::makeEmpty(Countable::class, ['count' => 5]);
         $this->assertEquals(5, $stub->count());
+    }
+
+    public function testStubMakeEmptyAbstractClass()
+    {
+        if (version_compare(PHPUnitVersion::id(), '12', '>=')) {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('PHPUnit 12 or greater does not allow to mock abstract classes anymore');
+        }
+
+        $stub = Stub::make('DummyAbstractClass');
+        $this->assertInstanceOf('DummyAbstractClass', $stub);
     }
 }
 

@@ -1,12 +1,12 @@
 <p align="center">
-    <a href="http://redis.io/" target="_blank" rel="external">
-        <img src="http://download.redis.io/redis.png" height="100px">
+    <a href="https://redis.io/" target="_blank" rel="external">
+        <img src="https://download.redis.io/redis.png" height="100px">
     </a>
     <h1 align="center">Redis Cache, Session and ActiveRecord for Yii 2</h1>
     <br>
 </p>
 
-This extension provides the [redis](http://redis.io/) key-value store support for the [Yii framework 2.0](http://www.yiiframework.com).
+This extension provides the [redis](https://redis.io/) key-value store support for the [Yii framework 2.0](https://www.yiiframework.com).
 It includes a `Cache` and `Session` storage handler and implements the `ActiveRecord` pattern that allows
 you to store active records in redis.
 
@@ -22,12 +22,12 @@ Documentation is at [docs/guide/README.md](docs/guide/README.md).
 Requirements
 ------------
 
-At least redis version 2.6.12 is required for all components to work properly.
+At least redis version is required for all components to work properly.
 
 Installation
 ------------
 
-The preferred way to install this extension is through [composer](http://getcomposer.org/download/).
+The preferred way to install this extension is through [composer](https://getcomposer.org/download/).
 
 Either run
 
@@ -100,3 +100,8 @@ return [
     ]
 ];
 ```
+
+Additional topics
+-----------------
+
+* [predis support](/docs/guide/predis.md)

@@ -18,10 +18,12 @@ use Codeception\Test\Interfaces\ScenarioDriven;
 use Codeception\Test\Test;
 use Exception;
 use InvalidArgumentException;
+use ReflectionClass;
 use ReflectionIntersectionType;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionUnionType;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -33,14 +35,18 @@ use function preg_match;
 use function str_replace;
 
 /**
- * Shows step by step execution process for scenario driven tests without actually running them.
+ * Shows step-by-step execution process for scenario driven tests without actually running them.
  *
- * * `codecept dry-run acceptance`
- * * `codecept dry-run acceptance MyCest`
- * * `codecept dry-run acceptance checkout.feature`
- * * `codecept dry-run tests/acceptance/MyCest.php`
+ * * `codecept dry-run Acceptance`
+ * * `codecept dry-run Acceptance MyCest`
+ * * `codecept dry-run Acceptance checkout.feature`
+ * * `codecept dry-run tests/Acceptance/MyCest.php`
  *
  */
+#[AsCommand(
+    name: 'dry-run',
+    description: 'Prints step-by-step scenario-driven test or a feature'
+)]
 class DryRun extends Command
 {
     use Shared\ConfigTrait;
@@ -48,12 +54,10 @@ class DryRun extends Command
 
     protected function configure(): void
     {
-        $this->setDefinition(
-            [
-                new InputArgument('suite', InputArgument::REQUIRED, 'suite to scan for feature files'),
-                new InputArgument('test', InputArgument::OPTIONAL, 'tests to be loaded'),
-            ]
-        );
+        $this->setDefinition([
+            new InputArgument('suite', InputArgument::REQUIRED, 'suite to scan for feature files'),
+            new InputArgument('test', InputArgument::OPTIONAL, 'tests to be loaded'),
+        ]);
         parent::configure();
     }
 
@@ -62,10 +66,10 @@ class DryRun extends Command
         return 'Prints step-by-step scenario-driven test or a feature';
     }
 
-    public function execute(InputInterface $input, OutputInterface $output): int
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->addStyles($output);
-        $suite = $input->getArgument('suite');
+        $suite = (string)$input->getArgument('suite');
         $test = $input->getArgument('test');
 
         $config = $this->getGlobalConfig();
@@ -106,7 +110,7 @@ class DryRun extends Command
         return 0;
     }
 
-    protected function matchTestFromFilename($filename, $testsPath)
+    protected function matchTestFromFilename($filename, $testsPath): array
     {
         $filename = str_replace(['//', '\/', '\\'], '/', $filename);
         $res = preg_match("#^{$testsPath}/(.*?)/(.*)$#", $filename, $matches);
@@ -143,7 +147,7 @@ class DryRun extends Command
     private function mockModule(string $moduleName, ModuleContainer $moduleContainer): void
     {
         $module = $moduleContainer->getModule($moduleName);
-        $class = new \ReflectionClass($module);
+        $class = new ReflectionClass($module);
         $methodResults = [];
         foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
             if ($method->isConstructor()) {
@@ -155,7 +159,7 @@ class DryRun extends Command
         $moduleContainer->mock($moduleName, Stub::makeEmpty($module, $methodResults));
     }
 
-    private function getDefaultResultForMethod(\ReflectionClass $class, ReflectionMethod $method): mixed
+    private function getDefaultResultForMethod(ReflectionClass $class, ReflectionMethod $method): mixed
     {
         $returnType = $method->getReturnType();
 
@@ -180,12 +184,12 @@ class DryRun extends Command
     private function getDefaultValueForBuiltinType(ReflectionNamedType $returnType): mixed
     {
         return match ($returnType->getName()) {
-            'mixed', 'void' => null,
+            'mixed', 'never', 'void' => null,
             'string' => '',
             'int' => 0,
             'float' => 0.0,
             'bool' => false,
-            'array' => [],
+            'array', 'iterable' => [],
             'resource' => fopen('data://text/plain;base64,', 'r'),
             default => throw new Exception('Unsupported return type ' . $returnType->getName()),
         };
@@ -219,7 +223,7 @@ class DryRun extends Command
         if ($extends !== null) {
             $code .= " extends \\$extends";
         }
-        if (count($implements) > 0) {
+        if ($implements !== []) {
             $code .= ' implements ' . implode(', ', $implements);
         }
         $code .= ' {}';

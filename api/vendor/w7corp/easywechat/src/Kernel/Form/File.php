@@ -34,7 +34,7 @@ class File extends DataPart
     }
 
     /**
-     * @throws \EasyWeChat\Kernel\Exceptions\RuntimeException
+     * @throws RuntimeException
      */
     public static function fromContents(
         string $contents,
@@ -74,6 +74,6 @@ class File extends DataPart
         ?string $contentType = null,
         ?string $encoding = null
     ): DataPart {
-        return self::fromContents(...func_get_args());
+        return self::fromContents($contents, $filename, $contentType, $encoding);
     }
 }

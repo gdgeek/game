@@ -1,8 +1,9 @@
 <?php
+
 /**
- * @link http://www.yiiframework.com/
+ * @link https://www.yiiframework.com/
  * @copyright Copyright (c) 2008 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @license https://www.yiiframework.com/license/
  */
 
 declare(strict_types=1);
@@ -22,12 +23,12 @@ use yii\helpers\ArrayHelper;
  * echo Carousel::widget([
  *     'items' => [
  *         // the item contains only the image
- *         '<img src="http://twitter.github.io/bootstrap/assets/img/bootstrap-mdo-sfmoma-01.jpg"/>',
+ *         '<img src="https://twitter.github.io/bootstrap/assets/img/bootstrap-mdo-sfmoma-01.jpg"/>',
  *         // equivalent to the above
- *         ['content' => '<img src="http://twitter.github.io/bootstrap/assets/img/bootstrap-mdo-sfmoma-02.jpg"/>'],
+ *         ['content' => '<img src="https://twitter.github.io/bootstrap/assets/img/bootstrap-mdo-sfmoma-02.jpg"/>'],
  *         // the item contains both the image and the caption
  *         [
- *             'content' => '<img src="http://twitter.github.io/bootstrap/assets/img/bootstrap-mdo-sfmoma-03.jpg"/>',
+ *             'content' => '<img src="https://twitter.github.io/bootstrap/assets/img/bootstrap-mdo-sfmoma-03.jpg"/>',
  *             'caption' => '<h4>This is title</h4><p>This is the caption text</p>',
  *             'captionOptions' => ['class' => ['d-none', 'd-md-block']]
  *             'options' => [...],
@@ -61,7 +62,7 @@ class Carousel extends Widget
      * ```php
      * [
      *     // required, slide content (HTML), such as an image tag
-     *     'content' => '<img src="http://twitter.github.io/bootstrap/assets/img/bootstrap-mdo-sfmoma-01.jpg"/>',
+     *     'content' => '<img src="https://twitter.github.io/bootstrap/assets/img/bootstrap-mdo-sfmoma-01.jpg"/>',
      *     // optional, the caption (HTML) of the slide
      *     'caption' => '<h4>This is title</h4><p>This is the caption text</p>',
      *     // optional the HTML attributes of the slide container
@@ -74,27 +75,30 @@ class Carousel extends Widget
      * @var bool Animate slides with a fade transition instead of a slide. Defaults to `false`
      */
     public $crossfade = false;
-    /**
-     * {@inheritdoc}
-     */
-    public $options = ['data' => ['bs-ride' => 'carousel']];
+    public $options = [
+        'data' => [
+            'bs-ride' => 'carousel',
+        ],
+    ];
 
 
     /**
-     * {@inheritDoc}
      * @throws InvalidConfigException
      */
-    public function init()
+    public function init(): void
     {
         parent::init();
-        Html::addCssClass($this->options, ['widget' => 'carousel slide']);
+        Html::addCssClass($this->options, [
+            'widget' => 'carousel slide',
+        ]);
         if ($this->crossfade) {
-            Html::addCssClass($this->options, ['animation' => 'carousel-fade']);
+            Html::addCssClass($this->options, [
+                'animation' => 'carousel-fade',
+            ]);
         }
     }
 
     /**
-     * {@inheritdoc}
      * @throws InvalidConfigException
      */
     public function run(): string
@@ -102,12 +106,12 @@ class Carousel extends Widget
         $this->registerPlugin('carousel');
 
         return implode("\n", [
-                Html::beginTag('div', $this->options),
-                $this->renderIndicators(),
-                $this->renderItems(),
-                $this->renderControls(),
-                Html::endTag('div'),
-            ]) . "\n";
+            Html::beginTag('div', $this->options),
+            $this->renderIndicators(),
+            $this->renderItems(),
+            $this->renderControls(),
+            Html::endTag('div'),
+        ]) . "\n";
     }
 
     /**
@@ -124,18 +128,22 @@ class Carousel extends Widget
             $options = [
                 'data' => [
                     'bs-target' => '#' . $this->options['id'],
-                    'bs-slide-to' => $i
+                    'bs-slide-to' => $i,
                 ],
-                'type' => 'button'
+                'type' => 'button',
             ];
             if ($i === 0) {
-                Html::addCssClass($options, ['activate' => 'active']);
+                Html::addCssClass($options, [
+                    'activate' => 'active',
+                ]);
                 $options['aria']['current'] = 'true';
             }
             $indicators[] = Html::tag('button', '', $options);
         }
 
-        return Html::tag('div', implode("\n", $indicators), ['class' => ['carousel-indicators']]);
+        return Html::tag('div', implode("\n", $indicators), [
+            'class' => ['carousel-indicators'],
+        ]);
     }
 
     /**
@@ -150,7 +158,9 @@ class Carousel extends Widget
             $items[] = $this->renderItem($this->items[$i], $i);
         }
 
-        return Html::tag('div', implode("\n", $items), ['class' => 'carousel-inner']);
+        return Html::tag('div', implode("\n", $items), [
+            'class' => 'carousel-inner',
+        ]);
     }
 
     /**
@@ -172,7 +182,9 @@ class Carousel extends Widget
             $caption = ArrayHelper::getValue($item, 'caption');
             if ($caption !== null) {
                 $captionOptions = ArrayHelper::remove($item, 'captionOptions', []);
-                Html::addCssClass($captionOptions, ['widget' => 'carousel-caption']);
+                Html::addCssClass($captionOptions, [
+                    'widget' => 'carousel-caption',
+                ]);
 
                 $caption = Html::tag('div', $caption, $captionOptions);
             }
@@ -181,9 +193,13 @@ class Carousel extends Widget
             throw new InvalidConfigException('The "content" option is required.');
         }
 
-        Html::addCssClass($options, ['widget' => 'carousel-item']);
+        Html::addCssClass($options, [
+            'widget' => 'carousel-item',
+        ]);
         if ($index === 0) {
-            Html::addCssClass($options, ['activate' => 'active']);
+            Html::addCssClass($options, [
+                'activate' => 'active',
+            ]);
         }
 
         return Html::tag('div', $content . "\n" . $caption, $options);
@@ -200,18 +216,18 @@ class Carousel extends Widget
     {
         if (isset($this->controls[0], $this->controls[1])) {
             return Html::button($this->controls[0], [
-                    'class' => 'carousel-control-prev',
-                    'data' => [
-                        'bs-target' => '#' . $this->options['id'],
-                        'bs-slide' => 'prev'
-                    ],
-                    'type' => 'button',
-                ]) . "\n"
+                'class' => 'carousel-control-prev',
+                'data' => [
+                    'bs-target' => '#' . $this->options['id'],
+                    'bs-slide' => 'prev',
+                ],
+                'type' => 'button',
+            ]) . "\n"
                 . Html::button($this->controls[1], [
                     'class' => 'carousel-control-next',
                     'data' => [
                         'bs-target' => '#' . $this->options['id'],
-                        'bs-slide' => 'next'
+                        'bs-slide' => 'next',
                     ],
                     'type' => 'button',
                 ]);

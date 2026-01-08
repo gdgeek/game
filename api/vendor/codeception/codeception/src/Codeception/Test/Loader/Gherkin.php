@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Codeception\Test\Loader;
 
+use Behat\Gherkin\Dialect\CucumberDialectProvider;
 use Behat\Gherkin\Filter\RoleFilter;
-use Behat\Gherkin\Keywords\ArrayKeywords as GherkinKeywords;
+use Behat\Gherkin\Keywords\CachedArrayKeywords as GherkinKeywords;
 use Behat\Gherkin\Lexer as GherkinLexer;
 use Behat\Gherkin\Node\ExampleNode;
 use Behat\Gherkin\Node\FeatureNode;
 use Behat\Gherkin\Node\OutlineNode;
-use Behat\Gherkin\Node\ScenarioInterface;
 use Behat\Gherkin\Node\ScenarioNode;
 use Behat\Gherkin\Parser as GherkinParser;
 use Codeception\Configuration;
@@ -19,13 +19,11 @@ use Codeception\Exception\TestParseException;
 use Codeception\Lib\Generator\Shared\Classname;
 use Codeception\Test\Gherkin as GherkinFormat;
 use Codeception\Util\Annotation;
-use ReflectionClass;
 
 use function array_keys;
 use function array_map;
 use function array_merge;
 use function class_exists;
-use function dirname;
 use function file_get_contents;
 use function get_class_methods;
 use function glob;
@@ -73,10 +71,11 @@ class Gherkin implements LoaderInterface
         if (!class_exists(GherkinKeywords::class)) {
             throw new TestParseException('Feature file can only be parsed with Behat\Gherkin library. Please install `behat/gherkin` with Composer');
         }
-        $gherkin = new ReflectionClass(\Behat\Gherkin\Gherkin::class);
-        $gherkinClassPath = dirname($gherkin->getFileName());
-        $i18n = require $gherkinClassPath . '/../../../i18n.php';
-        $keywords = new GherkinKeywords($i18n);
+        if (class_exists(CucumberDialectProvider::class)) {
+            $keywords = new CucumberDialectProvider();
+        } else {
+            $keywords = GherkinKeywords::withDefaultKeywords();
+        }
         $lexer = new GherkinLexer($keywords);
         $this->parser = new GherkinParser($lexer);
         $this->fetchGherkinSteps();
@@ -93,7 +92,7 @@ class Gherkin implements LoaderInterface
             $this->addSteps($roleContexts, "role:{$role}");
         }
 
-        if (empty($this->steps) && empty($contexts['default']) && $this->settings['actor']) { // if no context is set, actor to be a context
+        if ($this->steps === [] && empty($contexts['default']) && $this->settings['actor']) { // if no context is set, actor to be a context
             $actorContext = $this->supportNamespace() . $this->settings['actor'];
             if ($actorContext) {
                 $contexts['default'][] = $actorContext;
@@ -197,7 +196,6 @@ class Gherkin implements LoaderInterface
         }
 
         foreach ($featureNode->getScenarios() as $scenarioNode) {
-            /** @var ScenarioInterface $scenarioNode */
             $steps = $this->steps['default']; // load default context
 
             foreach (array_merge($scenarioNode->getTags(), $featureNode->getTags()) as $tag) { // load tag contexts

@@ -19,7 +19,6 @@ use EasyWeChat\Kernel\Traits\InteractWithHttpClient;
 use EasyWeChat\Kernel\Traits\InteractWithServerRequest;
 use EasyWeChat\MiniApp\Contracts\Account as AccountInterface;
 use EasyWeChat\MiniApp\Contracts\Application as ApplicationInterface;
-use JetBrains\PhpStorm\Pure;
 use Psr\Log\LoggerAwareTrait;
 use Symfony\Component\HttpClient\Response\AsyncContext;
 use Symfony\Component\HttpClient\RetryableHttpClient;
@@ -70,7 +69,7 @@ class Application implements ApplicationInterface
     }
 
     /**
-     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
+     * @throws InvalidConfigException
      */
     public function getEncryptor(): Encryptor
     {
@@ -100,11 +99,6 @@ class Application implements ApplicationInterface
         return $this;
     }
 
-    /**
-     * @throws \ReflectionException
-     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
-     * @throws \Throwable
-     */
     public function getServer(): Server|ServerInterface
     {
         if (! $this->server) {
@@ -146,7 +140,7 @@ class Application implements ApplicationInterface
         return $this;
     }
 
-    #[Pure]
+    #[\JetBrains\PhpStorm\Pure]
     public function getUtils(): Utils
     {
         return new Utils($this);

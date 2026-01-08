@@ -1,8 +1,9 @@
 <?php
+
 /**
- * @link http://www.yiiframework.com/
+ * @link https://www.yiiframework.com/
  * @copyright Copyright (c) 2008 Yii Software LLC
- * @license http://www.yiiframework.com/license/
+ * @license https://www.yiiframework.com/license/
  */
 
 declare(strict_types=1);
@@ -56,7 +57,7 @@ trait BootstrapWidgetTrait
      * make sure you call the parent implementation first.
      * @throws InvalidConfigException
      */
-    public function init()
+    public function init(): void
     {
         parent::init();
         if (!isset($this->options['id'])) {
@@ -69,7 +70,7 @@ trait BootstrapWidgetTrait
      *
      * @param string $name the name of the Bootstrap plugin
      */
-    protected function registerPlugin(string $name)
+    protected function registerPlugin(string $name): void
     {
         /**
          * @see https://github.com/twbs/bootstrap/blob/v5.2.0/js/index.esm.js
@@ -86,16 +87,13 @@ trait BootstrapWidgetTrait
             'scrollspy',
             'tab',
             'toast',
-            'tooltip'
+            'tooltip',
         ];
         if (in_array($name, $jsPlugins, true)) {
             $view = $this->getView();
             BootstrapPluginAsset::register($view);
             // 'popover', 'toast' and 'tooltip' plugins not activates via data attributes
-            if (
-                $this->clientOptions !== false
-                || in_array($name, ['popover', 'toast', 'tooltip'], true)
-           ) {
+            if ($this->clientOptions !== false || in_array($name, ['popover', 'toast', 'tooltip'], true)) {
                 $name = ucfirst($name);
                 $id = $this->options['id'];
                 $options = empty($this->clientOptions) ? '{}' : Json::htmlEncode($this->clientOptions);
@@ -109,7 +107,7 @@ trait BootstrapWidgetTrait
     /**
      * Registers JS event handlers that are listed in [[clientEvents]].
      */
-    protected function registerClientEvents(string $name = null)
+    protected function registerClientEvents(?string $name = null): void
     {
         if (!empty($this->clientEvents)) {
             $id = $this->options['id'];

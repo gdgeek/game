@@ -17,6 +17,7 @@ use EasyWeChat\Work\Contracts\Account as AccountInterface;
 use EasyWeChat\Work\Contracts\Application as ApplicationInterface;
 use Overtrue\Socialite\Contracts\ProviderInterface as SocialiteProviderInterface;
 use Overtrue\Socialite\Providers\WeWork;
+use Psr\Log\LoggerAwareTrait;
 
 use function array_merge;
 
@@ -27,6 +28,7 @@ class Application implements ApplicationInterface
     use InteractWithConfig;
     use InteractWithHttpClient;
     use InteractWithServerRequest;
+    use LoggerAwareTrait;
 
     protected ?Encryptor $encryptor = null;
 
@@ -79,17 +81,13 @@ class Application implements ApplicationInterface
         return $this;
     }
 
-    /**
-     * @throws \ReflectionException
-     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
-     * @throws \Throwable
-     */
-    public function getServer(): Server|ServerInterface
+    public function getServer(string $messageType = 'xml'): Server|ServerInterface
     {
         if (! $this->server) {
             $this->server = new Server(
+                encryptor: $this->getEncryptor(),
                 request: $this->getRequest(),
-                encryptor: $this->getEncryptor()
+                messageType: $messageType,
             );
         }
 

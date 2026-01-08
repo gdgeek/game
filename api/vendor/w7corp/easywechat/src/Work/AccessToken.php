@@ -8,17 +8,10 @@ use const JSON_UNESCAPED_UNICODE;
 
 use EasyWeChat\Kernel\Contracts\RefreshableAccessToken;
 use EasyWeChat\Kernel\Exceptions\HttpException;
-use JetBrains\PhpStorm\ArrayShape;
 use Psr\SimpleCache\CacheInterface;
-use Psr\SimpleCache\InvalidArgumentException;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\HttpClient\HttpClient;
-use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 use function intval;
@@ -55,15 +48,6 @@ class AccessToken implements RefreshableAccessToken
         return $this;
     }
 
-    /**
-     * @throws HttpException
-     * @throws InvalidArgumentException
-     * @throws ClientExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws ServerExceptionInterface
-     * @throws TransportExceptionInterface
-     */
     public function getToken(): string
     {
         $token = $this->cache->get($this->getKey());
@@ -77,16 +61,8 @@ class AccessToken implements RefreshableAccessToken
 
     /**
      * @return array<string, string>
-     *
-     * @throws HttpException
-     * @throws InvalidArgumentException
-     * @throws ClientExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws ServerExceptionInterface
-     * @throws TransportExceptionInterface
      */
-    #[ArrayShape(['access_token' => 'string'])]
+    #[\JetBrains\PhpStorm\ArrayShape(['access_token' => 'string'])]
     public function toQuery(): array
     {
         return ['access_token' => $this->getToken()];
@@ -94,12 +70,6 @@ class AccessToken implements RefreshableAccessToken
 
     /**
      * @throws HttpException
-     * @throws InvalidArgumentException
-     * @throws ClientExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws ServerExceptionInterface
-     * @throws TransportExceptionInterface
      */
     public function refresh(): string
     {

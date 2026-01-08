@@ -1,6 +1,28 @@
 Yii Framework 2 redis extension Change Log
 ==========================================
 
+2.0.1 December 25, 2025
+-----------------------
+
+- Fix #278: Prevent `null` parameter on `SocketException` to avoid PHP 8.4 implicity nullable types deprecation (HenryVolkmer)
+- New #276: Added support for predis (antonshevelev)
+- New #276: Changed default value of `yii\redis\Cache::$forceClusterMode` to `false` (antonshevelev)
+- New #276: Implemented `yii\redis\ConnectionInterface` in `yii\redis\Connection` (antonshevelev)
+
+
+2.0.20 June 05, 2025
+--------------------
+
+- Bug CVE-2025-48493: Prevent logging `AUTH` parameters when `YII_DEBUG` is off (samdark)
+- Bug #270: Prevent null parameter on `mb_strlen` to avoid PHP 8.4 implicity nullable types deprecation (tehmaestro)
+
+
+2.0.19 February 13, 2025
+------------------------
+
+- Enh #264: Improve performance of `mget()` for big list of keys (alx-xc, rob006)
+
+
 2.0.18 September 04, 2022
 -------------------------
 

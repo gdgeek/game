@@ -7,6 +7,182 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 This project follows the [Behat release and version support policies]
 (https://docs.behat.org/en/latest/releases.html).
 
+# [4.16.1] - 2025-12-08
+
+### Fixed
+
+* Reinstate support for tag filter expressions without a leading `@` (e.g. `wip&&~slow` instead of `@wip&&~@slow`).
+  This syntax was never officially supported, but previously worked and was broken by 4.16.0. We have temporarily
+  fixed this, but it is deprecated and will be removed in the next major version.
+
+# [4.16.0] - 2025-12-05
+
+### Changed
+
+* Further improvements to parser parity when the experimental `gherkin-32` compatibility mode is enabled:
+  - Parse descriptions (instead of multiline titles) for all describable nodes by @acoulton in [#361](https://github.com/Behat/Gherkin/pull/361)
+  - Unescape escaped delimiters within doc strings by @stof in [#393](https://github.com/Behat/Gherkin/pull/393)
+  - Retain the `@` prefix when parsing tags by @acoulton in [#400](https://github.com/Behat/Gherkin/pull/400)
+  - Trim unicode padding from table cells by @stof in [#405](https://github.com/Behat/Gherkin/pull/405)
+
+### Fixed
+
+* Fix the implementation of the default dialect for the keywords provider by @stof in [#404](https://github.com/Behat/Gherkin/pull/404)
+
+### Internal
+
+* Add `Stringable` to classes implementing __toString() by @acoulton in [#402](https://github.com/Behat/Gherkin/pull/402)
+* Fix cucumber variant assertions to include inherited properties by @acoulton in [#394](https://github.com/Behat/Gherkin/pull/394)
+* Update cucumber/gherkin parity tests to 37.0.0 by @behat-gherkin-updater[bot] in [#397](https://github.com/Behat/Gherkin/pull/397) and [#398](https://github.com/Behat/Gherkin/pull/398)
+* update_cucumber script should not fail on manually created releases by @acoulton in [#396](https://github.com/Behat/Gherkin/pull/396)
+* Add funding links and information by @acoulton in [#401](https://github.com/Behat/Gherkin/pull/401)
+
+# [4.15.0] - 2025-11-05
+
+### Changed
+
+* Added a new ParserInterface and deprecated extending the core Lexer, Parser and Node classes by @acoulton in [#354](https://github.com/Behat/Gherkin/pull/354)
+* Deprecate the CucumberNDJsonAstLoader (which was only intended for internal use by our tests) by @stof in [#356](https://github.com/Behat/Gherkin/pull/356)
+* By default, the parser ignores invalid language tags (e.g. `#language:no-such`) and falls back to the default language
+  (e.g. `en`). Previously, the resultant `FeatureNode::getLanguage()` would return the original invalid value from the
+  feature file - it will now return the language that was actually used for parsing. By @stof in [#350](https://github.com/Behat/Gherkin/pull/350)
+
+### Added
+
+* Introduce a DialectProviderInterface matching the modern cucumber API. This will replace the existing Keywords API in
+  a future major release. By @stof in [#350](https://github.com/Behat/Gherkin/pull/350)
+* Introduce configurable `GherkinCompatibilityMode` to control how gherkin files are parsed. In the default `legacy` mode,
+  there is no change to parsing. In the new **experimental** `gherkin-32` mode, files will in future be parsed
+  consistently with the official cucumber/gherkin parsers. This mode is not yet complete - in this first release:
+  - Whitespace within description nodes will not be trimmed by @acoulton in [#349](https://github.com/Behat/Gherkin/pull/349)
+  - Invalid language tags will cause an exception by @stof in [#357](https://github.com/Behat/Gherkin/pull/357)
+  - Step keywords will not be trimmed by @stof in [#360](https://github.com/Behat/Gherkin/pull/360)
+  - Language tags can include whitespace by @acoulton in [#358](https://github.com/Behat/Gherkin/pull/358)
+  - `\n` literals in table cells will be parsed as newlines by @stof in [#359](https://github.com/Behat/Gherkin/pull/359)
+    and [#391](https://github.com/Behat/Gherkin/pull/391)
+* Improved translations for `ru` (Russian) and `af` (Afrikaans) from cucumber/gherkin in [#381](https://github.com/Behat/Gherkin/pull/381)
+  and [#386](https://github.com/Behat/Gherkin/pull/386)
+* Support PHP 8.5 by @acoulton in [#388](https://github.com/Behat/Gherkin/pull/388)
+
+### Fixed
+
+* Improve phpdoc / phpstan type-hinting of the lexer and parser by @uuf6429 in [#344](https://github.com/Behat/Gherkin/pull/344)
+  and @stof in [#363](https://github.com/Behat/Gherkin/pull/363)
+* Handle race conditions when creating cache directory by @uuf6429 in [#373](https://github.com/Behat/Gherkin/pull/373)
+* Throw if Loader->load() called with unsupported resource by @uuf6429 in [#372](https://github.com/Behat/Gherkin/pull/372)
+* Use default file cache key if `behat/gherkin` version is unknown by @uuf6429 in [#370](https://github.com/Behat/Gherkin/pull/370)
+
+### Internal
+
+* Enable PHPStan level 10 and resolve remaining warnings by @uuf6429 in [#368](https://github.com/Behat/Gherkin/pull/368)
+* Remove duplication and improve robustness in filesystem operations by @uuf6429 in [#365](https://github.com/Behat/Gherkin/pull/365)
+  and [#367](https://github.com/Behat/Gherkin/pull/367)
+* Explicitly cover expected departures from cucumber gherkin parsing with tests by @acoulton in [#392](https://github.com/Behat/Gherkin/pull/392)
+* Update cucumber/gherkin parity tests to v36.0.0 in [#355](https://github.com/Behat/Gherkin/pull/355), [#376](https://github.com/Behat/Gherkin/pull/376)
+  [#378](https://github.com/Behat/Gherkin/pull/378), [#381](https://github.com/Behat/Gherkin/pull/381), [#385](https://github.com/Behat/Gherkin/pull/385)
+  [#386](https://github.com/Behat/Gherkin/pull/386) and [#387](https://github.com/Behat/Gherkin/pull/387)
+* Fixes and improvements to the cucumber update CI job by @acoulton in [#374](https://github.com/Behat/Gherkin/pull/374),
+  [#375](https://github.com/Behat/Gherkin/pull/375), [#379](https://github.com/Behat/Gherkin/pull/379)
+  and [#380](https://github.com/Behat/Gherkin/pull/380)
+* Minor coding style fixes by @acoulton in [#377](https://github.com/Behat/Gherkin/pull/377) and [#383](https://github.com/Behat/Gherkin/pull/383)
+* Minor code improvements to Lexer/Parser implementation by @uuf6429 in [#352](https://github.com/Behat/Gherkin/pull/352)
+* Minor code improvements to TableNode by @uuf6429 in [#366](https://github.com/Behat/Gherkin/pull/366)
+* Add native typehints where this does not break BC by @stof in [#353](https://github.com/Behat/Gherkin/pull/353)
+* Fix typo of a PHPStan alias type by @uuf6429 in [#371](https://github.com/Behat/Gherkin/pull/371)
+* Fix github actions workflow job name by @uuf6429 in [#369](https://github.com/Behat/Gherkin/pull/369)
+
+# [4.14.0] - 2025-05-23
+
+### Changed
+
+* Throw ParserException if file ends with tags by @acoulton in [#313](https://github.com/Behat/Gherkin/pull/313)
+* Throw ParserException if Background comes after first Scenario by @acoulton in [#343](https://github.com/Behat/Gherkin/pull/343)
+* For compatibility with the official cucumber/gherkin parsers, we now accept some gherkin syntax that would previously
+  have triggered a ParserException. Users may wish to consider running a tool like gherkin-lint in CI to detect
+  incomplete feature files or valid-but-unusual gherkin syntax. The specific changes are:
+  - Parse `Scenario` and `Scenario Outline` as synonyms depending on the presence (or not) of an `Examples:` keyword.
+    by @acoulton in [#316](https://github.com/Behat/Gherkin/pull/316) and [#324](https://github.com/Behat/Gherkin/pull/324)
+  - Do not throw on some unexpected Feature / Language tags by @acoulton in [#323](https://github.com/Behat/Gherkin/pull/323)
+  - Do not throw on `.feature` file that does not contain a Feature by @acoulton in [#340](https://github.com/Behat/Gherkin/pull/340)
+  - Ignore content after table right-hand `|` (instead of throwing) by @acoulton in [#341](https://github.com/Behat/Gherkin/pull/341)
+* Remove the line length from the NewLine token value by @stof in [#338](https://github.com/Behat/Gherkin/pull/338)
+* Added precise PHPStan type information by @stof in [#332](https://github.com/Behat/Gherkin/pull/332),
+  [#333](https://github.com/Behat/Gherkin/pull/333), [#339](https://github.com/Behat/Gherkin/pull/339)
+  and [#334](https://github.com/Behat/Gherkin/pull/334)
+
+### Internal
+
+* Make private props readonly; fix tests by @uuf6429 in [#319](https://github.com/Behat/Gherkin/pull/319)
+* Use the `Yaml::parseFile` API to handle Yaml files by @stof in [#335](https://github.com/Behat/Gherkin/pull/335)
+* test: Make CucumberND name reading consistent by @uuf6429 in [#309](https://github.com/Behat/Gherkin/pull/309)
+* test: Use vfsStream to simplify / improve filesystem-related tests by @uuf6429 in [#298](https://github.com/Behat/Gherkin/pull/298)
+* test: Handle optional tableHeader when loading NDJson examples by @uuf6429 in [#294](https://github.com/Behat/Gherkin/pull/294)
+* test: Refactor valid ParserExceptionsTest examples into cucumber/gherkin testdata by @acoulton in [#322](https://github.com/Behat/Gherkin/pull/322)
+* test: Compare step arguments when checking gherkin parity by @acoulton in [#325](https://github.com/Behat/Gherkin/pull/325)
+* test: Use a custom object comparator to ignore the keywordType of StepNode by @stof in [#331](https://github.com/Behat/Gherkin/pull/331)
+* ci: Add conventional title to gherkin update, error on missing asserts by @acoulton in [#314](https://github.com/Behat/Gherkin/pull/314)
+* Assert that preg_split does not fail when splitting a table row by @stof in [#337](https://github.com/Behat/Gherkin/pull/337)
+* Add assertions in the parser to reflect the structure of tokens by @stof in [#342](https://github.com/Behat/Gherkin/pull/342)
+* style: Define and change phpdoc order coding style by @uuf6429 in [#345](https://github.com/Behat/Gherkin/pull/345)
+
+
+# [4.13.0] - 2025-05-06
+
+### Changed
+
+* Files have been moved to flatten paths into a PSR-4 structure (instead of the previous PSR-0). This may affect users
+  who are requiring files directly rather than using the composer autoloader as expected.
+  See the 4.12.0 release for the new `CachedArrayKeywords::withDefaultKeywords()` to use the `i18n.php` file without
+  depending on paths to other files in this repo. By @uuf6429 in [#288](https://github.com/Behat/Gherkin/pull/288)
+
+### Added
+
+* ExampleTableNode now implements TaggedNodeInterface. Also refactored node tag handling methods. By @uuf6429 in
+  [#289](https://github.com/Behat/Gherkin/pull/289)
+* Improve some exceptions thrown when parsing invalid feature files. Also increased test coverage. By @uuf6429 in
+  [#295](https://github.com/Behat/Gherkin/pull/295)
+* New translations for `amh` (Amharic), `be` (Belarusian) and `ml` (Malayalam) from cucumber/gherkin in [#306](https://github.com/Behat/Gherkin/pull/306)
+* Improved translations / whitespace for `ga` (Irish), `it` (Italian), `ja` (Japanese), `ka` (Georgian) and `ko` (Korean)
+  from cucumber/gherkin in [#306](https://github.com/Behat/Gherkin/pull/306)
+
+### Internal
+
+* Fix & improve automatic CI updates to newer cucumber/gherkin test data and translations. By @acoulton in
+  [#300](https://github.com/Behat/Gherkin/pull/300), [#302](https://github.com/Behat/Gherkin/pull/302),
+  [#304](https://github.com/Behat/Gherkin/pull/304), [#305](https://github.com/Behat/Gherkin/pull/305)
+* Update code style and resolve PHPStan warnings (up to level 9) in tests and CI scripts. By @uuf6429 in
+  [#296](https://github.com/Behat/Gherkin/pull/296), [#297](https://github.com/Behat/Gherkin/pull/297)
+  and [#307](https://github.com/Behat/Gherkin/pull/307)
+* Make tests that expect exceptions more explicit by @uuf6429 in [#310](https://github.com/Behat/Gherkin/pull/310)
+* Improve CI workflows and integrate Codecov reporting by @uuf6429 in [#299](https://github.com/Behat/Gherkin/pull/299)
+  and [#301](https://github.com/Behat/Gherkin/pull/301)
+* Refactor tag filtering implementation by @uuf6429 in [#308](https://github.com/Behat/Gherkin/pull/308)
+* Update cucumber/gherkin parity tests to v32.1.1 in [#306](https://github.com/Behat/Gherkin/pull/306)
+
+# [4.12.0] - 2025-02-26
+
+### Changed
+* Gherkin::VERSION is deprecated and will not be updated, use the composer runtime API if you need to identify the
+  running version. This also changes the value used to namespace cached feature files.
+  by @acoulton in [#279](https://github.com/Behat/Gherkin/pull/279)
+
+### Added
+
+* Provide `CachedArrayKeywords::withDefaultKeywords()` to create an instance without an external dependency on the path
+  to the `i18n.php` file in this repo. **NOTE** that paths to source files will change in the next Gherkin release -
+  use the new constructor to avoid any impact.
+  by @carlos-granados in [#290](https://github.com/Behat/Gherkin/pull/290)
+
+### Internal
+
+* Upgrade to phpunit 10 by @uuf6429 in [#275](https://github.com/Behat/Gherkin/pull/275)
+* Remove redundant files by @uuf6429 in [#278](https://github.com/Behat/Gherkin/pull/278)
+* Update documentation by @uuf6429 in [#274](https://github.com/Behat/Gherkin/pull/274)
+* Adopt PHP CS Fixer and apply code styles by @uuf6429 in [#277](https://github.com/Behat/Gherkin/pull/277)
+* Add PHPStan and improve / fix docblock annotations and type-safety within methods to achieve level 5 by
+  @uuf6429 in [#276](https://github.com/Behat/Gherkin/pull/276), [#281](https://github.com/Behat/Gherkin/pull/281),
+  [#282](https://github.com/Behat/Gherkin/pull/282), and [#287](https://github.com/Behat/Gherkin/pull/287)
+
 # [4.11.0] - 2024-12-06
 
 ### Changed
@@ -420,4 +596,10 @@ This project follows the [Behat release and version support policies]
 - 47 brand new translations (see i18n)
 - Full test suite for everything from AST nodes to translations
 
+[4.16.1]: https://github.com/Behat/Gherkin/compare/v4.16.0...v4.16.1
+[4.16.0]: https://github.com/Behat/Gherkin/compare/v4.15.0...v4.16.0
+[4.15.0]: https://github.com/Behat/Gherkin/compare/v4.14.0...v4.15.0
+[4.14.0]: https://github.com/Behat/Gherkin/compare/v4.13.0...v4.14.0
+[4.13.0]: https://github.com/Behat/Gherkin/compare/v4.12.0...v4.13.0
+[4.12.0]: https://github.com/Behat/Gherkin/compare/v4.11.0...v4.12.0
 [4.11.0]: https://github.com/Behat/Gherkin/compare/v4.10.0...v4.11.0
