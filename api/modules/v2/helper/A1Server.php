@@ -31,12 +31,8 @@ class A1Server
         $targetUrl = self::BASE_URL . '/checkin?expand=verse_id,name';
 
         // 获取请求参数
-        $params = Yii::$app->request->get();
+        // $params = Yii::$app->request->get();
 
-        // 构建带参数的 URL（目标 URL 已包含查询参数，使用 & 追加）
-        if (!empty($params)) {
-            $targetUrl .= '&' . http_build_query($params);
-        }
 
         // 使用 cURL 转发请求
         $ch = curl_init();

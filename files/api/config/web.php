@@ -304,6 +304,7 @@ $config = [
                         'GET test' => 'test',
                         'GET info' => 'info',
                         'GET scenes' => 'scenes',
+                        'GET test' => 'test',
                     ],
                 ],
                 [
@@ -329,7 +330,7 @@ $config = [
                         'POST wxpay-refund' => 'wxpay-refund',
                     ],
                 ],
-                
+
                 [
                     'class' => 'yii\rest\UrlRule',
                     'controller' => 'v2/wechat',
@@ -340,7 +341,7 @@ $config = [
                         'POST profile' => 'profile',
                     ],
                 ],
-                
+
                 [
                     'class' => 'yii\rest\UrlRule',
                     'controller' => 'v2/site',
