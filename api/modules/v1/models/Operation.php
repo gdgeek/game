@@ -17,7 +17,6 @@ use Yii;
  */
 class Operation extends \yii\db\ActiveRecord
 {
-
     public function fields()
     {
         $fields = parent::fields();

@@ -1,5 +1,7 @@
 <?php
+
 namespace app\modules\v2\models;
+
 use yii\db\ActiveRecord;
 use yii\web\IdentityInterface;
 use yii\behaviors\TimestampBehavior;
@@ -44,9 +46,9 @@ class User extends ActiveRecord implements IdentityInterface
         } else {
             if ($this->controls && count($this->controls) > 0) {
                  $role = 'manager';
-            } 
+            }
         }
-        if($this->role !== $role){
+        if ($this->role !== $role) {
             $this->role = $role;
             $this->save(false, ['role']); // Save only the 'role' attribute without validation
         }
@@ -192,23 +194,22 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
 
-    /** 
-     * Gets query for [[Controls]]. 
-     * 
-     * @return \yii\db\ActiveQuery 
+    /**
+     * Gets query for [[Controls]].
+     *
+     * @return \yii\db\ActiveQuery
      */
     public function getControls()
     {
         return $this->hasMany(Control::class, ['user_id' => 'id']);
     }
-    /** 
-     * Gets query for [[Files]]. 
-     * 
-     * @return \yii\db\ActiveQuery 
+    /**
+     * Gets query for [[Files]].
+     *
+     * @return \yii\db\ActiveQuery
      */
     public function getFiles()
     {
         return $this->hasMany(File::class, ['user_id' => 'id']);
     }
-
 }

@@ -1,6 +1,7 @@
 <?php
 
 namespace app\modules\v1\controllers;
+
 use Yii;
 use yii\rest\Controller;
 use app\modules\v1\models\Device;
@@ -11,301 +12,294 @@ use app\modules\v1\models\Player;
 use app\modules\v1\models\Shop;
 use app\modules\v1\models\Record;
 use app\modules\v1\models\Operation;
-
 use app\modules\v1\models\User;
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
+
 //root，
 //管理员， （可以查看所有信息） Administrator
-//店长，（可以修改店家信息） Manager 
+//店长，（可以修改店家信息） Manager
 //工作人员， （可以修改设备信息） Manager
 //玩家 Player
 class SystemController extends Controller
 {
-
   // public $modelClass = 'app\modules\v1\models\Manager';
-  public function behaviors()
-  {
+    public function behaviors()
+    {
 
-    $behaviors = parent::behaviors();
-    $behaviors['authenticator'] = [
-      'class' => CompositeAuth::class,
-      'authMethods' => [
+        $behaviors = parent::behaviors();
+        $behaviors['authenticator'] = [
+        'class' => CompositeAuth::class,
+        'authMethods' => [
         JwtHttpBearerAuth::class,
-      ],
-      'except' => ['options'],
-    ];
-    return $behaviors;
-  }
-
-
-
-
-  public function actionPlayerInfo($targetId)
-  {
-
-    $user = Yii::$app->user->identity;
-
-    if (!$user->manager) {
-      throw new \yii\web\HttpException(400, 'Not Manager');
-    }
-    $target = User::findOne($targetId);
-    if ($target == null) {
-      throw new \yii\web\HttpException(400, 'No Player');
+        ],
+        'except' => ['options'],
+        ];
+        return $behaviors;
     }
 
-    return [
-      'success' => true,
-      'message' => 'success',
-      'target' => $target->player,
-    ];
-  }
 
-  public function actionResetShop($shopId)
-  {
-    $operation = Operation::find()->where(['shop_id' => $shopId])->one();
-    if ($operation == null) {
-      throw new \yii\web\HttpException(400, 'No Operation');
-    }
-    $operation->pool = 0;
-    $operation->turnover = 0;
-    $operation->income = 0;
-    if (!$operation->save()) {
-      throw new \yii\web\HttpException(400, 'Save Error');
-    }
-    return ['success' => true, 'message' => 'success', 'operation' => $operation];
 
-  }
-  public function actionGive()
-  {
 
-    $user = Yii::$app->user->identity;
-    if (!$user->manager) {
-      throw new \yii\web\HttpException(400, 'Not Manager');
+    public function actionPlayerInfo($targetId)
+    {
+
+        $user = Yii::$app->user->identity;
+
+        if (!$user->manager) {
+            throw new \yii\web\HttpException(400, 'Not Manager');
+        }
+        $target = User::findOne($targetId);
+        if ($target == null) {
+            throw new \yii\web\HttpException(400, 'No Player');
+        }
+
+        return [
+        'success' => true,
+        'message' => 'success',
+        'target' => $target->player,
+        ];
     }
 
-    $target_id = $user_id = Yii::$app->request->post('targetId');
-    $player = User::findOne($target_id);
-    if ($player == null) {
-      throw new \yii\web\HttpException(400, 'No Player');
+    public function actionResetShop($shopId)
+    {
+        $operation = Operation::find()->where(['shop_id' => $shopId])->one();
+        if ($operation == null) {
+            throw new \yii\web\HttpException(400, 'No Operation');
+        }
+        $operation->pool = 0;
+        $operation->turnover = 0;
+        $operation->income = 0;
+        if (!$operation->save()) {
+            throw new \yii\web\HttpException(400, 'Save Error');
+        }
+        return ['success' => true, 'message' => 'success', 'operation' => $operation];
     }
-    $money = Yii::$app->request->post('money');
-    if (!$money) {
-      throw new \yii\web\HttpException(400, 'No Money');
-    }
-    //$user->give -= $money;
-    /*$player->give += $money;
-    if (!$user->validate()) {
+    public function actionGive()
+    {
+
+        $user = Yii::$app->user->identity;
+        if (!$user->manager) {
+            throw new \yii\web\HttpException(400, 'Not Manager');
+        }
+
+        $target_id = $user_id = Yii::$app->request->post('targetId');
+        $player = User::findOne($target_id);
+        if ($player == null) {
+            throw new \yii\web\HttpException(400, 'No Player');
+        }
+        $money = Yii::$app->request->post('money');
+        if (!$money) {
+            throw new \yii\web\HttpException(400, 'No Money');
+        }
+      //$user->give -= $money;
+      /*$player->give += $money;
+      if (!$user->validate()) {
       throw new \yii\web\HttpException(400, 'Save Error' + json_decode($user->getErrors(), true));
 
-    }*/
-    if (!$player->validate()) {
-      throw new \yii\web\HttpException(400, 'Save Error' + json_decode($player->getErrors(), true));
+      }*/
+        if (!$player->validate()) {
+            throw new \yii\web\HttpException(400, 'Save Error' + json_decode($player->getErrors(), true));
+        }
+      //$user->save();
+        $player->save();
+        return ['success' => true, 'message' => 'success', 'user' => $user, 'player' => $player];
     }
-    //$user->save();
-    $player->save();
-    return ['success' => true, 'message' => 'success', 'user' => $user, 'player' => $player];
-
-
-  }
   //关闭游戏，要把游戏的钱还回来
-  public function actionCloseRecord()
-  {
-    $user = Yii::$app->user->identity;
-    if (!$user->manager) {
-      throw new \yii\web\HttpException(400, 'Not Manager');
+    public function actionCloseRecord()
+    {
+        $user = Yii::$app->user->identity;
+        if (!$user->manager) {
+            throw new \yii\web\HttpException(400, 'Not Manager');
+        }
+
+        $record_id = Yii::$app->request->post('recordId');
+        $record = Record::findOne($record_id);
+        if ($record == null) {
+            throw new \yii\web\HttpException(400, 'No Record:' . $record_id);
+        }
+        $shop = $record->shop;
+        $player = $record->player;
+        $price = $shop->price;
+        $operation = $shop->operation;
+        $restore = 0;
+        if ($record->game && isset($record->game['points'])) {
+            $restore = $record->game['points'];//池子加上本局的点数
+        }
+
+        $operation->pool += $restore;
+
+
+        $player->cost -= $price;
+
+        $percentage = $shop->rate / 100; // 返奖率
+        $back = $price * $percentage; //返奖等于价格乘以返奖率
+        $operation->pool -= $back;
+        $operation->income -=  $price - $back;
+        $operation->turnover -= $price;
+
+        if (!$player->validate()) {
+            throw new \yii\web\HttpException(400, 'Save Error' + json_decode($player->getErrors(), true));
+        }
+        if (!$operation->validate()) {
+            throw new \yii\web\HttpException(400, 'Save Error' + json_decode($operation->getErrors(), true));
+        }
+        $player->save();
+        $operation->save();
+
+
+        $record->delete();
+        return ['success' => true, 'message' => 'success', 'player' => $player, 'operation' => $operation];
     }
-
-    $record_id = Yii::$app->request->post('recordId');
-    $record = Record::findOne($record_id);
-    if ($record == null) {
-      throw new \yii\web\HttpException(400, 'No Record:' . $record_id);
-    }
-    $shop = $record->shop;
-    $player = $record->player;  
-    $price = $shop->price;
-    $operation = $shop->operation;
-    $restore = 0;
-    if ($record->game && isset($record->game['points'])) {
-      $restore = $record->game['points'];//池子加上本局的点数
-    }
-
-    $operation->pool += $restore;
-
-
-    $player->cost -= $price;
-   
-    $percentage = $shop->rate / 100; // 返奖率
-    $back = $price * $percentage; //返奖等于价格乘以返奖率
-    $operation->pool -= $back;
-    $operation->income -=  $price - $back;
-    $operation->turnover -= $price;
-
-    if (!$player->validate()) {
-      throw new \yii\web\HttpException(400, 'Save Error' + json_decode($player->getErrors(), true));
-
-    }
-    if (!$operation->validate()) {
-      throw new \yii\web\HttpException(400, 'Save Error' + json_decode($operation->getErrors(), true));
-
-    }
-    $player->save();
-    $operation->save();
-
-
-    $record->delete();
-    return ['success' => true, 'message' => 'success', 'player' => $player, 'operation' => $operation];
-  }
 
   //扣除积分
-  public function actionDeductPoints()
-  {
+    public function actionDeductPoints()
+    {
 
-    $user = Yii::$app->user->identity;
-    if (!$user->manager) {
-      throw new \yii\web\HttpException(400, 'Not Manager');
+        $user = Yii::$app->user->identity;
+        if (!$user->manager) {
+            throw new \yii\web\HttpException(400, 'Not Manager');
+        }
+        $points = Yii::$app->request->post('points');
+        if (!$points) {
+            throw new \yii\web\HttpException(400, 'No Points');
+        }
+
+        $player_id = Yii::$app->request->post('targetId');
+        $player = Player::findOne($player_id);
+        if (!$player) {
+            throw new \yii\web\HttpException(400, 'No Player');
+        }
+        if ($points > $player->points) {
+            throw new \yii\web\HttpException(400, 'Not Enough Points');
+        }
+        $player->points -= $points;
+        if (!$player->validate()) {
+            throw new \yii\web\HttpException(400, 'Save Error' + json_decode($player->getErrors(), true));
+        }
+        $player->save();
+        return ['success' => true, 'message' => 'success', 'player' => $player];
     }
-    $points = Yii::$app->request->post('points');
-    if (!$points) {
-      throw new \yii\web\HttpException(400, 'No Points');
-    }
-
-    $player_id = Yii::$app->request->post('targetId');
-    $player = Player::findOne($player_id);
-    if (!$player) {
-      throw new \yii\web\HttpException(400, 'No Player');
-    }
-    if ($points > $player->points) {
-      throw new \yii\web\HttpException(400, 'Not Enough Points');
-    }
-    $player->points -= $points;
-    if (!$player->validate()) {
-      throw new \yii\web\HttpException(400, 'Save Error' + json_decode($player->getErrors(), true));
-    }
-    $player->save();
-    return ['success' => true, 'message' => 'success', 'player' => $player];
-  }
-  public function actionReadyGame($targetId, $deviceId)
-  { //玩家和设备，开始游戏。
+    public function actionReadyGame($targetId, $deviceId)
+    {
+ //玩家和设备，开始游戏。
 
 
-    $user = Yii::$app->user->identity;
-    if (!$user->manager) {
-      throw new \yii\web\HttpException(400, 'Not Manager');
-    }
-    //拿到玩家信息
-    $player = Player::findOne($targetId);
-    if ($player == null) {
-      throw new \yii\web\HttpException(400, 'No Player');
-    }
+        $user = Yii::$app->user->identity;
+        if (!$user->manager) {
+            throw new \yii\web\HttpException(400, 'Not Manager');
+        }
+      //拿到玩家信息
+        $player = Player::findOne($targetId);
+        if ($player == null) {
+            throw new \yii\web\HttpException(400, 'No Player');
+        }
 
-    //检查设备状态
-    $device = Device::findOne($deviceId);
-    if ($device == null) {
-      throw new \yii\web\HttpException(400, 'No Device');
-    }
+      //检查设备状态
+        $device = Device::findOne($deviceId);
+        if ($device == null) {
+            throw new \yii\web\HttpException(400, 'No Device');
+        }
 
-    $record = Record::find()->where(['player_id' => $player->id, 'device_id' => $device->id])->with('user', 'device')->one();
+        $record = Record::find()->where(['player_id' => $player->id, 'device_id' => $device->id])->with('user', 'device')->one();
 
-    if ($record != null) {
-      throw new \yii\web\HttpException(400, 'Already Running');
-    }
+        if ($record != null) {
+            throw new \yii\web\HttpException(400, 'Already Running');
+        }
 
-    //扣掉玩家的钱，
-    $shop = $device->shop;
-    $player->cost = $player->cost + $shop->price;//玩家的消费等于玩家的消费加上商店的价格
+      //扣掉玩家的钱，
+        $shop = $device->shop;
+        $player->cost = $player->cost + $shop->price;//玩家的消费等于玩家的消费加上商店的价格
 
-    if ($player->cost > $player->recharge + $player->give) {
-      throw new \yii\web\HttpException(400, 'Not Enough Money');
-    }
-    if ($player->validate() == false) {
-      throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($player->errors));
-    }
-
-
-    $operation = $shop->operation;
-
-    $info = [];
-   
-    $info ['price'] = $shop->price;
-    //价格
-    $info ['old_turnover'] = $operation->turnover;
-    $info ['old_pool'] = $operation->pool;
-    
-    
-    $price = $shop->price;
-    $turnover = $operation->turnover + $price;//营业额等于上次营业额加上这次的价格
-    $percentage = $shop->rate / 100; // 返奖率
-    $back = $shop->price * $percentage; //返奖等于价格乘以返奖率
-    $pool =  $back + $operation->pool; //池子等于返奖加上上次池子
-    $restore = rand(floor($pool / 2), $pool);//恢复的钱等于池子的一半到池子之间的随机数
-
-    $operation->pool = $pool - $restore;//池子等于池子减去恢复的钱
-    $operation->turnover = $turnover;//营业额等于上次营业额加上这次的价格
-    $operation->income += $price - $back;// - $restore;//收入等于上次收入加上这次的价格减去恢复的钱
-    
-    //$income = $operation->income + ($shop->price - $back); //收入等于上次收入加上这次的价格减去返奖
-  /*
-
-    $info ['turnover'] = $turnover;
-    $pool = $operation->pool + $shop->price;// 池子等于上次池子加上这次的价格
-    $info ['pool'] = $pool;
-    $percentage = (1 - $shop->rate / 100);
-    $info ['percentage'] = $percentage;
-    $left = $turnover * $percentage;//剩下的钱等于收入减去收入的百分比
-
-    $info ['left'] = $left;
-    $restore = $pool - $left; //恢复的钱等于池子减去剩下的钱
-
-    $info ['restore1'] = $restore;
-    $restore = rand(floor($restore / 2), $restore);
-
-    $info ['restore'] = $restore;
-    $operation->pool = $pool - $restore;
-
-    $info ['new_pool'] =  $operation->pool;
-    $operation->turnover = $turnover;
-    */
-
-    //$operation->income += $operation->income + ($shop->price - $restore);
-
-    $operation->save();
-
-    if ($operation->validate() == false) {
-      throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($shop->errors));
-    }
-    $operation->save();
-
-    //设备设置为等待运行。
-    $record = new Record();
-    $record->player_id = $player->id;
-    $record->device_id = $device->id;
-    //$game = new Game();
-
-    $record->game = new Game($restore, $shop->play_time);
-
-    if ($record->validate() == false) {
-      throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($record->errors));
-    }
-
-    // $device->status = 'runnable';
-    if ($device->validate() == false) {
-      throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($device->errors));
-    }
+        if ($player->cost > $player->recharge + $player->give) {
+            throw new \yii\web\HttpException(400, 'Not Enough Money');
+        }
+        if ($player->validate() == false) {
+            throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($player->errors));
+        }
 
 
-    $record->save();
-    $device->save();
-    $player->save();
-    $shop->save();
-    $record = Record::findOne($record->id);
-    //返回记录包括player 和 device 信息，以及points
-    /*$recordArray = $record->toArray(
+        $operation = $shop->operation;
+
+        $info = [];
+
+        $info ['price'] = $shop->price;
+      //价格
+        $info ['old_turnover'] = $operation->turnover;
+        $info ['old_pool'] = $operation->pool;
+
+
+        $price = $shop->price;
+        $turnover = $operation->turnover + $price;//营业额等于上次营业额加上这次的价格
+        $percentage = $shop->rate / 100; // 返奖率
+        $back = $shop->price * $percentage; //返奖等于价格乘以返奖率
+        $pool =  $back + $operation->pool; //池子等于返奖加上上次池子
+        $restore = rand(floor($pool / 2), $pool);//恢复的钱等于池子的一半到池子之间的随机数
+
+        $operation->pool = $pool - $restore;//池子等于池子减去恢复的钱
+        $operation->turnover = $turnover;//营业额等于上次营业额加上这次的价格
+        $operation->income += $price - $back;// - $restore;//收入等于上次收入加上这次的价格减去恢复的钱
+
+      //$income = $operation->income + ($shop->price - $back); //收入等于上次收入加上这次的价格减去返奖
+    /*
+
+      $info ['turnover'] = $turnover;
+      $pool = $operation->pool + $shop->price;// 池子等于上次池子加上这次的价格
+      $info ['pool'] = $pool;
+      $percentage = (1 - $shop->rate / 100);
+      $info ['percentage'] = $percentage;
+      $left = $turnover * $percentage;//剩下的钱等于收入减去收入的百分比
+
+      $info ['left'] = $left;
+      $restore = $pool - $left; //恢复的钱等于池子减去剩下的钱
+
+      $info ['restore1'] = $restore;
+      $restore = rand(floor($restore / 2), $restore);
+
+      $info ['restore'] = $restore;
+      $operation->pool = $pool - $restore;
+
+      $info ['new_pool'] =  $operation->pool;
+      $operation->turnover = $turnover;
+      */
+
+      //$operation->income += $operation->income + ($shop->price - $restore);
+
+        $operation->save();
+
+        if ($operation->validate() == false) {
+            throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($shop->errors));
+        }
+        $operation->save();
+
+      //设备设置为等待运行。
+        $record = new Record();
+        $record->player_id = $player->id;
+        $record->device_id = $device->id;
+      //$game = new Game();
+
+        $record->game = new Game($restore, $shop->play_time);
+
+        if ($record->validate() == false) {
+            throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($record->errors));
+        }
+
+      // $device->status = 'runnable';
+        if ($device->validate() == false) {
+            throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($device->errors));
+        }
+
+
+        $record->save();
+        $device->save();
+        $player->save();
+        $shop->save();
+        $record = Record::findOne($record->id);
+      //返回记录包括player 和 device 信息，以及points
+      /*$recordArray = $record->toArray(
       ['id', 'points', 'startTime', 'endTime'], // 要包含的字段
       ['player' => ['id', 'name'], 'device' => ['id', 'name']] // 要包含的关联数据及其字段
-  );*/
-    return ['success' => true, 'info' => $info, 'message' => 'success', 'record' => $record->toArray([], ['player', 'device'])];
-  }
-
-
+    );*/
+        return ['success' => true, 'info' => $info, 'message' => 'success', 'record' => $record->toArray([], ['player', 'device'])];
+    }
 }

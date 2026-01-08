@@ -1,10 +1,10 @@
 <?php
 
 namespace app\modules\v1\models;
+
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
 use Yii;
-
 
 /**
  * This is the model class for table "gift".
@@ -23,7 +23,6 @@ use Yii;
  */
 class Gift extends \yii\db\ActiveRecord
 {
-
     public function behaviors()
     {
         return [
@@ -60,7 +59,7 @@ class Gift extends \yii\db\ActiveRecord
         ];
     }
 
-   
+
     /**
      * {@inheritdoc}
      */

@@ -35,24 +35,24 @@ class Device extends \yii\db\ActiveRecord
         ];
     }
 
-    public  function fields()
+    public function fields()
     {
-       $fields = parent::fields();
-       $fields['status'] = function ($model) {
-        if($this->shop_id == null){
-            //未设置，一个英文词
-            return 'unset';
-        }
-        $record = $model->record;
-        if($record == null){
-            //未使用，一个英文词
-            return 'unused';
-        }
-        return $record->status;
-       };
-       unset($fields['created_at']);
-       unset($fields['updated_at']);
-       return $fields;
+        $fields = parent::fields();
+        $fields['status'] = function ($model) {
+            if ($this->shop_id == null) {
+                  //未设置，一个英文词
+                  return 'unset';
+            }
+            $record = $model->record;
+            if ($record == null) {
+                 //未使用，一个英文词
+                 return 'unused';
+            }
+            return $record->status;
+        };
+        unset($fields['created_at']);
+        unset($fields['updated_at']);
+        return $fields;
     }
     /**
      * {@inheritdoc}
@@ -61,7 +61,7 @@ class Device extends \yii\db\ActiveRecord
     {
         return 'device';
     }
-    
+
     /**
      * {@inheritdoc}
      */

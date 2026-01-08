@@ -1,8 +1,9 @@
 <?php
+
 namespace app\modules\v2\controllers;
+
 use Yii;
 use yii\rest\Controller;
-
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
 use app\modules\v2\helper\Server;
@@ -16,7 +17,6 @@ use OpenApi\Annotations as OA;
  */
 class AppletController extends Controller
 {
-
     public function behaviors()
     {
 
@@ -46,7 +46,4 @@ class AppletController extends Controller
 
         return Server::Refresh();
     }
-
-
-
 }

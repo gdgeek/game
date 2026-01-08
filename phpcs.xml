@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<ruleset name="Project Coding Standard">
+    <description>Custom coding standard for this project</description>
+    
+    <!-- Use PSR12 as base -->
+    <rule ref="PSR12"/>
+    
+    <!-- Exclude vendor and runtime directories -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/runtime/*</exclude-pattern>
+    <exclude-pattern>*/web/assets/*</exclude-pattern>
+    
+    <!-- Allow PascalCase method names (like GetInfo) -->
+    <rule ref="PSR1.Methods.CamelCapsMethodName.NotCamelCaps">
+        <severity>0</severity>
+    </rule>
+    
+    <!-- Make missing function comments a warning instead of error -->
+    <rule ref="PEAR.Commenting.FunctionComment.Missing">
+        <severity>4</severity>
+    </rule>
+</ruleset>

@@ -3,9 +3,9 @@
 namespace app\modules\v1\models;
 
 use Yii;
-
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
+
 /**
  * This is the model class for table "player_token".
  *
@@ -33,7 +33,7 @@ class PlayerToken extends \yii\db\ActiveRecord
             ]
         ];
     }
-    
+
     /**
      * {@inheritdoc}
      */
@@ -59,20 +59,20 @@ class PlayerToken extends \yii\db\ActiveRecord
     public static function GenerateRefreshToken($playerId, $expirySeconds = 86400)
     {
 
-       $playerToken = PlayerToken::find()->where(['player_id' => $playerId])->one();
-       
-        if(!$playerToken){
+        $playerToken = PlayerToken::find()->where(['player_id' => $playerId])->one();
+
+        if (!$playerToken) {
             $playerToken = new PlayerToken();
             $playerToken->player_id = $playerId;
         }
-        
+
         return $playerToken;
-      
     }
-    public function getIsExpired(){
+    public function getIsExpired()
+    {
         return strtotime($this->expires_at) < time();
     }
-    
+
 
     public static function findByRefreshToken($token)
     {
@@ -98,13 +98,12 @@ class PlayerToken extends \yii\db\ActiveRecord
     {
         $this->refresh_token = Yii::$app->security->generateRandomString();
         $this->expires_at = date('Y-m-d H:i:s', time() + $expirySeconds);
-        if($this->validate() && $this->save()){
+        if ($this->validate() && $this->save()) {
             return $this;
         }
-        throw new \yii\web\HttpException(400, 'Invalid parameters'.json_encode($this->errors));
-    
+        throw new \yii\web\HttpException(400, 'Invalid parameters' . json_encode($this->errors));
     }
- 
+
 
     /**
      * Gets query for [[Player]].

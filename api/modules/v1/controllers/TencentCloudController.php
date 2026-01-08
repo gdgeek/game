@@ -6,20 +6,15 @@ use TencentCloud\Common\Credential;
 use TencentCloud\Common\Profile\ClientProfile;
 use TencentCloud\Common\Profile\HttpProfile;
 use TencentCloud\Sts\V20180813\Models\GetFederationTokenRequest;
-
-
 use yii\web\BadRequestHttpException;
 use yii\web\NotFoundHttpException;
-
 // 导入可选配置类
 use TencentCloud\Sts\V20180813\StsClient;
 use Yii;
-
 use yii\rest\Controller;
 
 class TencentCloudController extends Controller
 {
-
     public function behaviors()
     {
         $behaviors = parent::behaviors();
@@ -136,8 +131,7 @@ class TencentCloudController extends Controller
 
         // 通过client对象调用想要访问的接口，需要传入请求对象
         $resp = $client->GetFederationToken($req);
-     
+
         return $resp;
     }
-
 }

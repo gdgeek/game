@@ -14,7 +14,7 @@ use Yii;
  * @property Record[] $records
  * @property Shop $shop
  */
-class Game 
+class Game
 {
     // public AwardType $award ;
    // public int $status;
@@ -27,5 +27,4 @@ class Game
         $this->secodes = $secodes;
         $this->points = $points;
     }
-
 }

@@ -3,9 +3,9 @@
 namespace app\modules\v1\models;
 
 use Yii;
-
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
+
 /**
  * This is the model class for table "gain".
  *
@@ -23,7 +23,6 @@ use yii\db\Expression;
  */
 class Gain extends \yii\db\ActiveRecord
 {
-
     public function behaviors()
     {
         return [

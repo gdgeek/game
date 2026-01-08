@@ -1,5 +1,7 @@
 <?php
+
 namespace app\modules\v1\controllers;
+
 use Yii;
 use yii\rest\Controller;
 use app\modules\v1\models\Checkin;
@@ -9,7 +11,6 @@ use app\modules\v1\models\File;
 
 class LocalController extends Controller
 {
-
     public function behaviors()
     {
 
@@ -45,7 +46,7 @@ class LocalController extends Controller
 
         return $report;
     }
-    private function getCheckin(string $token,string $openid): ?Checkin
+    private function getCheckin(string $token, string $openid): ?Checkin
     {
         $checkin = Checkin::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
 
@@ -92,7 +93,7 @@ class LocalController extends Controller
         $file->updated_at = strval(time());
         $file->dbid = $mysql->id;
         $file->save();
-       
+
 
         return $file;
     }
@@ -101,12 +102,11 @@ class LocalController extends Controller
 
         $helper = Yii::$app->helper;
         return $helper->play();
-
     }
     public function actionRefresh()
     {
 
-        //做个cache日志 
+        //做个cache日志
         $helper = Yii::$app->helper;
         $helper->record();
         $token = Yii::$app->request->post("token");//这次 的token
@@ -180,5 +180,4 @@ class LocalController extends Controller
             ]
         ];
     }
-
 }

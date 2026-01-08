@@ -1,17 +1,17 @@
 <?php
 
 namespace app\modules\v1\components;
+
 use yii\base\Component;
 
 class Wechat extends Component
 {
-
     public $app_id;
     public $secret;
     public $token;
     public $aes_key;
 
-    public ?string  $mch_id;
+    public ?string $mch_id;
 
     public ?string $private_key;
     public ?string $certificate;
@@ -78,6 +78,4 @@ class Wechat extends Component
 
         return new \EasyWeChat\MiniApp\Application($config);
     }
-
 }
-

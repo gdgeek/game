@@ -3,7 +3,6 @@
 namespace app\modules\v2\models;
 
 use Yii;
-
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
 use yii\db\ActiveRecord;
@@ -29,7 +28,6 @@ use OpenApi\Annotations as OA;
  */
 class Device extends ActiveRecord
 {
-
     public function behaviors()
     {
         return [
@@ -65,7 +63,7 @@ class Device extends ActiveRecord
                     ->all();
             },
             'setup' => function ($model) {
-                if($model->setup == null){
+                if ($model->setup == null) {
                     $setup = new Setup();
                     $setup->device_id = $model->id;
                     $setup->save();
@@ -112,7 +110,7 @@ class Device extends ActiveRecord
         ];
     }
 
-   
+
 
      /**
      * Gets query for [[Setup]].

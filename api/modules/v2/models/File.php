@@ -1,6 +1,7 @@
 <?php
 
 namespace app\modules\v2\models;
+
 use yii\web\BadRequestHttpException;
 use Yii;
 
@@ -15,6 +16,7 @@ use Yii;
  * @property string|null $bucket
  * @property string $created_at
  */
+
 // 引入 COS SDK (需: composer require qcloud/cos-sdk-v5:^2.0)
 use Qcloud\Cos\Client;
 use OpenApi\Annotations as OA;
@@ -28,7 +30,6 @@ use OpenApi\Annotations as OA;
  */
 class File extends \yii\db\ActiveRecord
 {
-
     public static function GetClient(string $key, int $expires = 900, ?string $method = 'GET')
     {
         $method = strtoupper($method ?? 'GET');
@@ -125,7 +126,6 @@ class File extends \yii\db\ActiveRecord
             throw new BadRequestHttpException('生成 URL 失败: ' . $e->getMessage());
         }
         return $url;
-
     }
 
 
@@ -220,10 +220,10 @@ class File extends \yii\db\ActiveRecord
             'user_id' => 'User ID',
         ];
     }
-    /** 
-     * Gets query for [[User]]. 
-     * 
-     * @return \yii\db\ActiveQuery 
+    /**
+     * Gets query for [[User]].
+     *
+     * @return \yii\db\ActiveQuery
      */
     public function getUser()
     {

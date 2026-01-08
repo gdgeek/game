@@ -3,9 +3,9 @@
 namespace app\modules\v1\models;
 
 use Yii;
-
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
+
 /**
  * This is the model class for table "record".
  *
@@ -26,7 +26,6 @@ use yii\db\Expression;
  */
 class Record extends \yii\db\ActiveRecord
 {
-
     public function behaviors()
     {
         return [
@@ -40,7 +39,7 @@ class Record extends \yii\db\ActiveRecord
             ]
         ];
     }
-    
+
     /**
      * {@inheritdoc}
      */
@@ -48,7 +47,7 @@ class Record extends \yii\db\ActiveRecord
     {
         return 'record';
     }
-    
+
     /**
      * {@inheritdoc}
      */
@@ -66,10 +65,10 @@ class Record extends \yii\db\ActiveRecord
     public function extraFields()
     {
         return [
-            'device'=> function(){
+            'device' => function () {
                 return $this->device;
             },
-            'player'=>function(){
+            'player' => function () {
                 return $this->user->player;
             },
         ];
@@ -77,10 +76,9 @@ class Record extends \yii\db\ActiveRecord
 
 
     public function getUser()
-     {
+    {
         return $this->hasOne(User::class, ['id' => 'player_id']);
-
-     }
+    }
 
     /**
      * {@inheritdoc}
@@ -125,13 +123,14 @@ class Record extends \yii\db\ActiveRecord
     {
         return $this->hasOne(Player::class, ['id' => 'player_id']);
     }
-  
-    public function getTest(){
-        $game = new Game(10,10);
-        
+
+    public function getTest()
+    {
+        $game = new Game(10, 10);
+
       //  $game->award->points = 12;
-        
-     
+
+
         return $game;
     }
 }

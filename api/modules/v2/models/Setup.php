@@ -18,8 +18,8 @@ use OpenApi\Annotations as OA;
  * @property string|null $title
  * @property int|null $scene_id
  * @property int|null $device_id
- * @property string|null $shots 
- * @property string|null $updated_at 
+ * @property string|null $shots
+ * @property string|null $updated_at
  *
  * @property Device $device
  *
@@ -31,8 +31,6 @@ use OpenApi\Annotations as OA;
  */
 class Setup extends \yii\db\ActiveRecord
 {
-
-
     public function behaviors()
     {
         return [

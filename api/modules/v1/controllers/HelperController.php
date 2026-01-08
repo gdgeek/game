@@ -1,12 +1,12 @@
 <?php
 
 namespace app\modules\v1\controllers;
+
 use Yii;
 use yii\rest\ActiveController;
 
 class HelperController extends ActiveController
 {
-
     public $modelClass = 'app\modules\v1\models\Player';
     public function behaviors()
     {
@@ -38,15 +38,11 @@ class HelperController extends ActiveController
     {
         $helper = Yii::$app->helper;
         return $helper->record();
-
     }
     public function actionPrint()
     {
 
         $helper = Yii::$app->helper;
         return $helper->play();
-
-
     }
-
 }

@@ -1,11 +1,11 @@
 <?php
+
 namespace app\modules\v2\controllers;
 
 use Yii;
 use yii\rest\Controller;
 use yii\web\BadRequestHttpException;
 use yii\helpers\ArrayHelper;
-
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
 use OpenApi\Annotations as OA;
@@ -36,7 +36,6 @@ class WechatController extends Controller
     {
         $helper = Yii::$app->helper;
         return $helper->play();
-
     }
     public function actionCode()
     {
@@ -53,7 +52,6 @@ class WechatController extends Controller
         $response = $utils->codeToSession($code);
 
         return $response;
-
     }
 
     /**
@@ -83,24 +81,25 @@ class WechatController extends Controller
      *     )
      * )
      */
-    public function actionProfile(){
+    public function actionProfile()
+    {
         $request = Yii::$app->request;
         $avatar = $request->post('avatar');
         $nickname = $request->post(name: 'nickname');
          $user = Yii::$app->user->identity;
 
          $dirty = false;
-         if($avatar && $user->avatar != $avatar){
-             $user->avatar = $avatar;
-             $dirty = true;
-         }
-         if($nickname && $user->nickname != $nickname){
-             $user->nickname = $nickname;
-             $dirty = true;
-         }
-         if($dirty){
-             $user->save();
-         }
+        if ($avatar && $user->avatar != $avatar) {
+            $user->avatar = $avatar;
+            $dirty = true;
+        }
+        if ($nickname && $user->nickname != $nickname) {
+            $user->nickname = $nickname;
+            $dirty = true;
+        }
+        if ($dirty) {
+            $user->save();
+        }
          return [
             'success' => true,
             'message' => 'Profile updated successfully',
@@ -108,7 +107,6 @@ class WechatController extends Controller
                 'user' => $user,
             ],
          ];
-
     }
 
     /**
@@ -152,7 +150,7 @@ class WechatController extends Controller
     {
         $request = Yii::$app->request;
         $code = $request->post('code');
-        
+
         //$encryptedData = $request->post('encryptedData');
         //$iv = $request->post('iv');
 
@@ -174,7 +172,7 @@ class WechatController extends Controller
 
                 $phoneInfo = $resp['phone_info'] ?? [];
                 $phoneNumber = ArrayHelper::getValue($phoneInfo, 'phoneNumber');
-                if($user->tel != $phoneNumber){
+                if ($user->tel != $phoneNumber) {
                     $user->tel = $phoneNumber;
                     $user->save();
                 }
@@ -183,7 +181,7 @@ class WechatController extends Controller
                     'message' => 'success',
                     'data' => [
                         'user' => $user,
-                        'phone' =>$phoneNumber,
+                        'phone' => $phoneNumber,
                         'purePhone' => ArrayHelper::getValue($phoneInfo, 'purePhoneNumber'),
                         'countryCode' => ArrayHelper::getValue($phoneInfo, 'countryCode'),
                     ],
@@ -192,6 +190,5 @@ class WechatController extends Controller
                 throw new BadRequestHttpException('bind phone failed: ' . $e->getMessage());
             }
         }
-
     }
 }

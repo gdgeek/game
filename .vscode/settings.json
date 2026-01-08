@@ -1,0 +1,21 @@
+{
+  "phpcs.executablePath": "/opt/homebrew/bin/phpcs",
+  "phpcs.standard": "PSR12",
+  "phpcs.showSources": true,
+  "phpcs.showWarnings": true,
+  "phpcs.ignorePatterns": [
+    "*/vendor/*",
+    "*/runtime/*",
+    "*/web/assets/*"
+  ],
+  "phpcs.ruleset": {
+    "PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps": "off",
+    "PEAR.Commenting.FunctionComment.Missing": "warning"
+  },
+  "[php]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
+  },
+  "phpcbf.executablePath": "/opt/homebrew/bin/phpcbf",
+  "phpcbf.standard": "PSR12"
+}

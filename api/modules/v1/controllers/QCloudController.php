@@ -1,12 +1,12 @@
 <?php
 
 namespace app\modules\v1\controllers;
+
 use app\modules\v1\models\File;
 use yii\helpers\ArrayHelper;
 use Yii;
 use yii\rest\Controller;
 use yii\web\BadRequestHttpException;
-
 // 引入 COS SDK (需: composer require qcloud/cos-sdk-v5:^2.0)
 use Qcloud\Cos\Client;
 
@@ -55,8 +55,8 @@ class QCloudController extends Controller
      */
     public function actionObjectUrl(string $key, int $expires = 900, ?string $method = 'GET')
     {
-       $file = File::Create("sdf",$key);
-       $file->save();
-       return $file;
+        $file = File::Create("sdf", $key);
+        $file->save();
+        return $file;
     }
 }

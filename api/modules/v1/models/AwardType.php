@@ -14,12 +14,11 @@ use Yii;
  * @property Record[] $records
  * @property Shop $shop
  */
-class AwardType 
+class AwardType
 {
     public int $points = 100;
     public int $s = 0;
     public int $m = 0;
     public int $l = 0;
     public int $xl = 0;
-    
 }

@@ -1,6 +1,6 @@
 <?php
-namespace app\modules\v2\models;
 
+namespace app\modules\v2\models;
 
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
@@ -19,9 +19,6 @@ use OpenApi\Annotations as OA;
  */
 class RecodeFile extends \yii\redis\ActiveRecord
 {
-
-
-
     /**
      * @return array 定义 Redis 键名前缀
      */

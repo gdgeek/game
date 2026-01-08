@@ -3,6 +3,8 @@
 namespace app\modules\v1\models;
 
 use Yii;
+use yii\behaviors\TimestampBehavior;
+use yii\db\Expression;
 
 /**
  * This is the model class for table "checkin_recode".
@@ -15,12 +17,8 @@ use Yii;
  * @property string|null $created_at
  */
 
-
-use yii\behaviors\TimestampBehavior;
-use yii\db\Expression;
 class CheckinRecode extends \yii\db\ActiveRecord
 {
-
     public function behaviors()
     {
         return [

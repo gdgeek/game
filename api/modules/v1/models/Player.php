@@ -28,7 +28,6 @@ use Yii;
  */
 class Player extends \yii\db\ActiveRecord
 {
-
     public function behaviors()
     {
         return [
@@ -42,7 +41,7 @@ class Player extends \yii\db\ActiveRecord
             ]
         ];
     }
-    
+
     /**
      * {@inheritdoc}
      */
@@ -51,7 +50,7 @@ class Player extends \yii\db\ActiveRecord
         return 'player';
     }
 
-        
+
 
     /**
      * {@inheritdoc}
@@ -94,20 +93,20 @@ class Player extends \yii\db\ActiveRecord
     public function extraFields()
     {
         return [
-            'role'=> function(){
+            'role' => function () {
                 return $this->role;
             },
         ];
     }
    /**
-    * Gets query for [[Managers]]. 
-    * 
-    * @return \yii\db\ActiveQuery 
-    */ 
-   public function getManager() 
-   { 
-       return $this->hasOne(Manager::class, ['player_id' => 'id']); 
-   } 
+    * Gets query for [[Managers]].
+    *
+    * @return \yii\db\ActiveQuery
+    */
+    public function getManager()
+    {
+        return $this->hasOne(Manager::class, ['player_id' => 'id']);
+    }
 
     /**
      * Gets query for [[Records]].
@@ -120,15 +119,15 @@ class Player extends \yii\db\ActiveRecord
     }
 
 
-    public function getRole(){
-      
+    public function getRole()
+    {
+
         $role = 'player';
         $manager = $this->manager;
-        if($manager != null){
+        if ($manager != null) {
             $role = $manager->type;
         }
-    
+
         return $role;
     }
-
 }

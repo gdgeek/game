@@ -1,6 +1,6 @@
 <?php
-namespace app\modules\v2\helper;
 
+namespace app\modules\v2\helper;
 
 use Yii;
 use app\modules\v2\models\Applet;
@@ -9,11 +9,12 @@ use app\modules\v2\models\RecodeFile;
 use app\modules\v2\models\File;
 use app\modules\v2\models\Device;
 use app\modules\v2\models\Setup;
+
 class Server
 {
     public static function GetDevice(string $token, string|null $uuid)
     {
-        $report = Report::find()->where(['token' => $token])->one();//得到报告（ar端上传）
+        $report = Report::find()->where(['token' => $token])->one(); //得到报告（ar端上传）
         if (!$uuid) {
             return $report;
         }
@@ -22,7 +23,6 @@ class Server
             $report->token = $token;
             $report->uuid = $uuid;
             $report->created_at = strval(time());
-
         }
         if (!$report->device_id) {
             $device = Device::findOne(['uuid' => $report->uuid]);
@@ -55,13 +55,12 @@ class Server
 
     private static function GetApplet(string $token, string|null $id): ?Applet
     {
-        $applet = Applet::find()->where(['token' => $token])->one();//得到签到（小程序端上传）
+        $applet = Applet::find()->where(['token' => $token])->one(); //得到签到（小程序端上传）
 
         if (!$id) {
             return $applet;
         }
         if (!$applet) {
-
             $user = Yii::$app->user->identity;
             $applet = new Applet();
             $applet->token = $token;
@@ -85,7 +84,7 @@ class Server
     }
     private static function GetFile(string $token, string|null $key, Applet|null $applet = null)
     {
-        $rf = RecodeFile::find()->where(['token' => $token])->one();//得到文件记录
+        $rf = RecodeFile::find()->where(['token' => $token])->one(); //得到文件记录
         if (!$key) {
             return $rf;
         }
@@ -103,7 +102,6 @@ class Server
             $rf->created_at = $file->created_at;
             $rf->updated_at = strval(time());
             $rf->file_id = $file->id;
-
         }
 
 
@@ -113,7 +111,7 @@ class Server
 
         return $rf;
     }
-    private static function GetSetup(string|null $uuid)
+    private static function getSetup(string|null $uuid)
     {
         $device = Device::findOne(['uuid' => $uuid]);
         if ($device && $device->setup) {
@@ -123,15 +121,15 @@ class Server
         return Setup::DefaultData();
     }
 
-   
-    public static function GetInfo(string|null $uuid)
+
+    public static function getInfo(string|null $uuid)
     {
         if ($uuid) {
             $device = Device::findOne(['uuid' => $uuid]);
             if (!$device) {
                 $device = new Device();
                 $device->uuid = $uuid;
-                $setup = Setup::Create($device,  Setup::DefaultData(), Setup::DefaultInfo());
+                $setup = Setup::Create($device, Setup::DefaultData(), Setup::DefaultInfo());
                 $device->save();
             }
 
@@ -139,12 +137,11 @@ class Server
             if ($setup) {
                 return $setup->getInfo();
             }
-
         }
         return Setup::DefaultInfo();
     }
 
-   
+
     public static function Refresh(): array
     {
 
@@ -210,17 +207,15 @@ class Server
                 $result['data']['token'] = $token;
             }
             if (in_array("setup", $expands)) {
-
                 if (isset($report["uuid"])) {
-                    $result['data']['setup'] = self::GetSetup($report["uuid"]);
+                    $result['data']['setup'] = self::getSetup($report["uuid"]);
                 } else {
                     $result['data']['setup'] =  Setup::DefaultData();
                 }
-
             }
             if (in_array("info", $expands)) {
                 if (isset($report["uuid"])) {
-                    $result['data']['info'] = self::GetInfo($report["uuid"]);
+                    $result['data']['info'] = self::getInfo($report["uuid"]);
                 } else {
                     $result['data']['info'] = Setup::DefaultInfo();
                 }
@@ -236,7 +231,6 @@ class Server
                 $result['data']['applet'] = $applet;
             }
             if (in_array("device", $expands)) {
-
                 unset($report['setup']);
                 unset($report['token']);
                 unset($report['created_at']);
@@ -249,14 +243,11 @@ class Server
             $result['message'] = 'success';
 
             return $result;
-        }
-        ;
+        };
 
         $result['success'] = false;
         $result['message'] = 'need expand';
 
         return $result;
-
     }
-
 }

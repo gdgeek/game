@@ -1,14 +1,12 @@
 <?php
-namespace app\modules\v1\models;
 
+namespace app\modules\v1\models;
 
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
+
 class Checkin extends \yii\redis\ActiveRecord
 {
-
-
-
     /**
      * @return array 定义 Redis 键名前缀
      */

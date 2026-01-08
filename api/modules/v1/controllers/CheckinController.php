@@ -1,15 +1,15 @@
 <?php
+
 namespace app\modules\v1\controllers;
+
 use Yii;
 use yii\rest\Controller;
 use app\modules\v1\models\Checkin;
 use app\modules\v1\models\Report;
-
 use app\modules\v1\models\RecodeFile;
 
 class CheckinController extends Controller
 {
-
     public function behaviors()
     {
 
@@ -33,7 +33,7 @@ class CheckinController extends Controller
         $checkin = Checkin::find()->where(['token' => $token])->one();
 
 
-      
+
         if (!$checkin) {
             throw new \yii\web\HttpException(400, 'checkin not found');
         }
@@ -95,7 +95,7 @@ class CheckinController extends Controller
             $report = new Report();
             $report->token = $token;
             $report->device = $device;
-        } 
+        }
         $report->action = $action;
         $report->save();
         return [
@@ -161,7 +161,7 @@ class CheckinController extends Controller
             ];
         }
     }
-    
+
     private function changeState($status)
     {
 
@@ -269,5 +269,4 @@ class CheckinController extends Controller
             throw new \yii\web\HttpException(400, 'save failed' + json_encode($checkin->errors));
         }
     }
-
 }

@@ -1,5 +1,7 @@
 <?php
+
 namespace app\modules\v2\controllers;
+
 use Yii;
 use yii\rest\Controller;
 use app\modules\v2\models\Applet;
@@ -17,7 +19,6 @@ use OpenApi\Annotations as OA;
  */
 class ServerController extends Controller
 {
-
     public function behaviors()
     {
 
@@ -31,7 +32,6 @@ class ServerController extends Controller
     {
         // $server = new Server();
         return Server::Refresh();
-
     }
 
 
@@ -120,7 +120,6 @@ class ServerController extends Controller
     {
 
         return Server::Refresh();
-
     }
     /**
      * @OA\Get(
@@ -139,11 +138,11 @@ class ServerController extends Controller
      */
     public function actionInfo($uuid)
     {
-        $info = Server::GetInfo($uuid);
+        $info = Server::getInfo($uuid);
         return [
             'success' => true,
             'message' => 'success',
-            'data' =>$info,
+            'data' => $info,
         ];
     }
 
@@ -191,52 +190,51 @@ class ServerController extends Controller
     {
         // 外部接口地址
         $targetUrl = 'https://a1.voxel.cn/v1/server/checkin?expand=verse_id,name';
-        
+
         // 获取请求参数
-        
+
         $params = Yii::$app->request->get();
-        
+
 
         // 构建带参数的 URL（目标 URL 已包含查询参数，使用 & 追加）
         if (!empty($params)) {
             $targetUrl .= '&' . http_build_query($params);
         }
-        
+
         // 使用 cURL 转发请求
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $targetUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        
+
         // 转发请求头（可选）
         $headers = [];
         // $headers[] = 'Authorization: Bearer YOUR_TOKEN';
         if (!empty($headers)) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         }
-        
+
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
         curl_close($ch);
-        
+
         if ($error) {
             throw new \yii\web\HttpException(500, '转发请求失败: ' . $error);
         }
-        
+
         // 设置响应状态码
         Yii::$app->response->statusCode = $httpCode;
-        
+
         // 尝试解析 JSON 响应
         $data = json_decode($response, true);
         if (json_last_error() === JSON_ERROR_NONE) {
             return $data;
         }
-        
+
         // 如果不是 JSON，直接返回原始响应
         Yii::$app->response->format = \yii\web\Response::FORMAT_RAW;
         return $response;
     }
-
 }

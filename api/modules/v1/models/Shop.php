@@ -4,7 +4,6 @@ namespace app\modules\v1\models;
 
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
-
 use Yii;
 
 /**
@@ -26,7 +25,6 @@ use Yii;
  */
 class Shop extends \yii\db\ActiveRecord
 {
-
     public function behaviors()
     {
         return [
@@ -133,9 +131,9 @@ class Shop extends \yii\db\ActiveRecord
     }
 
     /**
-     * Gets query for [[Gains]]. 
-     * 
-     * @return \yii\db\ActiveQuery 
+     * Gets query for [[Gains]].
+     *
+     * @return \yii\db\ActiveQuery
      */
     public function getGains()
     {
@@ -151,5 +149,4 @@ class Shop extends \yii\db\ActiveRecord
     {
         return $this->hasMany(Award::class, ['shop_id' => 'id']);
     }
-
 }
