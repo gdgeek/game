@@ -16,13 +16,12 @@ use OpenApi\Annotations as OA;
  */
 class SiteController extends Controller
 {
-    public function behaviors()
-    {
+  public function behaviors()
+  {
 
-        $behaviors = parent::behaviors();
-
-        return $behaviors;
-    }
+    $behaviors = parent::behaviors();
+    return $behaviors;
+  }
 
 
   /**
@@ -54,33 +53,33 @@ class SiteController extends Controller
    *     )
    * )
    */
-    public function actionRefreshToken()
-    {
+  public function actionRefreshToken()
+  {
 
-        $refreshToken = Yii::$app->request->post("refreshToken");
+    $refreshToken = Yii::$app->request->post("refreshToken");
 
-        $user = User::findIdentityByAccessToken($refreshToken);
-        if (!$user) {
-            throw new \Exception("Invalid refreshToken");
-        }
-        if (!$user instanceof User) {
-            throw new \RuntimeException('Identity must be User');
-        }
-      //$token->save();
-        return [
-        'success' => true,
-        'message' => "refresh success",
-        'data' => [
+    $user = User::findIdentityByAccessToken($refreshToken);
+    if (!$user) {
+      throw new \Exception("Invalid refreshToken");
+    }
+    if (!$user instanceof User) {
+      throw new \RuntimeException('Identity must be User');
+    }
+    //$token->save();
+    return [
+      'success' => true,
+      'message' => "refresh success",
+      'data' => [
         'token' => $user->token()
-        ]
-        ];
-    }
-    public function actionPrint()
-    {
+      ]
+    ];
+  }
+  public function actionPrint()
+  {
 
-        $helper = Yii::$app->helper;
-        return $helper->play();
-    }
+    $helper = Yii::$app->helper;
+    return $helper->play();
+  }
 
   /**
    * @OA\Post(
@@ -112,45 +111,45 @@ class SiteController extends Controller
    *     @OA\Response(response=400, description="code is required")
    * )
    */
-    public function actionLogin()
-    {
-        $code = Yii::$app->request->post("code");
-        if (!$code) {
-            throw new \yii\web\HttpException(400, 'code is required');
-        }
-        $wechat = Yii::$app->wechat;
-        $app = $wechat->miniApp();
-        $utils = $app->getUtils();
+  public function actionLogin()
+  {
+    $code = Yii::$app->request->post("code");
+    if (!$code) {
+      throw new \yii\web\HttpException(400, 'code is required');
+    }
+    $wechat = Yii::$app->wechat;
+    $app = $wechat->miniApp();
+    $utils = $app->getUtils();
 
-      //如何拿到 unionid
-      //https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/open-api-3rd/unionid.html
-        $response = $utils->codeToSession($code);
+    //如何拿到 unionid
+    //https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/open-api-3rd/unionid.html
+    $response = $utils->codeToSession($code);
 
 
-      // 检查是否包含 unionid
-        $unionid = $response['unionid'] ?? null;
+    // 检查是否包含 unionid
+    $unionid = $response['unionid'] ?? null;
 
-        if ($unionid) {
-            $user = User::find()->where(['unionid' => $unionid])->one();
-            if ($user == null) {
-                $user = new User();
-                $user->unionid = $unionid;
-                $user->openid = $response['openid'];
-                $user->save();
-            }
-        }
+    if ($unionid) {
+      $user = User::find()->where(['unionid' => $unionid])->one();
+      if ($user == null) {
+        $user = new User();
+        $user->unionid = $unionid;
+        $user->openid = $response['openid'];
+        $user->save();
+      }
+    }
 
-        return [
-        'data' => [
+    return [
+      'data' => [
         'token' => $user->token(),
         'user' => $user,
         'openid' => $user->openid,
         'unionid' => $user->unionid,
-        ],
+      ],
       //  'openid' => $response['openid'],
       //'unionid' => $unionid, // 返回 unionid（可能为 null）
-        'success' => true,
-        'message' => $unionid ? 'success' : 'unionid not available (check if user has authorized or follows related official account)'
-        ];
-    }
+      'success' => true,
+      'message' => $unionid ? 'success' : 'unionid not available (check if user has authorized or follows related official account)'
+    ];
+  }
 }

@@ -23,7 +23,7 @@ class RootController extends Controller
 
         $behaviors = parent::behaviors();
         $behaviors['authenticator'] = [
-        'class' => RootAuth::class,
+            'class' => RootAuth::class,
         ];
         return $behaviors;
     }

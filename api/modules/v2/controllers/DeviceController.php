@@ -31,17 +31,17 @@ class DeviceController extends ActiveController
 
 
         $behaviors['authenticator'] = [
-        'class' => JwtHttpBearerAuth::class,
-        'except' => ['options'],
+            'class' => JwtHttpBearerAuth::class,
+            'except' => ['options'],
         ];
 
-      //如果是 Assign 的话2 用 RootAuth
+        //如果是 Assign 的话2 用 RootAuth
         if (Yii::$app->request->getMethod() == 'DELETE' || Yii::$app->request->get('action') == 'assign') {
             $behaviors['authenticator'] = ['class' => RootAuth::class];
         } else {
             $behaviors['authenticator'] = [
-            'class' => JwtHttpBearerAuth::class,
-            'except' => ['options'],
+                'class' => JwtHttpBearerAuth::class,
+                'except' => ['options'],
             ];
         }
 
@@ -59,7 +59,7 @@ class DeviceController extends ActiveController
      */
     public function actionManage()
     {
-    //改成 DeviceSearch
+        //改成 DeviceSearch
         $searchModel = new DeviceSearch();
         $pageSize = Yii::$app->request->get('pageSize', 15);
 
@@ -111,10 +111,10 @@ class DeviceController extends ActiveController
      */
     public function actionAssign($device_id)
     {
-//POST ${id}/assign' => 'assign', 得到$id
+        //POST ${id}/assign' => 'assign', 得到$id
 
         $phone = Yii::$app->request->post('phone');
-    // $device_id = Yii::$app->request->post('device_id');
+        // $device_id = Yii::$app->request->post('device_id');
         $user = User::findOne(['tel' => $phone]);
         if ($user) {
             $control = new Control();

@@ -13,24 +13,24 @@ use OpenApi\Annotations as OA;
  */
 class PlayerController extends ActiveController
 {
-    public $modelClass = 'app\modules\v2\models\User';
-    public function behaviors()
-    {
-        $behaviors = parent::behaviors();
-      /*
+  public $modelClass = 'app\modules\v2\models\User';
+  public function behaviors()
+  {
+    $behaviors = parent::behaviors();
+    /*
        //RootAuth
        $behaviors['authenticator'] = [
          'class' => RootAuth::class,
          'except' => ['options'],
        ];
   */
-        return $behaviors;
-    }
+    return $behaviors;
+  }
 
   //列表所有不是guest的用户
-    public function actionAdmin()
-    {
-        $query = $this->modelClass::find()->where(['!=', 'role', 'user']);
-        return $query->all();
-    }
+  public function actionAdmin()
+  {
+    $query = $this->modelClass::find()->where(['!=', 'role', 'user']);
+    return $query->all();
+  }
 }

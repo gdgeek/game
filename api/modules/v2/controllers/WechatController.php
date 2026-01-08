@@ -85,10 +85,20 @@ class WechatController extends Controller
     {
         $request = Yii::$app->request;
         $avatar = $request->post('avatar');
-        $nickname = $request->post(name: 'nickname');
-         $user = Yii::$app->user->identity;
+        $nickname = $request->post('nickname');
 
-         $dirty = false;
+        // 获取当前用户并检查是否存在
+        $user = Yii::$app->user->identity;
+        if (!$user) {
+            throw new \yii\web\HttpException(401, 'User not authenticated');
+        }
+
+        // 确保用户对象是 ActiveRecord 实例
+        if (!($user instanceof \yii\db\ActiveRecord)) {
+            throw new \yii\web\HttpException(500, 'Invalid user object');
+        }
+
+        $dirty = false;
         if ($avatar && $user->avatar != $avatar) {
             $user->avatar = $avatar;
             $dirty = true;
@@ -97,16 +107,20 @@ class WechatController extends Controller
             $user->nickname = $nickname;
             $dirty = true;
         }
+
         if ($dirty) {
-            $user->save();
+            if (!$user->save()) {
+                throw new \yii\web\HttpException(500, 'Failed to save user profile');
+            }
         }
-         return [
+
+        return [
             'success' => true,
             'message' => 'Profile updated successfully',
             'data' => [
                 'user' => $user,
             ],
-         ];
+        ];
     }
 
     /**
@@ -154,7 +168,17 @@ class WechatController extends Controller
         //$encryptedData = $request->post('encryptedData');
         //$iv = $request->post('iv');
 
+        // 获取当前用户并检查是否存在
         $user = Yii::$app->user->identity;
+        if (!$user) {
+            throw new \yii\web\HttpException(401, 'User not authenticated');
+        }
+
+        // 确保用户对象是 ActiveRecord 实例
+        if (!($user instanceof \yii\db\ActiveRecord)) {
+            throw new \yii\web\HttpException(500, 'Invalid user object');
+        }
+
         $wechat = Yii::$app->wechat;
         $app = $wechat->miniApp();
 
@@ -174,7 +198,9 @@ class WechatController extends Controller
                 $phoneNumber = ArrayHelper::getValue($phoneInfo, 'phoneNumber');
                 if ($user->tel != $phoneNumber) {
                     $user->tel = $phoneNumber;
-                    $user->save();
+                    if (!$user->save()) {
+                        throw new \yii\web\HttpException(500, 'Failed to save phone number');
+                    }
                 }
                 return [
                     'success' => true,
@@ -190,5 +216,7 @@ class WechatController extends Controller
                 throw new BadRequestHttpException('bind phone failed: ' . $e->getMessage());
             }
         }
+
+        throw new BadRequestHttpException('code parameter is required');
     }
 }

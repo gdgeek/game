@@ -259,7 +259,7 @@ class Server
 
             if (in_array("file", $expands)) {
                 // 将 RecodeFile 对象转换为数组
-                $fileData = $file ? $file->toArray() : [];
+                $fileData = $file ? $file->toArray() : null;
                 // 移除不需要的字段
                 unset($fileData['token']);
                 //    unset($fileData['created_at']);

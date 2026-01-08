@@ -22,11 +22,11 @@ class FileController extends ActiveController
     {
         $behaviors = parent::behaviors();
         $behaviors['authenticator'] = [
-        'class' => CompositeAuth::class,
-        'authMethods' => [
-        JwtHttpBearerAuth::class,
-        ],
-        'except' => ['options'],
+            'class' => CompositeAuth::class,
+            'authMethods' => [
+                JwtHttpBearerAuth::class,
+            ],
+            'except' => ['options'],
         ];
 
         return $behaviors;
