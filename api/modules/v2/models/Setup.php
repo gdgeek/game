@@ -115,28 +115,26 @@ class Setup extends \yii\db\ActiveRecord
     public static function DefaultInfo(): array
     {
         // 默认的 scene_id
-        $defaultSceneId = 626;
+        $defaultSceneId = 638;
 
-
+        /*
         // 尝试从 A1Server 获取场景数据
         $scenesData = \app\modules\v2\helper\A1Server::forwardCheckinRequest();
+
         // 检查返回的数据是否为数组且不为空
         if (is_array($scenesData) && !empty($scenesData)) {
-            // 如果有 data 字段，使用 data 中的第一个元素
+            $data = [];
+            // 如果有 data 字段：若默认值存在于 data 中，则保持默认值；否则使用 data 的第一个元素
             if (isset($scenesData['data']) && is_array($scenesData['data']) && !empty($scenesData['data'])) {
-                $firstScene = $scenesData['data'][0];
-                if (isset($firstScene['verse_id'])) {
-                    $defaultSceneId = (int)$firstScene['verse_id'];
-                }
-                throw new \yii\web\NotFoundHttpException('a');
+                $data =    $scenesData['data'];
+           
             }
             // 如果直接是场景数组，使用第一个元素
-            elseif (isset($scenesData[0]) && isset($scenesData[0]['verse_id'])) {
-                //  throw new \yii\web\NotFoundHttpException('b');
+            elseif (isset($scenesData[0]) && is_array($scenesData[0]) && isset($scenesData[0]['verse_id'])) {
                 $defaultSceneId = (int)$scenesData[0]['verse_id'];
             }
         }
-
+*/
 
         return [
             'title' => '未知',

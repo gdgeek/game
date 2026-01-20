@@ -181,7 +181,7 @@ class ServerController extends Controller
     public function actionTest()
     {
 
-        return "1";
+        return "2";
     }
 
     /**

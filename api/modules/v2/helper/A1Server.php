@@ -27,6 +27,17 @@ class A1Server
      */
     public static function forwardCheckinRequest()
     {
+        // 缓存键
+        $cacheKey = 'a1_server_checkin_request';
+        $cacheDuration = 30; // 缓存30秒
+
+        // 尝试从缓存获取
+        $cache = Yii::$app->cache;
+        $cachedData = $cache->get($cacheKey);
+        if ($cachedData !== false) {
+            return $cachedData;
+        }
+
         // 外部接口地址
         $targetUrl = self::BASE_URL . '/checkin?expand=verse_id,name';
 
@@ -51,7 +62,7 @@ class A1Server
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
-        curl_close($ch);
+        //curl_close($ch);
 
         if ($error) {
             throw new \yii\web\HttpException(500, '转发请求失败: ' . $error);
@@ -63,6 +74,9 @@ class A1Server
         // 尝试解析 JSON 响应
         $data = json_decode($response, true);
         if (json_last_error() === JSON_ERROR_NONE) {
+            // 缓存成功的响应结果
+            $cache->set($cacheKey, $data, $cacheDuration);
+
             return $data;
         }
 
