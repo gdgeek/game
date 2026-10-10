@@ -37,3 +37,6 @@ COPY files/api/web/robots.txt /var/www/html/api/web/
 
 # Copy HTTP server config
 COPY ./dockerfile/000-default.conf /etc/apache2/sites-available/
+
+HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=3 \
+    CMD php -r '$response = @file_get_contents("http://127.0.0.1/health", false, stream_context_create(["http" => ["timeout" => 12]])); $health = json_decode($response ?: "", true); exit(($health["status"] ?? null) === "healthy" ? 0 : 1);'
