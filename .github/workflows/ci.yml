@@ -2,9 +2,16 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: ['**']
   pull_request:
-    branches: [ main, master ]
+    branches: [ develop, main, publish ]
+
+concurrency:
+  group: game-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 env:
   # 腾讯云容器镜像服务配置 (香港区域)
@@ -52,11 +59,12 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: mbstring, pdo, pdo_mysql, gd, redis
+          extensions: mbstring, pdo, pdo_mysql, pdo_sqlite, gd, redis
           coverage: xdebug
 
       - name: Get Composer cache directory
         id: composer-cache
+        working-directory: ./api
         run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
       - name: Cache Composer dependencies
@@ -69,13 +77,15 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./api
-        run: composer install --prefer-dist --no-progress
+        run: composer install --prefer-dist --no-progress --no-interaction
 
       - name: Create test config
         working-directory: ./api
         run: |
-          # 创建 config 目录（如果不存在）
           mkdir -p config
+          cp ../files/api/config/console.php config/console.php
+          cp ../files/api/config/test.php config/test.php
+          cp ../files/api/config/params.php config/params.php
           # 创建测试数据库配置
           cat > config/test_db.php << 'EOF'
           <?php
@@ -87,86 +97,58 @@ jobs:
               'charset' => 'utf8',
           ];
           EOF
+          cat > config/db.php << 'EOF'
+          <?php
+          return require __DIR__ . '/test_db.php';
+          EOF
+
+      - name: Build test actors
+        working-directory: ./api
+        run: php vendor/bin/codecept build --no-interaction
 
       - name: Run database migrations
         working-directory: ./api
-        run: |
-          php yii migrate --interactive=0 || true
+        run: php tests/bin/yii migrate --interactive=0
 
       - name: Run unit tests
         working-directory: ./api
-        run: |
-          vendor/bin/codecept run unit --no-interaction || echo "Unit tests completed"
+        run: php vendor/bin/codecept run unit --no-interaction
 
       - name: Run functional tests
         working-directory: ./api
-        run: |
-          vendor/bin/codecept run functional --no-interaction || echo "Functional tests completed"
+        run: php vendor/bin/codecept run functional --no-interaction
 
-  # ==================== 阶段 2: 构建 ====================
+  # ==================== 阶段 2: 构建并发布 ====================
   build:
-    name: Build
+    name: Build and publish
     runs-on: ubuntu-latest
     needs: test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    outputs:
-      image_tags: ${{ steps.meta.outputs.tags }}
-      image_labels: ${{ steps.meta.outputs.labels }}
+    if: >-
+      github.event_name == 'push' && (
+        github.ref == 'refs/heads/develop' ||
+        github.ref == 'refs/heads/main' ||
+        github.ref == 'refs/heads/publish'
+      )
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
-          images: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
+          php-version: '8.4'
+          extensions: mbstring, pdo, pdo_mysql, gd, redis
+          coverage: none
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./dockerfile/Dockerfile
-          push: false
-          load: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Install application dependencies
+        working-directory: ./api
+        run: composer install --prefer-dist --no-progress --no-interaction --optimize-autoloader
 
-      - name: Save Docker image
+      - name: Write build metadata
         run: |
-          docker save ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:latest -o /tmp/docker-image.tar
-
-      - name: Upload Docker image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image
-          path: /tmp/docker-image.tar
-          retention-days: 1
-
-  # ==================== 阶段 3: 发布 ====================
-  publish:
-    name: Publish
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+          printf '%s\n' "$GITHUB_SHA" > api/GIT_COMMIT
+          TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S' > api/BUILD_TIME
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -183,10 +165,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}
+          flavor: latest=false
           tags: |
             type=ref,event=branch
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/publish' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -206,28 +188,19 @@ jobs:
           echo "🏷️ Tags:"
           echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n' | sed 's/^/   - /'
 
-  # ==================== 阶段 4: 部署 ====================
-  deploy:
-    name: Deploy
+  # ==================== 阶段 3: 发布说明 ====================
+  publish_notice:
+    name: Publish notice
     runs-on: ubuntu-latest
-    needs: publish
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/publish'
 
     steps:
-      - name: Trigger Portainer webhook
+      - name: Record published images
         run: |
-          echo "🚀 Triggering deployment via Portainer..."
-          curl -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}" \
-            --fail \
-            --silent \
-            --show-error \
-            --max-time 30
-          echo "✅ Portainer webhook triggered successfully!"
-
-      - name: Deployment summary
-        run: |
-          echo "============================================"
-          echo "🎉 Deployment completed!"
-          echo "📦 Image: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}"
-          echo "⏰ Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "============================================"
+          {
+            echo "### Images published"
+            echo '- `${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:publish`'
+            echo '- `${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:latest`'
+            echo 'Deployment is managed by the external environment.'
+          } >> "$GITHUB_STEP_SUMMARY"

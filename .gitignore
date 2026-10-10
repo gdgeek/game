@@ -29,6 +29,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # Runtime data
+/api/GIT_COMMIT
+/api/BUILD_TIME
 pids
 *.pid
 *.seed
