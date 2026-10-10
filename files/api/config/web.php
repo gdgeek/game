@@ -39,6 +39,9 @@ $config = [
         ],
     ],
     'components' => [
+        'healthService' => [
+            'class' => \app\components\HealthService::class,
+        ],
         'redis' => [
             'class' => 'yii\redis\Connection',
             'hostname' => getenv('REDIS_HOST'),
@@ -132,10 +135,14 @@ $config = [
         'db' => $db,
 
         'urlManager' => [
+            'class' => \app\components\UrlManager::class,
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'enableStrictParsing' => true,
             'rules' => [
+                'GET health' => 'health/index',
+                'HEAD health' => 'health/index',
+
                 // Swagger API 文档路由
                 'GET swagger' => 'swagger/index',
                 'GET swagger/json-schema' => 'swagger/json-schema',
