@@ -1,0 +1,23 @@
+services:
+  checkin:
+    image: checkin-frontend:20261011-1
+    restart: unless-stopped
+    networks:
+      - proxy
+    environment:
+      APP_API_1_URL: https://x.b0.01xr.com
+      APP_API_2_URL: https://x.b1.01xr.com
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.checkin_voxel_cn.entrypoints=websecure
+      - traefik.http.routers.checkin_voxel_cn.rule=Host(`checkin.voxel.cn`)
+      - traefik.http.routers.checkin_voxel_cn.tls=true
+      - traefik.http.routers.checkin_voxel_cn.tls.certresolver=letsencrypt
+      - traefik.http.routers.checkin_voxel_cn.middlewares=test-compress@file
+      - traefik.http.routers.checkin_voxel_cn.service=checkin_frontend
+      - traefik.http.services.checkin_frontend.loadbalancer.server.port=80
+
+networks:
+  proxy:
+    external: true

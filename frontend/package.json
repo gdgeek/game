@@ -1,0 +1,25 @@
+{
+  "name": "dirui-device-console",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --mode demo --host 127.0.0.1",
+    "dev:api": "vite --mode api --host 127.0.0.1",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "lucide-vue-next": "^0.468.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@vitejs/plugin-vue": "^6.0.0",
+    "typescript": "~5.9.0",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.4",
+    "vue-tsc": "^3.0.0"
+  }
+}

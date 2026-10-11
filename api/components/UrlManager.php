@@ -11,9 +11,12 @@ class UrlManager extends \yii\web\UrlManager
     {
         $request = Yii::$app->get('request');
         // Debug/gii can initialize the URL manager before request dispatch.
-        // Keep health checks reachable even when the Redis route cache is down.
-        if ($request instanceof Request && $request->pathInfo === 'health') {
-            $this->cache = false;
+        // Health checks and administrator login must work without optional Redis.
+        if ($request instanceof Request) {
+            $path = $request->pathInfo;
+            if ($path === 'health' || $path === 'admin-api' || strpos($path, 'admin-api/') === 0) {
+                $this->cache = false;
+            }
         }
 
         parent::init();
