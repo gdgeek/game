@@ -17,10 +17,22 @@ class User extends ActiveRecord implements IdentityInterface
 
     public static function findIdentityByAccessToken($token, $type = null)
     {
-        $claims = Yii::$app->jwt->parse($token)->claims();
-        $uid = $claims->get('uid');
-        $user = static::findIdentity($uid);
-        return $user;
+        if (!is_string($token) || $token === '') { return null; }
+        try {
+            $jwt = Yii::$app->jwt;
+            $parsed = $jwt->parse($token);
+            $configuration = $jwt->getConfiguration();
+            if (!$configuration->validator()->validate($parsed,
+                new \Lcobucci\JWT\Validation\Constraint\SignedWith($configuration->signer(), $configuration->verificationKey()),
+                new \Lcobucci\JWT\Validation\Constraint\StrictValidAt(new \Lcobucci\Clock\SystemClock(new \DateTimeZone('UTC')))
+            )) { return null; }
+            if ($parsed->claims()->get('identityDomain', null) !== 'v1-player') { return null; }
+            $uid = $parsed->claims()->get('uid');
+            if (!is_int($uid) || $uid <= 0) { return null; }
+        } catch (\Throwable $exception) {
+            return null;
+        }
+        return static::findIdentity($uid);
     }
     public function getUsername()
     {
@@ -120,6 +132,7 @@ class User extends ActiveRecord implements IdentityInterface
             ->canOnlyBeUsedAfter($now)
             ->expiresAt($expires) // Configures the expiration time of the token (exp claim)
             ->withClaim('uid', $this->id) // Configures a new claim, called "uid"
+            ->withClaim('identityDomain', 'v1-player')
             ->getToken(
                 Yii::$app->jwt->getConfiguration()->signer(),
                 Yii::$app->jwt->getConfiguration()->signingKey()

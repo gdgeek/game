@@ -2,17 +2,11 @@
 
 namespace app\modules\v2\controllers;
 
-use app\modules\v2\models\Control;
-use app\modules\v2\models\File;
 use yii\rest\ActiveController;
-use app\modules\v2\models\FileSearch;
-use app\modules\v2\models\User;
-use app\modules\v2\helper\RootAuth;
+use app\modules\v2\helper\DeviceAccess;
+use app\modules\v2\helper\DeviceBearerAuth;
 use Yii;
-use app\modules\v2\models\Device;
 use app\modules\v2\models\DeviceSearch;
-use bizley\jwt\JwtHttpBearerAuth;
-use yii\filters\auth\CompositeAuth;
 use OpenApi\Annotations as OA;
 
 /**
@@ -27,25 +21,30 @@ class DeviceController extends ActiveController
     public function behaviors()
     {
         $behaviors = parent::behaviors();
-
-
-
-        $behaviors['authenticator'] = [
-            'class' => JwtHttpBearerAuth::class,
-            'except' => ['options'],
-        ];
-
-        //如果是 Assign 的话2 用 RootAuth
-        if (Yii::$app->request->getMethod() == 'DELETE' || Yii::$app->request->get('action') == 'assign') {
-            $behaviors['authenticator'] = ['class' => RootAuth::class];
-        } else {
-            $behaviors['authenticator'] = [
-                'class' => JwtHttpBearerAuth::class,
-                'except' => ['options'],
-            ];
-        }
-
+        $behaviors['authenticator'] = ['class' => DeviceBearerAuth::class, 'except' => ['options']];
         return $behaviors;
+    }
+
+    public function actions()
+    {
+        $actions = parent::actions();
+        $actions['index']['prepareSearchQuery'] = static function ($query) { return DeviceAccess::scope($query, 'device.id'); };
+        foreach (['view', 'update', 'delete'] as $action) {
+            $actions[$action]['findModel'] = static function ($id) { return DeviceAccess::device($id); };
+        }
+        return $actions;
+    }
+
+    public function beforeAction($action)
+    {
+        if (!parent::beforeAction($action)) { return false; }
+        if (in_array($action->id, ['create', 'delete', 'assign', 'unassign'], true)) { DeviceAccess::denyAdministration(); }
+        return true;
+    }
+
+    protected function verbs()
+    {
+        return array_merge(parent::verbs(), ['manage' => ['GET'], 'assign' => ['POST'], 'unassign' => ['DELETE']]);
     }
 
     /**
@@ -63,15 +62,14 @@ class DeviceController extends ActiveController
         $searchModel = new DeviceSearch();
         $pageSize = Yii::$app->request->get('pageSize', 15);
 
-        $user = Yii::$app->user->identity;
         $dataProvider = $searchModel->search(Yii::$app->request->queryParams, $pageSize);
-        $query = $dataProvider->query;
-        $query->select('device.*')->leftJoin('control', '`control`.`device_id` = `device`.`id`')->andWhere(['control.user_id' => $user->id]);
+        DeviceAccess::scope($dataProvider->query, 'device.id');
         return $dataProvider;
     }
 
     public function actionTest($device_id)
     {
+        DeviceAccess::device($device_id);
         return "test" . $device_id;
     }
     /**
@@ -86,13 +84,7 @@ class DeviceController extends ActiveController
      */
     public function actionUnassign($device_id, $user_id)
     {
-        $control = Control::findOne(['device_id' => $device_id, 'user_id' => $user_id]);
-        if ($control) {
-            $control->delete();
-            return ['message' => 'Device unassigned successfully', 'success' => true];
-        } else {
-            throw new \yii\web\NotFoundHttpException('Control not found');
-        }
+        DeviceAccess::denyAdministration();
     }
     /**
      * @OA\Post(
@@ -111,20 +103,6 @@ class DeviceController extends ActiveController
      */
     public function actionAssign($device_id)
     {
-        //POST ${id}/assign' => 'assign', 得到$id
-
-        $phone = Yii::$app->request->post('phone');
-        // $device_id = Yii::$app->request->post('device_id');
-        $user = User::findOne(['tel' => $phone]);
-        if ($user) {
-            $control = new Control();
-            $control->device_id = $device_id;
-            $control->user_id = $user->id;
-            $control->save();
-            $user->save(); // to trigger beforeSave and update role
-            return ['message' => 'Device assigned successfully', 'success' => true, 'data' => $control];
-        }
-
-        throw new \yii\web\NotFoundHttpException('User not found');
+        DeviceAccess::denyAdministration();
     }
 }

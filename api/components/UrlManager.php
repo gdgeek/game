@@ -14,7 +14,8 @@ class UrlManager extends \yii\web\UrlManager
         // Health checks and administrator login must work without optional Redis.
         if ($request instanceof Request) {
             $path = $request->pathInfo;
-            if ($path === 'health' || $path === 'admin-api' || strpos($path, 'admin-api/') === 0) {
+            if ($path === 'health' || $path === 'admin-api' || strpos($path, 'admin-api/') === 0
+                || strpos($path, 'v2/web-login/') === 0) {
                 $this->cache = false;
             }
         }

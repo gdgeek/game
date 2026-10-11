@@ -8,7 +8,7 @@ use yii\caching\FileCache;
 use yii\web\HttpException;
 use yii\web\UnauthorizedHttpException;
 
-/** Separate administrator identity; never authenticates a WeChat user. */
+/** Password administrators and WeChat device managers share a safe browser session. */
 class AdminAuthService extends Component
 {
     public const SESSION_KEY = 'game.admin.identity';
@@ -36,13 +36,23 @@ class AdminAuthService extends Component
         if (!is_array($identity)
             || !isset($identity['username'], $identity['expiresAt'])
             || !is_string($identity['username'])
-            || !hash_equals($this->username, $identity['username'])
             || !is_int($identity['expiresAt'])
             || $identity['expiresAt'] <= time()) {
             $this->session()->remove(self::SESSION_KEY);
             return null;
         }
-        return ['username' => $identity['username']];
+        if (($identity['source'] ?? 'password') === 'wechat') {
+            if (!is_int($identity['wechatUserId'] ?? null)
+                || $identity['username'] !== 'wechat:' . $identity['wechatUserId']
+                || !$this->isWechatUser($identity['wechatUserId'])) {
+                $this->session()->remove(self::SESSION_KEY);
+                return null;
+            }
+        } elseif (($identity['source'] ?? 'password') !== 'password' || !hash_equals($this->username, $identity['username'])) {
+            $this->session()->remove(self::SESSION_KEY);
+            return null;
+        }
+        return ['username' => $identity['username'], 'role' => ($identity['source'] ?? 'password') === 'wechat' ? 'device_manager' : 'admin'];
     }
 
     public function login(string $username, string $password): array
@@ -69,19 +79,58 @@ class AdminAuthService extends Component
 
         $this->cache->delete($key);
         $session = $this->session();
+        (new AdminScanLoginService(['auth' => $this]))->cancelCurrentTicket();
         $session->regenerateID(true);
-        $session->set(self::SESSION_KEY, ['username' => $this->username, 'expiresAt' => $now + self::SESSION_SECONDS]);
-        return ['username' => $this->username];
+        $session->set(self::SESSION_KEY, ['source' => 'password', 'username' => $this->username, 'expiresAt' => $now + self::SESSION_SECONDS]);
+        return ['username' => $this->username, 'role' => 'admin'];
     }
 
     public function logout(): void
     {
         $session = $this->session();
+        (new AdminScanLoginService(['auth' => $this]))->cancelCurrentTicket();
         $session->remove(self::SESSION_KEY);
         $session->regenerateID(true);
     }
 
-    private function session(): \yii\web\Session
+    public function isWechatUser(int $id): bool
+    {
+        if ($id <= 0) { return false; }
+        try {
+            return (new \yii\db\Query())->from('user')->where(['id' => $id])->exists();
+        } catch (\yii\db\Exception $exception) {
+            Yii::error('WeChat device manager identity lookup failed.', __METHOD__);
+            throw new HttpException(503, '用户身份暂时不可用，请稍后重试');
+        }
+    }
+
+    public function requireWechatUser(int $id): void
+    {
+        if (!$this->isWechatUser($id)) { throw new \yii\web\ForbiddenHttpException('微信账号已失效，请重新登录'); }
+    }
+
+    public function loginWechat(int $id): array
+    {
+        $this->requireWechatUser($id);
+        $session = $this->session();
+        (new AdminScanLoginService(['auth' => $this]))->cancelCurrentTicket();
+        $session->regenerateID(true);
+        $username = 'wechat:' . $id;
+        $session->set(self::SESSION_KEY, ['source' => 'wechat', 'wechatUserId' => $id, 'username' => $username, 'expiresAt' => time() + self::SESSION_SECONDS]);
+        return ['username' => $username, 'role' => 'device_manager'];
+    }
+
+    /** Null means password administrator; a user ID means control-scoped access. */
+    public function requireDeviceUserId(): ?int
+    {
+        $user = $this->getUser();
+        if ($user === null) { throw new UnauthorizedHttpException('请先登录设备管理后台'); }
+        if ($user['role'] === 'admin') { return null; }
+        return $this->session()->get(self::SESSION_KEY)['wechatUserId'];
+    }
+
+    /** Open and retain the browser session lock while changing login state. */
+    public function session(): \yii\web\Session
     {
         $session = Yii::$app->session;
         if (!$this->sessionPrepared) {

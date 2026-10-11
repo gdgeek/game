@@ -2,12 +2,9 @@
 
 namespace app\modules\v2\controllers;
 
-use Yii;
 use yii\rest\Controller;
-use app\modules\v2\models\User;
-use app\modules\v2\helper\RootAuth;
-use app\modules\v2\models\Control;
-use yii\web\Response;
+use app\modules\v2\helper\DeviceAccess;
+use app\modules\v2\helper\DeviceBearerAuth;
 use OpenApi\Annotations as OA;
 
 /**
@@ -23,24 +20,12 @@ class RootController extends Controller
 
         $behaviors = parent::behaviors();
         $behaviors['authenticator'] = [
-            'class' => RootAuth::class,
+            'class' => DeviceBearerAuth::class,
         ];
         return $behaviors;
     }
     public function actionAssign()
     {
-        $phone = Yii::$app->request->post('phone');
-        $device_id = Yii::$app->request->post('device_id');
-        $user = User::findOne(['tel' => $phone]);
-        if ($user) {
-            $control = new Control();
-            $control->device_id = $device_id;
-            $control->user_id = $user->id;
-            $control->save();
-            $user->save(); // to trigger beforeSave and update role
-            return ['message' => 'Device assigned successfully', 'success' => true, 'data' => $control];
-        }
-
-        throw new \yii\web\NotFoundHttpException('User not found');
+        DeviceAccess::denyAdministration();
     }
 }

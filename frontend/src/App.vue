@@ -6,16 +6,23 @@ import GamePicker from './components/GamePicker.vue'
 import GameArtwork from './components/GameArtwork.vue'
 import HelpDialog from './components/HelpDialog.vue'
 import BackendSwitcher from './components/BackendSwitcher.vue'
-import type { BackendId, Device, Game } from './types'
-import { ApiError, assignGame, getDevices, getGames, getSelectedBackend, getSession, isDemoMode, login, logout, setSelectedBackend } from './lib/api'
+import type { BackendId, BackendOption, Device, Game, Session } from './types'
+import { ApiError, assignGame, getDevices, getGames, getSelectedBackend, getSession, initializeBackends, isDemoMode, login, logout, setSelectedBackend } from './lib/api'
 import { filterDevices, summarizeDevices } from './lib/devices'
 
 const ready = ref(false)
-const user = ref<{ username: string } | null>(null)
+const user = ref<Session['user']>(null)
 const demo = ref(isDemoMode)
 const selectedBackend = ref<BackendId>(getSelectedBackend())
+const backends = ref<readonly BackendOption[]>([])
+const configurationReady = ref(isDemoMode)
+const configurationBusy = ref(false)
+const configurationError = ref('')
 const connectingBackend = ref(false)
 const loginBusy = ref(false)
+const scanConsumeBusy = ref(false)
+const scanLoginEnabled = ref(false)
+const loginView = ref<InstanceType<typeof LoginView>>()
 const loginError = ref('')
 const devices = ref<Device[]>([])
 const games = ref<Game[]>([])
@@ -52,6 +59,8 @@ const filteredGames = computed(() => games.value.filter(game => `${game.name} ${
 const syncingTime = computed(() => lastSynced.value?.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) || '尚未同步')
 const statusLabels = { online: '在线', offline: '离线', unknown: '状态未知' }
 const currentTitle = computed(() => activeView.value === 'devices' ? '设备管理' : '游戏库')
+const deviceManager = computed(() => user.value?.role === 'device_manager')
+const identityLabel = computed(() => deviceManager.value ? '关联设备管理' : '管理员')
 
 watch([search, status, gameFilter, pageSize], () => { page.value = 1 })
 watch(pageCount, count => { if (page.value > count) page.value = count })
@@ -133,7 +142,8 @@ async function loadData() {
   loading.value = false
 }
 async function submitLogin(username: string, password: string) {
-  if (loginBusy.value || connectingBackend.value) return
+  if (!configurationReady.value || loginBusy.value || scanConsumeBusy.value || connectingBackend.value || configurationBusy.value) return
+  loginView.value?.stopScan()
   const version = viewVersion
   loginBusy.value = true
   loginError.value = ''
@@ -147,8 +157,16 @@ async function submitLogin(username: string, password: string) {
   } catch (error) { if (version === viewVersion) loginError.value = messageOf(error, '登录失败，请检查网络后重试。') }
   finally { if (version === viewVersion) loginBusy.value = false }
 }
+async function acceptScanSession(session: Session, backend: BackendId) {
+  if (backend !== selectedBackend.value || !scanConsumeBusy.value || loginBusy.value || connectingBackend.value || !session.user) return
+  const version = viewVersion
+  user.value = { ...session.user, role: session.user.role ?? 'device_manager' }
+  demo.value = false
+  loginError.value = ''
+  if (version === viewVersion) await loadData()
+}
 async function signOut() {
-  if (logoutBusy.value || saving.value) return
+  if (logoutBusy.value || scanConsumeBusy.value || saving.value) return
   const version = viewVersion
   logoutBusy.value = true
   try {
@@ -191,6 +209,7 @@ async function connectBackend() {
     if (version !== viewVersion) return
     user.value = session.user
     demo.value = isDemoMode && session.demo === true
+    scanLoginEnabled.value = !isDemoMode && session.scanLoginEnabled === true
     if (user.value) await loadData()
   } catch (error) {
     if (version === viewVersion) loginError.value = messageOf(error, '无法连接当前后端，请重试或选择另一个后端。')
@@ -199,10 +218,29 @@ async function connectBackend() {
   }
 }
 
+async function initializeWorkspace() {
+  if (configurationBusy.value) return
+  configurationBusy.value = true
+  loginError.value = ''
+  try {
+    backends.value = await initializeBackends()
+    selectedBackend.value = getSelectedBackend()
+    configurationReady.value = true
+    configurationError.value = ''
+    await connectBackend()
+  } catch (error) {
+    configurationReady.value = false
+    configurationError.value = messageOf(error, '无法加载后端配置，请重试加载配置。')
+    ready.value = true
+  } finally { configurationBusy.value = false }
+}
+
 async function switchBackend(backend: BackendId) {
-  if (isDemoMode || backend === selectedBackend.value || saving.value || loginBusy.value || logoutBusy.value) return
+  if (isDemoMode || !configurationReady.value || !backends.value.some(option => option.id === backend) || backend === selectedBackend.value || saving.value || loginBusy.value || scanConsumeBusy.value || logoutBusy.value || configurationBusy.value) return
+  loginView.value?.stopScan()
   viewVersion++
   loadVersion++
+  scanLoginEnabled.value = false
   setSelectedBackend(backend)
   selectedBackend.value = backend
   resetWorkspace()
@@ -226,15 +264,16 @@ function exportDevices() {
   const link = document.createElement('a'); link.href = url; link.download = `不加班-设备列表-${new Date().toLocaleDateString('sv-SE')}.csv`; link.click(); URL.revokeObjectURL(url)
   showToast(`已导出 ${filteredDevices.value.length} 台设备`)
 }
-onMounted(connectBackend)
+onMounted(initializeWorkspace)
 onBeforeUnmount(() => clearTimeout(toastTimeout))
 </script>
 
 <template>
   <div v-if="!ready" class="boot-screen" role="status"><span class="brand-symbol">不<span></span></span><LoaderCircle :size="22" class="spin" /><span>正在连接工作空间…</span></div>
-  <LoginView v-else-if="!user" :busy="loginBusy || connectingBackend" :error="loginError" :demo="demo" @login="submitLogin">
+  <LoginView v-else-if="!user" ref="loginView" :busy="loginBusy || connectingBackend" :disabled="configurationBusy || !configurationReady" :error="loginError" :demo="demo" :backend="selectedBackend" :scan-login-enabled="scanLoginEnabled" @login="submitLogin" @authenticated="acceptScanSession" @scan-busy="scanConsumeBusy = $event">
     <template #environment>
-      <BackendSwitcher v-if="!isDemoMode" :model-value="selectedBackend" :disabled="loginBusy || saving || logoutBusy" @update:model-value="switchBackend" />
+      <div v-if="configurationError" class="data-error" role="alert"><CircleX :size="20" /><div><strong>无法加载后端配置</strong><p>{{ configurationError }}</p><button type="button" class="button secondary" :disabled="configurationBusy" @click="initializeWorkspace">{{ configurationBusy ? '正在加载配置…' : '重试加载配置' }}</button></div></div>
+      <BackendSwitcher v-if="!isDemoMode" :backends="backends" :model-value="selectedBackend" :disabled="loginBusy || scanConsumeBusy || saving || logoutBusy || configurationBusy" @update:model-value="switchBackend" />
     </template>
   </LoginView>
   <div v-else class="app-shell" :inert="!!pickerDevice || helpOpen">
@@ -245,31 +284,31 @@ onBeforeUnmount(() => clearTimeout(toastTimeout))
       <div class="workspace-label"><span class="workspace-avatar">不</span><div><strong>不加班工作空间</strong><small>设备管理中心</small></div><ShieldCheck :size="16" /></div>
       <span class="nav-section-label">工作空间</span>
       <nav aria-label="主要导航"><button :class="{ active: activeView === 'devices' }" @click="activeView = 'devices'"><LayoutGrid :size="19" /><span>设备管理</span><span class="nav-count">{{ devices.length }}</span></button><button :class="{ active: activeView === 'games' }" @click="activeView = 'games'"><Gamepad2 :size="20" /><span>游戏库</span></button></nav>
-      <div class="sidebar-bottom"><div class="sidebar-tip"><span class="tip-icon"><Sparkles :size="17" /></span><strong>为设备找到合适的游戏</strong><p>在游戏库查看可用游戏，<br />一处完成所有设备配置。</p><button @click="activeView = 'games'">探索游戏库<ArrowRight :size="14" /></button></div><button class="help-nav" @click="helpOpen = true"><CircleHelp :size="18" />使用帮助<ChevronRight :size="15" /></button><div class="sidebar-account"><span class="account-avatar">不</span><div><strong>{{ user.username }}</strong><small>管理员</small></div><button class="icon-button" aria-label="退出登录" title="退出登录" :disabled="logoutBusy || saving" @click="signOut"><LoaderCircle v-if="logoutBusy" :size="18" class="spin" /><LogOut v-else :size="18" /></button></div></div>
+      <div class="sidebar-bottom"><div class="sidebar-tip"><span class="tip-icon"><Sparkles :size="17" /></span><strong>为设备找到合适的游戏</strong><p>在游戏库查看可用游戏，<br />一处完成所有设备配置。</p><button @click="activeView = 'games'">探索游戏库<ArrowRight :size="14" /></button></div><button class="help-nav" @click="helpOpen = true"><CircleHelp :size="18" />使用帮助<ChevronRight :size="15" /></button><div class="sidebar-account"><span class="account-avatar">不</span><div><strong>{{ user.username }}</strong><small>{{ identityLabel }}</small></div><button class="icon-button" aria-label="退出登录" title="退出登录" :disabled="logoutBusy || saving" @click="signOut"><LoaderCircle v-if="logoutBusy" :size="18" class="spin" /><LogOut v-else :size="18" /></button></div></div>
     </aside>
     <div class="main-shell" :inert="sidebarOpen">
-      <header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" aria-label="打开导航" @click="sidebarOpen = !sidebarOpen"><Menu :size="21" /></button><span>工作空间</span><ChevronRight :size="13" /><strong>{{ currentTitle }}</strong></div><div class="topbar-right"><BackendSwitcher v-if="!isDemoMode" :model-value="selectedBackend" :disabled="saving || loginBusy || logoutBusy" compact @update:model-value="switchBackend" /><span v-if="demo" class="demo-label"><span class="status-dot amber"></span>演示模式</span><span class="topbar-divider"></span><span class="topbar-account">不</span><span class="topbar-name">{{ user.username }}</span></div></header>
+      <header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" aria-label="打开导航" @click="sidebarOpen = !sidebarOpen"><Menu :size="21" /></button><span>工作空间</span><ChevronRight :size="13" /><strong>{{ currentTitle }}</strong></div><div class="topbar-right"><BackendSwitcher v-if="!isDemoMode" :backends="backends" :model-value="selectedBackend" :disabled="saving || loginBusy || logoutBusy" compact @update:model-value="switchBackend" /><span v-if="demo" class="demo-label"><span class="status-dot amber"></span>演示模式</span><span class="topbar-divider"></span><span class="topbar-account">不</span><span class="topbar-name">{{ user.username }}</span></div></header>
       <main class="workspace">
-        <div class="page-heading"><div><div class="page-eyebrow">{{ activeView === 'devices' ? 'DEVICE OVERVIEW' : 'GAME LIBRARY' }}</div><h1>{{ currentTitle }}<span class="heading-dot"></span></h1><p>{{ activeView === 'devices' ? '所有设备，一目了然。为每一台设备配置专属游戏。' : '发现可用游戏，查看每个游戏的设备配置情况。' }}</p></div><button class="button secondary refresh-button" :disabled="loading" @click="loadData"><RefreshCw :size="16" :class="{ spin: loading }" />{{ loading ? '正在同步…' : '刷新数据' }}</button></div>
+        <div class="page-heading"><div><div class="page-eyebrow">{{ activeView === 'devices' ? 'DEVICE OVERVIEW' : 'GAME LIBRARY' }}</div><h1>{{ currentTitle }}<span class="heading-dot"></span></h1><p>{{ activeView === 'devices' ? (deviceManager ? '你关联的设备，一目了然。为自己的设备配置游戏。' : '所有设备，一目了然。为每一台设备配置专属游戏。') : (deviceManager ? '发现可用游戏，查看关联设备的游戏配置情况。' : '发现可用游戏，查看每个游戏的设备配置情况。') }}</p></div><button class="button secondary refresh-button" :disabled="loading" @click="loadData"><RefreshCw :size="16" :class="{ spin: loading }" />{{ loading ? '正在同步…' : '刷新数据' }}</button></div>
 
         <template v-if="activeView === 'devices'">
           <section class="stats-strip" aria-label="设备统计" :aria-busy="loading">
-            <div class="stat-item"><div class="stat-label">设备总数<Monitor :size="17" /></div><div class="stat-number">{{ devicesError && !devices.length ? '—' : summary.total }}<span>台</span></div><p><span class="stat-mark"></span>当前工作空间全部设备</p></div>
+            <div class="stat-item"><div class="stat-label">设备总数<Monitor :size="17" /></div><div class="stat-number">{{ devicesError && !devices.length ? '—' : summary.total }}<span>台</span></div><p><span class="stat-mark"></span>{{ deviceManager ? '统计仅包含你关联的设备' : '当前工作空间全部设备' }}</p></div>
             <div class="stat-item"><div class="stat-label">{{ demo ? '在线设备' : '已使用游戏' }}<component :is="demo ? MonitorCheck : Gamepad2" :size="17" /></div><div class="stat-number">{{ devicesError && !devices.length ? '—' : demo ? summary.online : usedGameCount }}<span>{{ demo ? '台' : '款' }}</span></div><p><span class="status-dot online"></span>{{ demo ? '已连接，可接收游戏配置' : '分配给设备的游戏类型' }}</p></div>
             <div class="stat-item"><div class="stat-label">已配置游戏<Check :size="17" /></div><div class="stat-number">{{ devicesError && !devices.length ? '—' : summary.configured }}<span>台</span></div><p><span class="stat-progress"><i :style="{ width: `${summary.total ? summary.configured / summary.total * 100 : 0}%` }"></i></span>{{ summary.total ? Math.round(summary.configured / summary.total * 100) : 0 }}% 配置完成</p></div>
-            <div class="stat-item"><div class="stat-label">待配置设备<Settings2 :size="17" /></div><div class="stat-number">{{ devicesError && !devices.length ? '—' : summary.unconfigured }}<span>台</span></div><button v-if="summary.unconfigured" class="stat-link" @click="status = 'unconfigured'">前往配置<ArrowRight :size="13" /></button><p v-else><span class="status-dot online"></span>{{ summary.total ? '全部设备已完成配置' : '等待设备接入' }}</p></div>
+            <div class="stat-item"><div class="stat-label">待配置设备<Settings2 :size="17" /></div><div class="stat-number">{{ devicesError && !devices.length ? '—' : summary.unconfigured }}<span>台</span></div><button v-if="summary.unconfigured" class="stat-link" @click="status = 'unconfigured'">前往配置<ArrowRight :size="13" /></button><p v-else><span class="status-dot online"></span>{{ summary.total ? (deviceManager ? '关联设备已完成配置' : '全部设备已完成配置') : (deviceManager ? '等待关联设备' : '等待设备接入') }}</p></div>
           </section>
 
-          <div class="section-heading"><div><h2>设备列表 <span>{{ filteredDevices.length }}</span></h2><p>管理设备的游戏分配与运行状态</p></div><div class="sync-label"><span class="status-dot" :class="devicesError ? 'offline' : 'online'"></span>{{ devicesError ? '同步失败' : `上次同步 ${syncingTime}` }}</div></div>
+          <div class="section-heading"><div><h2>设备列表 <span>{{ filteredDevices.length }}</span></h2><p>{{ deviceManager ? '仅可查看和配置当前微信账号关联的设备' : '管理设备的游戏分配与运行状态' }}</p></div><div class="sync-label"><span class="status-dot" :class="devicesError ? 'offline' : 'online'"></span>{{ devicesError ? '同步失败' : `上次同步 ${syncingTime}` }}</div></div>
           <section class="device-panel">
-            <div class="device-tabs" role="group" aria-label="筛选设备状态"><button :class="{ active: status === 'all' }" @click="status = 'all'">全部设备<span>{{ summary.total }}</span></button><template v-if="demo"><button :class="{ active: status === 'online' }" @click="status = 'online'"><span class="status-dot online"></span>在线<span>{{ summary.online }}</span></button><button :class="{ active: status === 'offline' }" @click="status = 'offline'"><span class="status-dot offline"></span>离线<span>{{ summary.offline }}</span></button></template><button v-else :class="{ active: status === 'configured' }" @click="status = 'configured'">已配置<span>{{ summary.configured }}</span></button><button :class="{ active: status === 'unconfigured' }" @click="status = 'unconfigured'">待配置<span>{{ summary.unconfigured }}</span></button></div>
+            <div class="device-tabs" role="group" aria-label="筛选设备状态"><button :class="{ active: status === 'all' }" @click="status = 'all'">{{ deviceManager ? '我的设备' : '全部设备' }}<span>{{ summary.total }}</span></button><template v-if="demo"><button :class="{ active: status === 'online' }" @click="status = 'online'"><span class="status-dot online"></span>在线<span>{{ summary.online }}</span></button><button :class="{ active: status === 'offline' }" @click="status = 'offline'"><span class="status-dot offline"></span>离线<span>{{ summary.offline }}</span></button></template><button v-else :class="{ active: status === 'configured' }" @click="status = 'configured'">已配置<span>{{ summary.configured }}</span></button><button :class="{ active: status === 'unconfigured' }" @click="status = 'unconfigured'">待配置<span>{{ summary.unconfigured }}</span></button></div>
             <div class="table-toolbar"><label class="search-input device-search"><Search :size="17" /><input v-model="search" placeholder="搜索设备名称、ID 或 IP 地址" aria-label="搜索设备" /><button v-if="search" class="icon-button" aria-label="清除搜索" @click="search = ''"><X :size="15" /></button></label><div class="toolbar-actions"><label class="select-wrap"><SlidersHorizontal :size="15" /><select v-model="gameFilter" aria-label="按游戏筛选"><option :value="null">全部游戏</option><option v-for="game in games" :key="game.id" :value="game.id">{{ game.name }}</option></select><ChevronDown :size="14" /></label><button class="button export-button" :disabled="loading || !!devicesError || !filteredDevices.length" @click="exportDevices"><ArrowDownToLine :size="16" /><span>导出</span></button></div></div>
             <div v-if="devicesError" class="data-error" role="alert"><CircleX :size="21" /><div><strong>无法同步设备</strong><p>{{ devicesError }}</p></div><button class="button secondary" :disabled="loading" @click="loadData">重试</button></div>
             <div v-if="gamesError" class="inline-warning" role="alert"><CircleHelp :size="16" /><span>游戏目录未能加载，配置功能暂不可用。{{ gamesError }}</span><button :disabled="loading" @click="loadData">重试</button></div>
             <div class="table-scroll" :class="{ 'table-loading': loading }" :aria-busy="loading">
               <table><thead><tr><th class="device-col">设备名称</th><th>状态</th><th class="game-col">当前游戏</th><th>IP 地址</th><th>更新时间</th><th class="action-col">操作</th></tr></thead><tbody><tr v-for="device in pageDevices" :key="device.id"><td><div class="device-name-cell"><span class="device-icon" :class="{ muted: device.status === 'offline' }"><Monitor :size="20" :stroke-width="1.6" /></span><span><strong>{{ device.name || `设备 #${device.id}` }}</strong><small class="mono" :title="device.uuid">{{ device.uuid || `DEVICE-${String(device.id).padStart(4, '0')}` }}</small></span></div></td><td><span class="status-badge" :class="device.status"><span class="status-dot" :class="device.status"></span>{{ statusLabels[device.status] }}</span></td><td><div v-if="device.gameId !== null" class="current-game"><GameArtwork :id="device.gameId" /><span><strong>{{ gameById(device.gameId)?.name || `场景 ${device.gameId}` }}</strong><small>SCENE {{ device.gameId }}</small></span></div><button v-else class="unconfigured-label" :disabled="loading || !!gamesError" @click="openPicker(device)"><span class="unconfigured-dash">—</span>尚未配置游戏</button></td><td class="mono ip-cell">{{ device.ip || '—' }}</td><td class="date-cell">{{ formatTime(device.updatedAt) }}</td><td><button class="configure-button" :disabled="loading || !!devicesError || !!gamesError || !games.length" :aria-label="`为${device.name || `设备 ${device.id}`}配置游戏`" @click="openPicker(device)"><Settings2 :size="15" />配置游戏<ChevronRight :size="14" /></button></td></tr></tbody></table>
               <div v-if="loading && !devices.length" class="empty-state" role="status"><LoaderCircle :size="28" class="spin" /><strong>正在获取设备…</strong></div>
-              <div v-else-if="!pageDevices.length && !devicesError" class="empty-state"><span class="empty-icon"><component :is="devices.length ? Search : Unplug" :size="29" :stroke-width="1.5" /></span><strong>{{ devices.length ? '没有找到匹配的设备' : '还没有接入设备' }}</strong><p>{{ devices.length ? '试试其他关键词，或清除筛选条件。' : '设备接入后会显示在这里，点击刷新获取最新列表。' }}</p><button v-if="devices.length" class="button secondary" @click="resetFilters">清除筛选</button></div>
+              <div v-else-if="!pageDevices.length && !devicesError" class="empty-state"><span class="empty-icon"><component :is="devices.length ? Search : Unplug" :size="29" :stroke-width="1.5" /></span><strong>{{ devices.length ? '没有找到匹配的设备' : (deviceManager ? '还没有关联设备' : '还没有接入设备') }}</strong><p>{{ devices.length ? '试试其他关键词，或清除筛选条件。' : (deviceManager ? '请先在「不加班」小程序中关联设备，再刷新此列表。' : '设备接入后会显示在这里，点击刷新获取最新列表。') }}</p><button v-if="devices.length" class="button secondary" @click="resetFilters">清除筛选</button></div>
             </div>
             <footer class="table-footer"><span>共 <strong>{{ filteredDevices.length }}</strong> 台设备<span v-if="filteredDevices.length" class="footer-range">，显示 {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, filteredDevices.length) }} 台</span></span><div class="pagination"><label><select v-model="pageSize" aria-label="每页设备数量"><option :value="8">8 条 / 页</option><option :value="12">12 条 / 页</option><option :value="24">24 条 / 页</option></select></label><button class="icon-button" :disabled="page <= 1" aria-label="上一页" @click="page--"><ChevronLeft :size="17" /></button><span class="page-indicator">{{ page }}<span>/ {{ pageCount }}</span></span><button class="icon-button" :disabled="page >= pageCount" aria-label="下一页" @click="page++"><ChevronRight :size="17" /></button></div></footer>
           </section>
@@ -289,5 +328,5 @@ onBeforeUnmount(() => clearTimeout(toastTimeout))
   </div>
   <Transition name="modal"><GamePicker v-if="pickerDevice" :device="pickerDevice" :games="games" :busy="saving" :error="saveError" @close="pickerDevice = null" @save="saveGame" /></Transition>
   <Transition name="toast"><div v-if="toast" class="toast-message" :class="{ error: toast.error }" role="status"><CircleX v-if="toast.error" :size="18" /><Check v-else :size="18" /><span>{{ toast.text }}</span><button class="icon-button" aria-label="关闭提示" @click="toast = null"><X :size="15" /></button></div></Transition>
-  <Transition name="modal"><HelpDialog v-if="helpOpen" :demo="demo" @close="helpOpen = false" /></Transition>
+  <Transition name="modal"><HelpDialog v-if="helpOpen" :demo="demo" :device-manager="deviceManager" @close="helpOpen = false" /></Transition>
 </template>

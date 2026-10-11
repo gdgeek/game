@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
 const device = { id: 1, uuid: 'device-1', name: '设备一', ip: '', status: 'unknown', updatedAt: '', gameId: 638 }
+const backends = ['b0', 'b1'].map(id => ({ id, name: `正式后端 ${id}`, host: `${id}.example.test` }))
 
 describe('explicit production backend selection', () => {
   const fetchMock = vi.fn<typeof fetch>()
   let stored: Map<string, string>
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules()
     vi.stubEnv('MODE', 'production')
     stored = new Map()
@@ -17,6 +18,10 @@ describe('explicit production backend selection', () => {
     })
     fetchMock.mockReset()
     vi.stubGlobal('fetch', fetchMock)
+    fetchMock.mockResolvedValueOnce(response({ backends }))
+    const api = await import('./api')
+    await api.initializeBackends()
+    fetchMock.mockClear()
   })
 
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
@@ -27,7 +32,10 @@ describe('explicit production backend selection', () => {
     api.setSelectedBackend('b1')
     vi.resetModules()
     api = await import('./api')
+    fetchMock.mockResolvedValueOnce(response({ backends }))
+    await api.initializeBackends()
     expect(api.getSelectedBackend()).toBe('b1')
+    fetchMock.mockClear()
     fetchMock.mockResolvedValueOnce(response([]))
     await api.getDevices()
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/backends/b1/admin-api/devices')
