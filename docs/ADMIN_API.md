@@ -94,10 +94,10 @@ php api/vendor/bin/phpunit --stderr --bootstrap api/tests/_bootstrap.php --filte
 
 `checkin.voxel.cn` 只运行静态 Vue 页面和 Nginx，不运行 PHP、不连接数据库。`dockerfile/FrontendDockerfile` 使用官方 Nginx Alpine 镜像，复制预构建的 `frontend/dist`、代理模板和启动脚本。`dockerfile/admin.compose.yaml` 仅连接现有 `proxy` 网络，通过 Traefik 的 `websecure` / `letsencrypt` 提供 HTTPS，不发布宿主机端口，不配置数据库凭据、Cookie key 或持久化卷。
 
-前端以根路径构建：`npm run build -- --base=/`。Portainer 的最小构建 tar 应包含以下路径，构建文件选择 `dockerfile/FrontendDockerfile`：
+前端以根路径构建：`npm run build -- --base=/`。Portainer 的最小构建 tar 应包含以下路径，将 `dockerfile/FrontendDockerfile` 在 tar 根目录命名为 `Dockerfile`，其余路径保持不变：
 
 - `frontend/dist/`
-- `dockerfile/FrontendDockerfile`
+- `Dockerfile`（源文件为 `dockerfile/FrontendDockerfile`）
 - `dockerfile/frontend-nginx.conf.template`
 - `dockerfile/40-configure-frontends.sh`
 

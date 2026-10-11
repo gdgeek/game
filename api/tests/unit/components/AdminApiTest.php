@@ -23,9 +23,30 @@ class AdminApiTest extends TestCase
     private $catalog;
     private $devices;
     private $runtime;
+    private $originalApp;
+    private $originalAliases;
+    private $originalServer;
+    private $originalSessionSettings;
+    private $originalSessionId;
+    private $originalSessionData;
+    private $originalSessionWasSet;
+    private $originalSessionWasActive;
 
     protected function setUp(): void
     {
+        $this->originalApp = Yii::$app;
+        $this->originalAliases = Yii::$aliases;
+        $this->originalServer = $_SERVER;
+        $this->originalSessionSettings = ini_get_all('session', false);
+        $this->originalSessionId = session_id();
+        $this->originalSessionWasSet = array_key_exists('_SESSION', $GLOBALS);
+        $this->originalSessionData = $_SESSION ?? [];
+        $this->originalSessionWasActive = session_status() === PHP_SESSION_ACTIVE;
+        if ($this->originalSessionWasActive) {
+            session_write_close();
+        }
+        // The isolated fixture must never reuse or destroy the runner's session.
+        session_id('');
         $this->runtime = sys_get_temp_dir() . '/game-admin-test-' . bin2hex(random_bytes(6));
         mkdir($this->runtime, 0700, true);
         $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
@@ -91,12 +112,29 @@ class AdminApiTest extends TestCase
 
     protected function tearDown(): void
     {
-        unset($_SERVER['HTTPS']);
         $this->app->session->destroy();
         $this->app->session->close();
         $this->app->db->close();
         $this->app->errorHandler->unregister();
-        Yii::$app = null;
+        Yii::$app = $this->originalApp;
+        Yii::$aliases = $this->originalAliases;
+        $_SERVER = $this->originalServer;
+        // Yii Session setters alter process-wide INI values. Restore them before
+        // removing the fixture path so later Codeception tests can open sessions.
+        foreach ($this->originalSessionSettings as $name => $value) {
+            if (ini_get($name) !== $value) {
+                ini_set($name, $value);
+            }
+        }
+        session_id($this->originalSessionId);
+        if ($this->originalSessionWasActive) {
+            session_start();
+        }
+        if ($this->originalSessionWasSet) {
+            $_SESSION = $this->originalSessionData;
+        } else {
+            unset($_SESSION);
+        }
         $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->runtime, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST);
         foreach ($files as $file) {
             $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
@@ -335,10 +373,25 @@ class AdminApiTest extends TestCase
 
     public function testAssigningGameCreatesMissingSetupInTransaction(): void
     {
-        $result = $this->devices->assignGame(2, 700);
+        $transaction = $this->app->db->getTransaction();
+        $initialLevel = $transaction === null ? 0 : $transaction->level;
+        $insertLevel = null;
+        $observeInsert = function () use (&$insertLevel) {
+            $activeTransaction = $this->app->db->getTransaction();
+            $insertLevel = $activeTransaction === null ? 0 : $activeTransaction->level;
+        };
+        \yii\base\Event::on(Setup::class, Setup::EVENT_BEFORE_INSERT, $observeInsert);
+        try {
+            $result = $this->devices->assignGame(2, 700);
+        } finally {
+            \yii\base\Event::off(Setup::class, Setup::EVENT_BEFORE_INSERT, $observeInsert);
+        }
+        $this->assertSame($initialLevel + 1, $insertLevel, 'The service must open its own transaction around the insert.');
         $this->assertSame(700, $result['gameId']);
         $this->assertSame(2, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM setup')->queryScalar());
-        $this->assertNull($this->app->db->getTransaction());
+        // Codeception may own an outer transaction; the service must leave it intact.
+        $this->assertSame($transaction, $this->app->db->getTransaction());
+        $this->assertSame($initialLevel, $transaction === null ? 0 : $transaction->level);
     }
 
     public function testFirstAssignmentPreservesExistingDeviceProtocolDefaults(): void
@@ -375,7 +428,11 @@ class AdminApiTest extends TestCase
 
     public function testDatabaseFailureRollsBackSetupAndDoesNotLeakSql(): void
     {
-        $this->app->db->pdo->exec("CREATE TRIGGER reject_setup BEFORE INSERT ON setup BEGIN SELECT RAISE(ABORT, 'private-database-error'); END");
+        $transaction = $this->app->db->getTransaction();
+        $initialLevel = $transaction === null ? 0 : $transaction->level;
+        // FAIL preserves an already-inserted row unless the service rolls back;
+        // ABORT would undo the statement itself and hide a missing transaction.
+        $this->app->db->pdo->exec("CREATE TRIGGER reject_setup AFTER INSERT ON setup BEGIN SELECT RAISE(FAIL, 'private-database-error'); END");
         try {
             $this->devices->assignGame(2, 700);
             $this->fail('Failed database writes must return an error.');
@@ -385,7 +442,8 @@ class AdminApiTest extends TestCase
             $this->assertNull($e->getPrevious());
         }
         $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM setup')->queryScalar());
-        $this->assertNull($this->app->db->getTransaction());
+        $this->assertSame($transaction, $this->app->db->getTransaction());
+        $this->assertSame($initialLevel, $transaction === null ? 0 : $transaction->level);
     }
 
     public function testUpdatingUnknownDeviceReturns404(): void

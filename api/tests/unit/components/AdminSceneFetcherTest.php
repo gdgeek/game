@@ -13,9 +13,20 @@ use yii\web\HttpException;
 
 class AdminSceneFetcherTest extends TestCase
 {
+    private $originalApp;
+    private $originalAliases;
+
     protected function setUp(): void
     {
+        $this->originalApp = Yii::$app;
+        $this->originalAliases = Yii::$aliases;
         Yii::setAlias('@app', dirname(__DIR__, 3));
+    }
+
+    protected function tearDown(): void
+    {
+        Yii::$app = $this->originalApp;
+        Yii::$aliases = $this->originalAliases;
     }
 
     public function testReadsAllPagesUsingFixedA1UrlsAndCaseInsensitiveHeaders(): void
@@ -235,7 +246,7 @@ class AdminSceneFetcherTest extends TestCase
             $this->assertSame(['x-existing' => ['keep']], $app->response->headers->toArray());
         } finally {
             $app->errorHandler->unregister();
-            Yii::$app = null;
+            Yii::$app = $this->originalApp;
         }
     }
 
