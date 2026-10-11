@@ -58,3 +58,8 @@ vendor/
 # Kiro specific
 .kiro/cache/
 .kiro/logs/
+
+# Vue frontend build and local demo state
+/frontend/dist/
+/frontend/.local/
+/frontend/coverage/
