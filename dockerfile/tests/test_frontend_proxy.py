@@ -103,6 +103,12 @@ class RendererTests(unittest.TestCase):
                     re.findall(r"location = /backends/(b[0-9]+)/health", config),
                     expected,
                 )
+                self.assertEqual(
+                    re.findall(r"location \^~ /api/backends/(b[0-9]+)/admin-api/", config), expected,
+                )
+                self.assertEqual(
+                    re.findall(r"location = /api/backends/(b[0-9]+)/health", config), expected,
+                )
                 self.assertEqual(self.manifest(), {
                     "backends": [
                         {"id": f"b{slot - 1}", "name": f"正式后端 {slot}",
@@ -568,6 +574,95 @@ class NginxProxyTests(unittest.TestCase):
         self.assertEqual(len(self.b0.records), 1)
         self.assertEqual(len(self.b1.records), 1)
         self.assertEqual(len(self.b2.records), 1)
+
+    def test_api_session_aliases_preserve_fixed_backend_and_isolate_cookie_paths(self):
+        jar = http.cookiejar.CookieJar()
+        routes = [("/api/admin-api/", self.b0, "/api/admin-api/")]
+        routes += [(f"/api/backends/{server.name}/admin-api/", server,
+                    f"/api/backends/{server.name}/") for server in (self.b0, self.b1, self.b2)]
+        routes += [("/backends/b0/admin-api/", self.b0, "/backends/b0/")]
+        with self.nginx() as port:
+            for prefix, server, cookie_path in routes:
+                with self.subTest(prefix=prefix):
+                    path = prefix + "session?next=a%2Fb&x=1&x=2"
+                    status, headers, payload = self.request(port, path, "POST", "fixture-body",
+                                                           {"Cookie": "fixture-session=1"})
+                    self.assertEqual(status, 200)
+                    record = json.loads(payload)
+                    self.assertEqual(record["backend"], server.name)
+                    self.assertEqual(record["path"], "/admin-api/session?next=a%2Fb&x=1&x=2")
+                    self.assertEqual(record["body"], "fixture-body")
+                    self.assertEqual(record["headers"]["Cookie"], "fixture-session=1")
+                    self.assertEqual(record["headers"]["Host"], f"localhost:{server.server_port}")
+                    self.assertEqual(record["sni"], "localhost")
+                    self.assertEqual(len(headers.get_all("Set-Cookie")), 2)
+                    for value in headers.get_all("Set-Cookie"):
+                        parsed = SimpleCookie()
+                        parsed.load(value)
+                        self.assertEqual(next(iter(parsed.values()))["path"], cookie_path)
+                    url = f"https://console.test{path}"
+                    response = urllib.response.addinfourl(io.BytesIO(payload), headers, url, status)
+                    jar.extract_cookies(response, urllib.request.Request(url))
+            for prefix, server, _ in routes:
+                request = urllib.request.Request(f"https://console.test{prefix}devices")
+                jar.add_cookie_header(request)
+                cookies = request.get_header("Cookie")
+                self.assertIsNotNone(cookies)
+                self.assertEqual(cookies.count("CHECKINADMINSESSID="), 1)
+                self.assertEqual(cookies.count("_csrf-checkin-admin="), 1)
+                self.assertIn(f"fixture-{server.name}", cookies)
+            for path in ("/api/v2/devices", "/api/health", "/"):
+                request = urllib.request.Request(f"https://console.test{path}")
+                jar.add_cookie_header(request)
+                self.assertIsNone(request.get_header("Cookie"))
+
+    def test_api_session_aliases_never_retry_and_encoded_admin_names_stay_fixed(self):
+        for path in ("/api/admin-api/drop", "/api/%61dmin-api/drop",
+                     "/api/backends/b0/admin-api/drop"):
+            # Each fresh process avoids quarantined localhost address state
+            # from an earlier independent request to the same fixed origin.
+            self.b0.clear()
+            with self.nginx() as port:
+                self.assertEqual(self.request(port, path, "POST", "fixture")[0], 502)
+                self.assertIn(self.request(port, "/api/admin-api")[0], (301, 404))
+            self.assertEqual(len(self.b0.records), 1)
+        self.assertEqual(self.b1.records, [])
+        self.assertEqual(self.b2.records, [])
+
+    def test_api_session_without_b0_and_unknown_backend_aliases_are_rejected(self):
+        with self.nginx({3: self.b2.origin}) as port:
+            for path in ("/api/admin-api/session", "/api/%61dmin-api/session", "/api/admin-api",
+                         "/api/backends/b0/admin-api/session", "/api/backends/b0/health"):
+                self.assertEqual(self.request(port, path)[0], 404)
+            status, _, body = self.request(port, "/api/backends/b2/admin-api/session")
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(body)["backend"], "b2")
+        self.assertEqual(self.b0.records, [])
+        self.assertEqual(self.b1.records, [])
+        self.assertEqual(len(self.b2.records), 1)
+
+    def test_api_backend_health_aliases_are_fixed_credential_free_reads(self):
+        with self.nginx() as port:
+            for server in (self.b0, self.b1, self.b2):
+                for method in ("GET", "HEAD"):
+                    status, headers, payload = self.request(
+                        port, f"/api/backends/{server.name}/health?write=1", method, "discard",
+                        {"Authorization": "Bearer discard", "Cookie": "discard=1",
+                         "X-Http-Method-Override": "DELETE"},
+                    )
+                    self.assertEqual(status, 200)
+                    self.assertIsNone(headers.get("Set-Cookie"))
+                    record = server.records[-1]
+                    self.assertEqual(record["method"], "GET")
+                    self.assertEqual(record["path"], "/health")
+                    self.assertEqual(record["body"], "")
+                    for header in ("Cookie", "Authorization", "X-Http-Method-Override"):
+                        self.assertNotIn(header, record["headers"])
+                    if method == "HEAD":
+                        self.assertEqual(payload, b"")
+                for method in ("POST", "PUT", "DELETE", "PATCH"):
+                    self.assertEqual(self.request(port, f"/api/backends/{server.name}/health", method)[0], 403)
+        self.assertTrue(all(len(server.records) == 2 for server in (self.b0, self.b1, self.b2)))
 
     def test_put_device_assignment_reaches_only_the_selected_backend(self):
         with self.nginx() as port:

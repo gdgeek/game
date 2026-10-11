@@ -67,7 +67,7 @@ describe('scan login API contract', () => {
     finish(response({ user: null, csrfToken: 'b0-token' }))
     expect(await creating).toEqual(ticket)
     const [url, init] = fetchMock.mock.calls[1]!
-    expect(url).toBe('/backends/b0/admin-api/scan-login/tickets')
+    expect(url).toBe('/api/backends/b0/admin-api/scan-login/tickets')
     expect(init?.method).toBe('POST')
     expect(init?.credentials).toBe('same-origin')
     expect(new Headers(init?.headers).get('X-CSRF-Token')).toBe('b0-token')
@@ -81,7 +81,7 @@ describe('scan login API contract', () => {
     expect(await api.getScanLoginTicket(ticketId, 'b0')).toEqual({ status: 'approved', expiresAt: ticket.expiresAt })
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]!
-    expect(url).toBe(`/backends/b0/admin-api/scan-login/tickets/${ticketId}`)
+    expect(url).toBe(`/api/backends/b0/admin-api/scan-login/tickets/${ticketId}`)
     expect(init?.method ?? 'GET').toBe('GET')
     expect(init?.body).toBeUndefined()
     expect(init?.cache).toBe('no-store')
@@ -92,7 +92,7 @@ describe('scan login API contract', () => {
     api.setSelectedBackend('b1')
     fetchMock.mockResolvedValueOnce(response({ user: { username: '管理员' }, csrfToken: 'b0-recovered' }))
     expect(await api.getSession('b0')).toHaveProperty('csrfToken', 'b0-recovered')
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/backends/b0/admin-api/session')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/backends/b0/admin-api/session')
   })
 
   it('explicitly consumes with CSRF and scopes the rotated token to its backend', async () => {
@@ -105,7 +105,7 @@ describe('scan login API contract', () => {
     fetchMock.mockResolvedValueOnce(response({ user: { username: '微信管理员' }, csrfToken: 'b0-rotated' }))
     const session = await api.consumeScanLoginTicket(ticketId, 'b0')
     expect(session.csrfToken).toBe('b0-rotated')
-    expect(fetchMock.mock.calls[2]?.[0]).toBe(`/backends/b0/admin-api/scan-login/tickets/${ticketId}/consume`)
+    expect(fetchMock.mock.calls[2]?.[0]).toBe(`/api/backends/b0/admin-api/scan-login/tickets/${ticketId}/consume`)
     expect(fetchMock.mock.calls[2]?.[1]?.method).toBe('POST')
     expect(new Headers(fetchMock.mock.calls[2]?.[1]?.headers).get('X-CSRF-Token')).toBe('b0-token')
     fetchMock.mockResolvedValueOnce(response({ status: 'cancelled' }))

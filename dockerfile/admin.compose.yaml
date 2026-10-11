@@ -1,6 +1,6 @@
 services:
   checkin:
-    image: checkin-frontend:20261011-failover-1
+    image: checkin-frontend:20261012-api-1
     restart: unless-stopped
     networks:
       - proxy

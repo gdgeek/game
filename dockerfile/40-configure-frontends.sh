@@ -61,7 +61,57 @@ if [ ! -s "$work/slots" ]; then
     exit 1
 fi
 
+# Fixed Web routes use their selected origin and never join the Bearer pool.
+render_admin_route() {
+    envsubst '${BACKEND_ORIGIN} ${BACKEND_HOST} ${BACKEND_TLS_NAME} ${BACKEND_ROUTE_PREFIX} ${BACKEND_COOKIE_PATH}' <<'ADMIN' >> "$work/routes"
+    location ^~ ${BACKEND_ROUTE_PREFIX}/admin-api/ {
+        proxy_pass ${BACKEND_ORIGIN}/admin-api/;
+        proxy_next_upstream off;
+        proxy_set_header Host ${BACKEND_HOST};
+        proxy_set_header Connection "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_ssl_name ${BACKEND_TLS_NAME};
+        proxy_cookie_path ~^/.*$ ${BACKEND_COOKIE_PATH};
+        proxy_cookie_domain ~. $host;
+        proxy_cookie_flags ~ secure httponly samesite=lax;
+        proxy_redirect ${BACKEND_ORIGIN}/admin-api/ ${BACKEND_ROUTE_PREFIX}/admin-api/;
+        proxy_redirect /admin-api/ ${BACKEND_ROUTE_PREFIX}/admin-api/;
+    }
+
+ADMIN
+}
+
+render_health_route() {
+    envsubst '${BACKEND_ORIGIN} ${BACKEND_HOST} ${BACKEND_TLS_NAME} ${BACKEND_ROUTE_PREFIX}' <<'HEALTH' >> "$work/routes"
+    # Health probes never carry a login cookie, authorization or write body.
+    location = ${BACKEND_ROUTE_PREFIX}/health {
+        limit_except GET { deny all; }
+        set $args "";
+        proxy_pass ${BACKEND_ORIGIN}/health;
+        proxy_method GET;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization "";
+        proxy_set_header X-Http-Method-Override "";
+        proxy_set_header Host ${BACKEND_HOST};
+        proxy_set_header Connection "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_ssl_name ${BACKEND_TLS_NAME};
+        proxy_hide_header Set-Cookie;
+    }
+
+HEALTH
+}
+
 : > "$work/routes"
+b0_found=0
 printf '{"backends":[' > "$work/manifest"
 separator=''
 while read -r slot variable; do
@@ -84,45 +134,30 @@ while read -r slot variable; do
         "$separator" "$BACKEND_ID" "$slot" "$public_host" >> "$work/manifest"
     separator=,
 
-    envsubst '${BACKEND_ORIGIN} ${BACKEND_HOST} ${BACKEND_TLS_NAME} ${BACKEND_ID}' <<'ROUTES' >> "$work/routes"
-    location ^~ /backends/${BACKEND_ID}/admin-api/ {
-        proxy_pass ${BACKEND_ORIGIN}/admin-api/;
-        proxy_set_header Host ${BACKEND_HOST};
-        proxy_set_header Connection "";
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_ssl_name ${BACKEND_TLS_NAME};
-        proxy_cookie_path ~^/.*$ /backends/${BACKEND_ID}/;
-        proxy_cookie_domain ~. $host;
-        proxy_cookie_flags ~ secure httponly samesite=lax;
-        proxy_redirect ${BACKEND_ORIGIN}/admin-api/ /backends/${BACKEND_ID}/admin-api/;
-    }
-
-    # Health probes never carry a login cookie, authorization or write body.
-    location = /backends/${BACKEND_ID}/health {
-        limit_except GET { deny all; }
-        set $args "";
-        proxy_pass ${BACKEND_ORIGIN}/health;
-        proxy_method GET;
-        proxy_pass_request_body off;
-        proxy_set_header Content-Length "";
-        proxy_set_header Cookie "";
-        proxy_set_header Authorization "";
-        proxy_set_header Host ${BACKEND_HOST};
-        proxy_set_header Connection "";
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_ssl_name ${BACKEND_TLS_NAME};
-        proxy_hide_header Set-Cookie;
-    }
-
-ROUTES
+    for public_base in /backends /api/backends; do
+        export BACKEND_ROUTE_PREFIX="$public_base/$BACKEND_ID"
+        export BACKEND_COOKIE_PATH="$BACKEND_ROUTE_PREFIX/"
+        render_admin_route
+        render_health_route
+    done
+    if [ "$BACKEND_ID" = b0 ]; then
+        b0_found=1
+        export BACKEND_ROUTE_PREFIX=/api
+        export BACKEND_COOKIE_PATH=/api/admin-api/
+        render_admin_route
+    fi
 done < "$work/slots"
 printf ']}' >> "$work/manifest"
+# Reserve Session aliases even when slot 1 is absent. Nginx matches locations
+# against normalized paths, so encoded admin-api aliases cannot enter the pool.
+if [ "$b0_found" = 0 ]; then
+    printf '    location ^~ /api/admin-api/ { return 404; }\n' >> "$work/routes"
+fi
+cat <<'RESERVED' >> "$work/routes"
+    location = /api/admin-api { return 404; }
+    location ^~ /api/backends/ { return 404; }
+
+RESERVED
 
 # Insert generated text without interpreting it as awk source or replacements.
 # Buffer rendering before opening the final output, so validation cannot leave

@@ -2,7 +2,7 @@
 set -eu
 
 # The Web renderer runs first. Opt-in adds a separate stateless mini-program
-# upstream without changing any fixed /backends/.../admin-api routes.
+# API gateway upstream without changing fixed Web Session routing.
 case "${APP_MP_API_ENABLED:-0}" in
     0) exit 0 ;;
     1) ;;
@@ -109,8 +109,8 @@ upstream miniprogram_api {
 # Match the original URI so encoded or normalized aliases do not gain retries.
 map "$request_method:$request_uri" $mp_api_read_route {
     default 0;
-    "~^(GET|HEAD):/v2/devices(/(manage|[1-9][0-9]*))?$" 1;
-    "~^(GET|HEAD):/v2/server/scenes([?].*)?$" 1;
+    "~^(GET|HEAD):(/api)?/v2/devices(/(manage|[1-9][0-9]*))?$" 1;
+    "~^(GET|HEAD):(/api)?/v2/server/scenes([?].*)?$" 1;
 }
 
 # Yii accepts a method override header even on GET/HEAD. Preserve that header
@@ -120,11 +120,42 @@ map "$mp_api_read_route:$http_x_http_method_override" $mp_api_read_only {
     default 0;
     "1:" 1;
 }
+
+# Strip only the literal gateway prefix from the original URI. Using $uri or
+# rewrite here would decode/normalize paths and change encoded business input.
+map $request_uri $mp_api_target {
+    default $request_uri;
+    "~^/api(?<mp_api_raw_suffix>/.*)$" $mp_api_raw_suffix;
+}
+map $request_uri $mp_api_literal_prefix {
+    default 0;
+    "~^/api/" 1;
+}
+map $request_uri $mp_api_redirect_prefix {
+    default "";
+    "~^/api/" /api;
+}
+
+# ^~ /api/ bypasses server regex locations. Check normalized paths explicitly,
+# including encoded aliases and PATH_INFO after a source/config extension.
+map $uri $mp_api_blocked_path {
+    default 0;
+    "~(^|/)[.]" 1;
+    "~*[.](php|phar|phtml|ini|log|sql|env|map|ya?ml|conf)(/|$)" 1;
+    "~*(^|/)(config|composer|package|package-lock|tsconfig)[.]json(/|$)" 1;
+    "~*(^|/)(debug|gii)(/|$)" 1;
+}
 HTTP
 
-# Reuse exactly the same stateless TLS/header contract in both request paths.
-envsubst '${MP_UPSTREAM_HOST}' <<'PROXY' > "$work/proxy"
-        proxy_pass https://miniprogram_api;
+# Reuse the stateless TLS/header contract for prefixed and legacy requests.
+envsubst '${MP_UPSTREAM_HOST} ${MP_PRIMARY_AUTHORITY} ${MP_BACKUP_AUTHORITY}' <<'PROXY' > "$work/proxy"
+        proxy_pass https://miniprogram_api$mp_api_target;
+        # Keep same-origin HTTP redirects under /api without touching HTML.
+        absolute_redirect off;
+        proxy_redirect https://${MP_UPSTREAM_HOST}/ $mp_api_redirect_prefix/;
+        proxy_redirect https://${MP_PRIMARY_AUTHORITY}/ $mp_api_redirect_prefix/;
+        proxy_redirect https://${MP_BACKUP_AUTHORITY}/ $mp_api_redirect_prefix/;
+        proxy_redirect ~^(?<mp_api_redirect_path>/(?!/).*)$ $mp_api_redirect_prefix$mp_api_redirect_path;
         proxy_set_header Host ${MP_UPSTREAM_HOST};
         proxy_ssl_name ${MP_UPSTREAM_HOST};
         proxy_set_header Connection "";
@@ -137,6 +168,21 @@ envsubst '${MP_UPSTREAM_HOST}' <<'PROXY' > "$work/proxy"
         proxy_hide_header Set-Cookie;
 PROXY
 {
+    cat <<'API'
+    location ^~ /api/ {
+        if ($mp_api_literal_prefix = 0) { return 404; }
+        if ($mp_api_blocked_path) { return 404; }
+        error_page 418 = @miniprogram_no_retry;
+        if ($mp_api_read_only = 0) { return 418; }
+        proxy_next_upstream error timeout http_502 http_503 http_504;
+        proxy_next_upstream_tries 2;
+        proxy_next_upstream_timeout 25s;
+API
+    cat "$work/proxy"
+    cat <<'API_END'
+    }
+
+API_END
     cat <<'READ'
     location ^~ /v2/ {
         # A named internal redirect preserves the original method, body and URI.
@@ -156,10 +202,10 @@ READ
         proxy_next_upstream off;
 WRITE
     cat "$work/proxy"
+    printf '    }\n\n'
+    for health_path in /mp-health /api/health; do
+        printf '    location = %s {\n' "$health_path"
     cat <<'HEALTH'
-    }
-
-    location = /mp-health {
         limit_except GET { deny all; }
         set $args "";
         proxy_pass https://miniprogram_api/health;
@@ -184,6 +230,7 @@ HEALTH
         proxy_set_header X-Forwarded-Host $host;
     }
 HEALTH_HEADERS
+    done
 } > "$work/routes"
 
 # Validate and buffer all generated content before replacing the Web config.

@@ -14,19 +14,19 @@
 
 Files: dockerfile/40-configure-frontends.sh; dockerfile/50-configure-miniprogram.sh; dockerfile/tests/test_frontend_proxy.py; dockerfile/tests/test_miniprogram_failover.py; dockerfile/tests/README.md; dockerfile/admin.compose.yaml.
 
-- [ ] Add failing integration cases for `/api/v2/devices/42?x=a%2Fb&x=2`, `/api/v1/common/test`, unknown business paths, POST/PUT/DELETE body preservation and both legacy entrypoints.
-- [ ] Add failing cases proving `/api/health` fixed GET /health without credentials/body/arguments/override, audited prefixed GET failover, and no write replay.
-- [ ] Add failing fixed-route Session/CSRF tests for `/api/backends/b0/admin-api/` and b1 plus bare `/api/admin-api/` pinned B0; Cookie Path stays isolated. Add debug/gii/source-file denial cases under /api.
-- [ ] Run tests first and confirm expected missing-prefix failures. Implement the smallest renderer changes: raw request URI map strips only `/api`, optional-prefix audited read match, generic /api location, shared safe health block, fixed Session alias locations and internal deny rules. Preserve legacy paths.
-- [ ] Run `PYTHONDONTWRITEBYTECODE=1 NGINX_TEST_BINARY=/private/tmp/game-frontend-nginx-test-build/nginx-1.28.3/objs/nginx python3 -m unittest discover -s dockerfile/tests -p 'test_*.py' -v` (escalated for local fixture sockets); no skips. Update mapping docs and image tag `checkin-frontend:20261012-api-1`.
+- [x] Add failing integration cases for `/api/v2/devices/42?x=a%2Fb&x=2`, `/api/v1/common/test`, unknown business paths, POST/PUT/DELETE body preservation and both legacy entrypoints.
+- [x] Add failing cases proving `/api/health` fixed GET /health without credentials/body/arguments/override, audited prefixed GET failover, and no write replay.
+- [x] Add failing fixed-route Session/CSRF tests for `/api/backends/b0/admin-api/` and b1 plus bare `/api/admin-api/` pinned B0; Cookie Path stays isolated. Add debug/gii/source-file denial cases under /api.
+- [x] Run tests first and confirm expected missing-prefix failures. Implement the smallest renderer changes: raw request URI map strips only `/api`, optional-prefix audited read match, generic /api location, shared safe health block, fixed Session alias locations and internal deny rules. Preserve legacy paths.
+- [x] Run `PYTHONDONTWRITEBYTECODE=1 NGINX_TEST_BINARY=/private/tmp/game-frontend-nginx-test-build/nginx-1.28.3/objs/nginx python3 -m unittest discover -s dockerfile/tests -p 'test_*.py' -v` (escalated for local fixture sockets); no skips. Update mapping docs and image tag `checkin-frontend:20261012-api-1`.
 
 ### Task 2: Web and mini-program clients
 
 Files Web: frontend/src/lib/api.ts; affected tests in frontend/src/lib. Files MP: .env.development; .env.production; src/config/index.ts; config tests; src/api/scan-login.ts; scan-login tests; README.md.
 
-- [ ] Web tests expect production target `/api/backends/${backend}/admin-api`; confirm RED, change only production request base; keep demo `/admin-api` and runtime manifest unchanged. Run Web tests, typecheck and api build.
-- [ ] MP config tests expect `https://checkin.voxel.cn/api/v2`; QR approval tests expect checkin target URLs under /api/v2 and direct origins under /v2; confirm RED, implement conditional trusted-origin API base and config changes. Keep canonical-origin QR validation and no client retries. Run MP tests/typecheck/lint/build.
-- [ ] Independent spec review then quality review of both repositories; fix any material issues and rerun affected checks.
+- [x] Web tests expect production target `/api/backends/${backend}/admin-api`; confirm RED, change only production request base; keep demo `/admin-api` and runtime manifest unchanged. Run Web tests, typecheck and api build.
+- [x] MP config tests expect `https://checkin.voxel.cn/api/v2`; QR approval tests expect checkin target URLs under /api/v2 and direct origins under /v2; confirm RED, implement conditional trusted-origin API base and config changes. Keep canonical-origin QR validation and no client retries. Run MP tests/typecheck/lint/build.
+- [x] Independent spec review then quality review of both repositories; fix any material issues and rerun affected checks.
 
 ### Task 3: Release and live acceptance
 

@@ -25,7 +25,7 @@ pnpm run dev:mp-weixin
 
 微信开发者工具导入 `bujiaban-mp/dist/dev/mp-weixin`。生产打包使用 `pnpm run build:mp-weixin`。
 
-源码的 `.env.development` 与 `.env.production` 当前都将 `VITE_API_URL` 配置为 `https://x.4mr.cn/v2`。这是仓库配置，尚未在本次接入中验证线上服务。联调时可在小程序的 `.env.development.local` 中覆盖 `VITE_API_URL` 为开发服务地址；修改后重启编译。
+源码的 `.env.development`、`.env.production` 与默认配置都使用 `https://checkin.voxel.cn/api/v2`，由统一 `/api/` 入口去掉前缀、保留后端 `/v2` 路径并使用 B0 主 / B1 备。旧 `/v2/` 保留兼容；健康检查使用 `https://checkin.voxel.cn/api/health`。联调时可在小程序的 `.env.development.local` 中覆盖 `VITE_API_URL` 为开发服务地址；修改后重启编译。
 
 ## 已核对的接口对应关系
 
@@ -49,9 +49,9 @@ pnpm run dev:mp-weixin
 
 小程序“我的”页提供“扫码登录设备后台”。在网页选择目标后端、显示登录二维码后，使用该入口扫描，在确认页核对后端域名并确认。该流程使用小程序内部 `uni.scanCode`，微信“扫一扫”直接打开小程序需要另外的平台配置，不包含在此入口中。
 
-小程序仅接受固定的 `bujiaban-admin-login://v1/` 票据协议和可信后端 origin。构建环境变量 `VITE_ADMIN_LOGIN_ORIGINS` 为逗号分隔的 HTTPS origin 名单，默认允许 `https://x.b0.01xr.com` 和 `https://x.b1.01xr.com`；增减正式后端时同步更新此名单、微信平台合法请求域名并重新构建发布小程序。二维码不能指定名单以外的请求地址。
+小程序仅接受固定的 `bujiaban-admin-login://v1/` 票据协议和可信后端 origin。构建环境变量 `VITE_ADMIN_LOGIN_ORIGINS` 为逗号分隔的 HTTPS origin 名单，默认允许 `https://checkin.voxel.cn`、`https://x.b0.01xr.com`、`https://x.b1.01xr.com` 和 `https://x.4mr.cn`；增减正式后端时同步更新此名单、微信平台合法请求域名并重新构建发布小程序。二维码不能指定名单以外的请求地址。
 
-扫码确认针对目标后端执行新的 `wx.login` → `POST /v2/site/login`，只使用该目标返回的临时 Bearer 调用 `/v2/web-login/tickets/<id>/approve`。临时 Token 不覆盖 `AR_CHECKIN_OPENID`，现有打卡、设备和用户功能继续使用原 API 配置。二维码 secret 仅在此次页面流程的内存中传递，不写导航 URL 或持久化存储。
+扫码二维码中的 origin 仍为可信根域名，不带路径。确认针对目标后端执行新的 `wx.login`；checkin 目标通过 `/api/v2/site/login` 和 `/api/v2/web-login/tickets/<id>/approve`，可信直连 B0/B1/x.4mr 目标保持 `/v2` 路径。只使用该目标返回的临时 Bearer 批准票据。临时 Token 不覆盖 `AR_CHECKIN_OPENID`，现有打卡、设备和用户功能继续使用原 API 配置。二维码 secret 仅在此次页面流程的内存中传递，不写导航 URL 或持久化存储。
 
 微信扫码只建立关联设备管理身份，Web 服务端按照当前微信用户的 `control` 关系限制列表和修改；微信 `root` 或 `manager` 均无全量设备权限。只有网页账号密码登录（默认 `dirui`）为全量管理员，不设置微信管理员名单。后端变量、迁移和接口见 [ADMIN_API.md](ADMIN_API.md)。
 
