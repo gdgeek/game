@@ -1,3 +1,5 @@
+# MINIPROGRAM_HTTP_CONFIG
+
 server {
     listen 80;
     server_name _;
@@ -34,79 +36,29 @@ server {
         return 200 "ok\n";
     }
 
-    location ^~ /backends/b0/admin-api/ {
-        proxy_pass ${APP_API_1_ORIGIN}/admin-api/;
-        proxy_set_header Host ${APP_API_1_HOST};
-        proxy_set_header Connection "";
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_ssl_name ${APP_API_1_TLS_NAME};
-        proxy_cookie_path ~^/.*$ /backends/b0/;
-        proxy_cookie_domain ~. $host;
-        proxy_cookie_flags ~ secure httponly samesite=lax;
-        proxy_redirect ${APP_API_1_ORIGIN}/admin-api/ /backends/b0/admin-api/;
-    }
+    # FRONTEND_RUNTIME_CONFIG
 
-    location ^~ /backends/b1/admin-api/ {
-        proxy_pass ${APP_API_2_ORIGIN}/admin-api/;
-        proxy_set_header Host ${APP_API_2_HOST};
-        proxy_set_header Connection "";
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_ssl_name ${APP_API_2_TLS_NAME};
-        proxy_cookie_path ~^/.*$ /backends/b1/;
-        proxy_cookie_domain ~. $host;
-        proxy_cookie_flags ~ secure httponly samesite=lax;
-        proxy_redirect ${APP_API_2_ORIGIN}/admin-api/ /backends/b1/admin-api/;
-    }
+    # MINIPROGRAM_ROUTES
 
-    # Health probes never carry a login cookie, authorization or write body.
-    location = /backends/b0/health {
-        limit_except GET { deny all; }
-        set $args "";
-        proxy_pass ${APP_API_1_ORIGIN}/health;
-        proxy_method GET;
-        proxy_pass_request_body off;
-        proxy_set_header Content-Length "";
-        proxy_set_header Cookie "";
-        proxy_set_header Authorization "";
-        proxy_set_header Host ${APP_API_1_HOST};
-        proxy_set_header Connection "";
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_ssl_name ${APP_API_1_TLS_NAME};
-        proxy_hide_header Set-Cookie;
-    }
-
-    location = /backends/b1/health {
-        limit_except GET { deny all; }
-        set $args "";
-        proxy_pass ${APP_API_2_ORIGIN}/health;
-        proxy_method GET;
-        proxy_pass_request_body off;
-        proxy_set_header Content-Length "";
-        proxy_set_header Cookie "";
-        proxy_set_header Authorization "";
-        proxy_set_header Host ${APP_API_2_HOST};
-        proxy_set_header Connection "";
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_ssl_name ${APP_API_2_TLS_NAME};
-        proxy_hide_header Set-Cookie;
-    }
+    # FRONTEND_BACKEND_ROUTES
 
     # Neither arbitrary backend routes nor original server sources are public.
     location /backends/ { return 404; }
     location ~ (^|/)\. { return 404; }
     location ~* \.(php|phar|phtml|ini|log|sql|env|map)$ { return 404; }
-    location = / { try_files /index.html =404; }
+    location = / {
+        add_header Cache-Control no-cache always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy same-origin always;
+        add_header X-Frame-Options DENY always;
+        try_files /index.html =404;
+    }
+    location = /index.html {
+        add_header Cache-Control no-cache always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy same-origin always;
+        add_header X-Frame-Options DENY always;
+        try_files $uri =404;
+    }
     location / { try_files $uri =404; }
 }
