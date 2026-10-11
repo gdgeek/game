@@ -2,15 +2,10 @@
 
 namespace app\modules\v2\controllers;
 
-use app\modules\v2\models\Control;
-use app\modules\v2\models\File;
 use yii\rest\ActiveController;
-use app\modules\v2\models\FileSearch;
-use app\modules\v2\helper\RootAuth;
+use app\modules\v2\helper\DeviceAccess;
+use app\modules\v2\helper\DeviceBearerAuth;
 use Yii;
-use app\modules\v2\models\Setup;
-use bizley\jwt\JwtHttpBearerAuth;
-use yii\filters\auth\CompositeAuth;
 use OpenApi\Annotations as OA;
 
 /**
@@ -26,13 +21,33 @@ class SetupController extends ActiveController
     {
         $behaviors = parent::behaviors();
         $behaviors['authenticator'] = [
-            'class' => CompositeAuth::class,
-            'authMethods' => [
-                JwtHttpBearerAuth::class,
-            ],
+            'class' => DeviceBearerAuth::class,
             'except' => ['options'],
         ];
 
         return $behaviors;
+    }
+
+    public function actions()
+    {
+        $actions = parent::actions();
+        $actions['index']['prepareSearchQuery'] = static function ($query) { return DeviceAccess::scope($query, 'setup.device_id'); };
+        foreach (['view', 'update', 'delete'] as $action) {
+            $actions[$action]['findModel'] = static function ($id) { return DeviceAccess::setup($id); };
+        }
+        return $actions;
+    }
+
+    public function checkAccess($action, $model = null, $params = [])
+    {
+        if ($action === 'create') {
+            DeviceAccess::device(DeviceAccess::bodyDeviceId(Yii::$app->request->getBodyParam('device_id')));
+        }
+        if ($action === 'update') {
+            $body = Yii::$app->request->bodyParams;
+            if (array_key_exists('device_id', $body) && DeviceAccess::bodyDeviceId($body['device_id']) !== (int) $model->device_id) {
+                throw new \yii\web\ForbiddenHttpException('不可将设备配置重新关联到其他设备');
+            }
+        }
     }
 }

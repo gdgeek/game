@@ -1,11 +1,11 @@
 export type DeviceStatus = 'online' | 'offline' | 'unknown'
 
-export type BackendId = 'b0' | 'b1'
+export type BackendId = string
 
 export interface BackendOption {
-  id: BackendId
-  name: string
-  host: string
+  readonly id: BackendId
+  readonly name: string
+  readonly host: string
 }
 
 export interface Device {
@@ -26,9 +26,23 @@ export interface Game {
 }
 
 export interface Session {
-  user: { username: string } | null
+  user: { username: string; role?: 'admin' | 'device_manager' } | null
   csrfToken: string
   demo?: boolean
+  scanLoginEnabled?: boolean
+}
+
+export interface ScanLoginTicket {
+  ticketId: string
+  qrText: string
+  expiresAt: string
+}
+
+export type ScanLoginStatus = 'pending' | 'approved' | 'consumed' | 'cancelled' | 'expired'
+
+export interface ScanLoginTicketStatus {
+  status: ScanLoginStatus
+  expiresAt: string
 }
 
 export type DeviceFilterStatus = 'all' | DeviceStatus | 'configured' | 'unconfigured'
