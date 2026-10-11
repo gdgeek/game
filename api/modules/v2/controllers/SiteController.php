@@ -60,7 +60,7 @@ class SiteController extends Controller
 
     $user = User::findIdentityByAccessToken($refreshToken);
     if (!$user) {
-      throw new \Exception("Invalid refreshToken");
+      throw new \yii\web\UnauthorizedHttpException('Invalid or expired refreshToken');
     }
     if (!$user instanceof User) {
       throw new \RuntimeException('Identity must be User');
@@ -114,7 +114,7 @@ class SiteController extends Controller
   public function actionLogin()
   {
     $code = Yii::$app->request->post("code");
-    if (!$code) {
+    if (!is_string($code) || $code === '' || strlen($code) > 1024) {
       throw new \yii\web\HttpException(400, 'code is required');
     }
     $wechat = Yii::$app->wechat;
@@ -124,19 +124,30 @@ class SiteController extends Controller
     //如何拿到 unionid
     //https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/open-api-3rd/unionid.html
     $response = $utils->codeToSession($code);
-
-
-    // 检查是否包含 unionid
+    $openid = $response['openid'] ?? null;
+    if (!is_string($openid) || $openid === '') {
+      throw new \yii\web\UnauthorizedHttpException('微信登录失败，请重新登录');
+    }
+    $user = null;
     $unionid = $response['unionid'] ?? null;
 
-    if ($unionid) {
+    if (is_string($unionid) && $unionid !== '') {
       $user = User::find()->where(['unionid' => $unionid])->one();
       if ($user == null) {
         $user = new User();
         $user->unionid = $unionid;
-        $user->openid = $response['openid'];
-        $user->save();
+        $user->openid = $openid;
+        if (!$user->save()) {
+          throw new \yii\web\UnauthorizedHttpException('微信账号登录失败');
+        }
       }
+    } else {
+      // Only WeChat's verified code exchange supplies this identity. A client
+      // body openid/unionid never participates in lookup or account creation.
+      $user = User::find()->where(['openid' => $openid])->one();
+    }
+    if (!$user instanceof User) {
+      throw new \yii\web\UnauthorizedHttpException('微信账号尚未关联，请先完成账号授权');
     }
 
     return [

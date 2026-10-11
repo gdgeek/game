@@ -32,13 +32,11 @@ class CommonController extends Controller
     }
     public function actionRefreshToken()
     {
-        $helper = Yii::$app->helper;
-        $helper->record();
         $refreshToken = Yii::$app->request->post("refreshToken");
 
         $user = User::findIdentityByAccessToken($refreshToken);
         if (!$user) {
-            throw new \Exception("Invalid refreshToken");
+            throw new \yii\web\UnauthorizedHttpException('Invalid or expired refreshToken');
         }
       //$token->save();
         return [

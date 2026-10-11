@@ -5,6 +5,7 @@ namespace app\controllers;
 use app\components\AdminAuthService;
 use app\components\AdminDeviceService;
 use app\components\AdminGameCatalog;
+use app\components\AdminScanLoginService;
 use Yii;
 use yii\filters\VerbFilter;
 use yii\web\Controller;
@@ -17,13 +18,15 @@ class AdminController extends Controller
     public $auth;
     public $devices;
     public $catalog;
+    public $scanLogin;
 
     public function init(): void
     {
         parent::init();
         $this->auth = $this->auth ?? new AdminAuthService();
+        $this->scanLogin = $this->scanLogin ?? new AdminScanLoginService(['auth' => $this->auth]);
         $this->catalog = $this->catalog ?? new AdminGameCatalog();
-        $this->devices = $this->devices ?? new AdminDeviceService(['catalog' => $this->catalog]);
+        $this->devices = $this->devices ?? new AdminDeviceService(['catalog' => $this->catalog, 'auth' => $this->auth]);
     }
 
     public function behaviors(): array
@@ -34,6 +37,8 @@ class AdminController extends Controller
                 'actions' => [
                     'session' => ['GET'], 'login' => ['POST'], 'logout' => ['POST'],
                     'devices' => ['GET'], 'games' => ['GET'], 'set-game' => ['PUT'],
+                    'scan-login-create' => ['POST'], 'scan-login-status' => ['GET'],
+                    'scan-login-consume' => ['POST'], 'scan-login-cancel' => ['POST'],
                 ],
             ],
         ];
@@ -49,7 +54,7 @@ class AdminController extends Controller
         if (!parent::beforeAction($action)) {
             return false;
         }
-        if (!in_array($action->id, ['session', 'login', 'logout'], true) && $this->auth->getUser() === null) {
+        if (!in_array($action->id, ['session', 'login', 'logout', 'scan-login-create', 'scan-login-status', 'scan-login-consume', 'scan-login-cancel'], true) && $this->auth->getUser() === null) {
             throw new UnauthorizedHttpException('请先登录管理后台');
         }
         return true;
@@ -57,7 +62,16 @@ class AdminController extends Controller
 
     public function actionSession(): array
     {
-        return ['user' => $this->auth->getUser(), 'csrfToken' => Yii::$app->request->getCsrfToken()];
+        return ['user' => $this->auth->getUser(), 'csrfToken' => Yii::$app->request->getCsrfToken(), 'scanLoginEnabled' => $this->scanLogin->isEnabled()];
+    }
+
+    public function actionScanLoginCreate(): array { return $this->scanLogin->createTicket(); }
+    public function actionScanLoginStatus(string $id): array { return $this->scanLogin->status($id); }
+    public function actionScanLoginCancel(string $id): array { return $this->scanLogin->cancel($id); }
+    public function actionScanLoginConsume(string $id): array
+    {
+        $user = $this->scanLogin->consume($id);
+        return ['user' => $user, 'csrfToken' => Yii::$app->request->getCsrfToken(true)];
     }
 
     public function actionLogin(): array

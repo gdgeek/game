@@ -107,7 +107,7 @@ class AdminApiTest extends TestCase
                 ]];
             },
         ]);
-        $this->devices = new AdminDeviceService(['catalog' => $this->catalog]);
+        $this->devices = new AdminDeviceService(['catalog' => $this->catalog, 'auth' => $this->auth]);
     }
 
     protected function tearDown(): void
@@ -146,9 +146,9 @@ class AdminApiTest extends TestCase
     {
         $this->app->session->set('wechat-user', 42);
         $before = $this->app->session->id;
-        $this->assertSame(['username' => 'test-admin'], $this->auth->login('test-admin', 'test-only-password'));
+        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $this->auth->login('test-admin', 'test-only-password'));
         $this->assertNotSame($before, $this->app->session->id);
-        $this->assertSame(['username' => 'test-admin'], $this->auth->getUser());
+        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $this->auth->getUser());
         $this->auth->logout();
         $this->assertNull($this->auth->getUser());
         $this->assertSame(42, $this->app->session->get('wechat-user'));
@@ -210,7 +210,7 @@ class AdminApiTest extends TestCase
     {
         $this->app->set('cache', ['class' => 'yii\\redis\\Cache', 'redis' => ['class' => 'yii\\redis\\Connection', 'hostname' => 'unavailable.invalid']]);
         $auth = new AdminAuthService(['username' => 'test-admin', 'passwordHash' => $this->auth->passwordHash]);
-        $this->assertSame(['username' => 'test-admin'], $auth->login('test-admin', 'test-only-password'));
+        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $auth->login('test-admin', 'test-only-password'));
     }
 
     public function testCredentialsCanBeOverriddenByEnvironment(): void
@@ -221,7 +221,7 @@ class AdminApiTest extends TestCase
         putenv('ADMIN_PASSWORD_HASH=' . password_hash('environment-test-password', PASSWORD_DEFAULT));
         try {
             $auth = new AdminAuthService(['cache' => new ArrayCache()]);
-            $this->assertSame(['username' => 'environment-admin'], $auth->login('environment-admin', 'environment-test-password'));
+            $this->assertSame(['username' => 'environment-admin', 'role' => 'admin'], $auth->login('environment-admin', 'environment-test-password'));
         } finally {
             putenv($originalUsername === false ? 'ADMIN_USERNAME' : 'ADMIN_USERNAME=' . $originalUsername);
             putenv($originalHash === false ? 'ADMIN_PASSWORD_HASH' : 'ADMIN_PASSWORD_HASH=' . $originalHash);
@@ -286,7 +286,7 @@ class AdminApiTest extends TestCase
         $this->app->request->headers->set('X-CSRF-Token', $initial['csrfToken']);
         $this->app->request->setBodyParams(['username' => 'test-admin', 'password' => 'test-only-password']);
         $result = $this->controller()->runAction('login');
-        $this->assertSame(['username' => 'test-admin'], $result['user']);
+        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $result['user']);
         $this->assertNotSame($initial['csrfToken'], $result['csrfToken']);
     }
 
@@ -351,6 +351,7 @@ class AdminApiTest extends TestCase
 
     public function testInvalidGameDoesNotChangeExistingSetup(): void
     {
+        $this->auth->login('test-admin', 'test-only-password');
         try {
             $this->devices->assignGame(1, 999999);
             $this->fail('Unknown scene must be rejected.');
@@ -362,6 +363,7 @@ class AdminApiTest extends TestCase
 
     public function testAssigningGameUpdatesOnlySceneAndKeepsOtherSetupFields(): void
     {
+        $this->auth->login('test-admin', 'test-only-password');
         $before = $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne();
         $result = $this->devices->assignGame(1, 700);
         $this->assertSame(700, $result['gameId']);
@@ -373,6 +375,7 @@ class AdminApiTest extends TestCase
 
     public function testAssigningGameCreatesMissingSetupInTransaction(): void
     {
+        $this->auth->login('test-admin', 'test-only-password');
         $transaction = $this->app->db->getTransaction();
         $initialLevel = $transaction === null ? 0 : $transaction->level;
         $insertLevel = null;
@@ -396,6 +399,7 @@ class AdminApiTest extends TestCase
 
     public function testFirstAssignmentPreservesExistingDeviceProtocolDefaults(): void
     {
+        $this->auth->login('test-admin', 'test-only-password');
         $beforeInfo = Server::getInfo('device-b');
         $this->assertSame('未知', $beforeInfo['title']);
         $this->assertCount(4, $beforeInfo['pictures']);
@@ -418,6 +422,7 @@ class AdminApiTest extends TestCase
 
     public function testAssignmentReturnsPersistedTimestampConsistentWithNextRead(): void
     {
+        $this->auth->login('test-admin', 'test-only-password');
         foreach ([1, 2] as $deviceId) {
             $result = $this->devices->assignGame($deviceId, 700);
             $this->assertSame('2026-10-11 15:00:00', $result['updatedAt']);
@@ -428,6 +433,7 @@ class AdminApiTest extends TestCase
 
     public function testDatabaseFailureRollsBackSetupAndDoesNotLeakSql(): void
     {
+        $this->auth->login('test-admin', 'test-only-password');
         $transaction = $this->app->db->getTransaction();
         $initialLevel = $transaction === null ? 0 : $transaction->level;
         // FAIL preserves an already-inserted row unless the service rolls back;
@@ -448,6 +454,7 @@ class AdminApiTest extends TestCase
 
     public function testUpdatingUnknownDeviceReturns404(): void
     {
+        $this->auth->login('test-admin', 'test-only-password');
         $this->expectException(HttpException::class);
         try {
             $this->devices->assignGame(999, 700);
