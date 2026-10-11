@@ -38,7 +38,7 @@ describe('explicit production backend selection', () => {
     fetchMock.mockClear()
     fetchMock.mockResolvedValueOnce(response([]))
     await api.getDevices()
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/backends/b1/admin-api/devices')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/backends/b1/admin-api/devices')
   })
 
   it('keeps CSRF tokens scoped to the selected backend', async () => {
@@ -53,9 +53,9 @@ describe('explicit production backend selection', () => {
     api.setSelectedBackend('b0')
     fetchMock.mockResolvedValueOnce(response(device))
     await api.assignGame(1, 638)
-    expect(fetchMock.mock.calls[2]?.[0]).toBe('/backends/b1/admin-api/devices/1/game')
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/backends/b1/admin-api/devices/1/game')
     expect(new Headers(fetchMock.mock.calls[2]?.[1]?.headers).get('X-CSRF-Token')).toBe('b1-token')
-    expect(fetchMock.mock.calls[3]?.[0]).toBe('/backends/b0/admin-api/devices/1/game')
+    expect(fetchMock.mock.calls[3]?.[0]).toBe('/api/backends/b0/admin-api/devices/1/game')
     expect(new Headers(fetchMock.mock.calls[3]?.[1]?.headers).get('X-CSRF-Token')).toBe('b0-token')
   })
 
@@ -71,7 +71,7 @@ describe('explicit production backend selection', () => {
     await pendingB0
     fetchMock.mockResolvedValueOnce(response(device))
     await api.assignGame(1, 638)
-    expect(fetchMock.mock.calls[2]?.[0]).toBe('/backends/b1/admin-api/devices/1/game')
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/backends/b1/admin-api/devices/1/game')
     expect(new Headers(fetchMock.mock.calls[2]?.[1]?.headers).get('X-CSRF-Token')).toBe('b1-token')
   })
 
@@ -84,7 +84,7 @@ describe('explicit production backend selection', () => {
     fetchMock.mockResolvedValueOnce(response({ user: { username: 'dirui' }, csrfToken: 'b0-logged-in' }))
     finishSession(response({ user: null, csrfToken: 'b0-login-token' }))
     await pendingLogin
-    expect(fetchMock.mock.calls[1]?.[0]).toBe('/backends/b0/admin-api/login')
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/backends/b0/admin-api/login')
     expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get('X-CSRF-Token')).toBe('b0-login-token')
   })
 
@@ -102,6 +102,6 @@ describe('explicit production backend selection', () => {
     fetchMock.mockResolvedValueOnce(response({ message: '保存失败' }, 503))
     await expect(api.assignGame(1, 638)).rejects.toMatchObject({ status: 503 })
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(fetchMock.mock.calls[1]?.[0]).toBe('/backends/b0/admin-api/devices/1/game')
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/backends/b0/admin-api/devices/1/game')
   })
 })

@@ -33,7 +33,7 @@ function currentContext(backend: BackendId = selectedBackend): ApiContext {
   if (isDemoMode) return { backend: 'demo', base: '/admin-api' }
   if (!backends || !backend) throw new ApiError('后端配置尚未就绪，请重试加载配置', 0)
   if (!backends.some(option => option.id === backend)) throw new ApiError('所选后端不在当前后端配置中，请重新加载配置', 0)
-  return { backend, base: `/backends/${backend}/admin-api` }
+  return { backend, base: `/api/backends/${backend}/admin-api` }
 }
 
 export class ApiError extends Error {

@@ -141,7 +141,7 @@ class MiniProgramHandler(http.server.BaseHTTPRequestHandler):
     def handle_request(self):
         controller = self.server.controller
         body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
-        record = {"backend": controller.name, "method": self.command, "path": self.path,
+        record = {"backend": controller.name, "method": self.command, "path": self.requestline.split()[1],
                   "body": body.decode(), "headers": dict(self.headers.items()),
                   "sni": getattr(self.connection, "fixture_sni", None)}
         with controller.record_lock:
@@ -157,6 +157,8 @@ class MiniProgramHandler(http.server.BaseHTTPRequestHandler):
         payload = json.dumps(record).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        if controller.redirect is not None:
+            self.send_header("Location", controller.redirect)
         self.send_header("Set-Cookie", "must-not-leak=yes; Path=/")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
@@ -186,6 +188,7 @@ class MiniProgramProxyTests(unittest.TestCase):
         for server in (self.b0, self.b1, self.b2, self.untrusted, self.wrong_name):
             server.clear()
             server.mode = "ok"
+            server.redirect = None
 
     @contextlib.contextmanager
     def nginx(self, primary=None, backup=None, enabled=True):
@@ -277,6 +280,130 @@ class MiniProgramProxyTests(unittest.TestCase):
             self.assertIsNone(headers.get("Set-Cookie"))
         self.assertEqual(len(self.b0.records), 1)
         self.assertEqual(self.b1.records, [])
+
+    def test_api_prefix_preserves_raw_suffix_query_all_methods_body_and_bearer(self):
+        with self.nginx() as port:
+            for method in ("GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"):
+                suffix = "/v1/%65cho/a%2Fb%252Fc//keep?x=a%2Fb&x=2&url=/api/v2"
+                status, headers, _ = self.request(
+                    port, "/api" + suffix, method, "fixture-body",
+                    {"Authorization": "Bearer raw-fixture", "Cookie": "browser=discard"},
+                )
+                self.assertEqual(status, 200, self.error_log.read_text())
+                record = self.b0.records[-1]
+                self.assertEqual(record["path"], suffix)
+                self.assertEqual(record["method"], method)
+                self.assertEqual(record["body"], "fixture-body")
+                self.assertEqual(record["headers"]["Authorization"], "Bearer raw-fixture")
+                self.assertEqual(record["headers"]["Host"], "localhost")
+                self.assertEqual(record["sni"], "localhost")
+                self.assertNotIn("Cookie", record["headers"])
+                self.assertIsNone(headers.get("Set-Cookie"))
+            for suffix in ("/v2/devices", "/v1/pay/wechat-callback", "/business/unknown", "/asset.png"):
+                status, _, payload = self.request(port, "/api" + suffix)
+                self.assertEqual(status, 200)
+                self.assertEqual(json.loads(payload)["path"], suffix)
+        self.assertEqual(self.b1.records, [])
+
+    def test_api_prefix_audited_reads_retry_with_exact_unencoded_allowlist(self):
+        for method, path in (("GET", "/api/v2/devices"), ("HEAD", "/api/v2/devices/manage"),
+                             ("GET", "/api/v2/devices/42"), ("GET", "/api/v2/server/scenes?x=1")):
+            with self.subTest(method=method, path=path):
+                self.b0.clear()
+                self.b1.clear()
+                self.b0.mode = "drop"
+                with self.nginx() as port:
+                    self.assertEqual(self.request(port, path, method)[0], 200)
+                self.assertEqual(len(self.b0.records), 1)
+                self.assertEqual(len(self.b1.records), 1)
+                self.assertEqual(self.b1.records[0]["path"], path[4:])
+                self.assertEqual(self.b1.records[0]["method"], method)
+
+    def test_api_prefix_unverified_gets_queries_overrides_and_mutations_never_replay(self):
+        cases = [(method, "/api/v2/devices/42", {}) for method in ("POST", "PUT", "DELETE", "PATCH")]
+        cases += [(method, path, {}) for method in ("GET", "HEAD") for path in (
+            "/api/v2/devices/42?expand=setup", "/api/v2/devices?page=2", "/api/v1/devices",
+            "/api/v2/unknown", "/api/v2/%64evices/42", "/api//v2/devices", "/api/v2/server/info")]
+        cases += [("GET", "/api/v2/devices", {"X-Http-Method-Override": "DELETE"})]
+        for method, path, headers in cases:
+            with self.subTest(method=method, path=path, headers=headers):
+                self.b0.clear()
+                self.b1.clear()
+                self.b0.mode = "drop"
+                with self.nginx() as port:
+                    self.assertEqual(self.request(port, path, method, "fixture", headers)[0], 502)
+                self.assertEqual(len(self.b0.records), 1)
+                self.assertEqual(self.b0.records[0]["path"], path[4:])
+                self.assertEqual(self.b0.records[0]["method"], method)
+                self.assertEqual(self.b1.records, [])
+
+    def test_api_health_is_fixed_credential_free_and_retries_only_reads(self):
+        with self.nginx() as port:
+            for method in ("GET", "HEAD"):
+                self.b0.mode = "drop"
+                status, headers, payload = self.request(
+                    port, "/api/health?write=yes", method, "_method=DELETE",
+                    {"Cookie": "discard=1", "Authorization": "Bearer discard",
+                     "X-Http-Method-Override": "PUT", "Content-Type": "application/x-www-form-urlencoded"},
+                )
+                self.assertEqual(status, 200)
+                record = self.b1.records[-1]
+                self.assertEqual(record["method"], "GET")
+                self.assertEqual(record["path"], "/health")
+                self.assertEqual(record["body"], "")
+                for header in ("Cookie", "Authorization", "X-Http-Method-Override"):
+                    self.assertNotIn(header, record["headers"])
+                self.assertIsNone(headers.get("Set-Cookie"))
+                if method == "HEAD":
+                    self.assertEqual(payload, b"")
+            calls = len(self.b0.records) + len(self.b1.records)
+            for method in ("POST", "PUT", "DELETE", "PATCH"):
+                self.assertEqual(self.request(port, "/api/health", method, "fixture")[0], 403)
+            self.assertEqual(len(self.b0.records) + len(self.b1.records), calls)
+
+    def test_api_generic_denies_source_dot_debug_and_reserved_alias_paths(self):
+        blocked = ("/api/.env", "/api/nested/.git/config", "/api/%2eenv", "/api/config.ini",
+                   "/api/index.php", "/api/index.php/v2/devices", "/api/source.PHP/extra",
+                   "/api/source.sql", "/api/source.map", "/api/config.yaml", "/api/config.json",
+                   "/api/debug", "/api/debug/default/view", "/api/%64ebug/default/view",
+                   "/api/gii", "/api/gii/default/index", "/api/v1/debug", "/api/v1/gii/tools",
+                   "/api/backends/b9/admin-api/session", "/api/backends/b0/v2/devices", "/%61pi/v2/devices")
+        with self.nginx() as port:
+            for path in blocked:
+                with self.subTest(path=path):
+                    self.assertEqual(self.request(port, path)[0], 404)
+        self.assertEqual(self.b0.records, [])
+        self.assertEqual(self.b1.records, [])
+
+    def test_api_admin_alias_is_session_only_even_after_primary_pool_failure(self):
+        with self.nginx() as port:
+            self.b0.mode = "drop"
+            self.assertEqual(self.request(port, "/api/v2/devices")[0], 200)
+            self.assertIn(self.request(port, "/api/admin-api")[0], (301, 404))
+            self.assertEqual(len(self.b1.records), 1)
+            # Pool quarantine must not affect independent fixed Web sessions.
+            self.b0.mode = "ok"
+            for path, cookie_path in (("/api/admin-api/session", "/api/admin-api/"),
+                                      ("/api/%61dmin-api/session", "/api/admin-api/"),
+                                      ("/api/backends/b0/admin-api/session", "/api/backends/b0/")):
+                status, headers, payload = self.request(port, path, headers={"Cookie": "session=fixture"})
+                self.assertEqual(status, 200)
+                record = json.loads(payload)
+                self.assertEqual(record["backend"], "b0")
+                self.assertEqual(record["path"], "/admin-api/session")
+                self.assertEqual(record["headers"]["Cookie"], "session=fixture")
+                self.assertIn("Path=" + cookie_path, headers.get("Set-Cookie"))
+
+    def test_api_http_redirects_retain_gateway_prefix_without_rewriting_external_origins(self):
+        with self.nginx() as port:
+            for target, expected in (("/v1/next?x=a%2Fb", "/api/v1/next?x=a%2Fb"),
+                                     ("https://localhost/v1/next", "/api/v1/next"),
+                                     ("https://external.example/next", "https://external.example/next")):
+                with self.subTest(target=target):
+                    self.b0.redirect = target
+                    status, headers, _ = self.request(port, "/api/v1/redirect")
+                    self.assertEqual(status, 200)
+                    self.assertEqual(headers.get("Location"), expected)
 
     def test_read_transport_failure_uses_backup_and_primary_recovers_after_quarantine(self):
         with self.nginx() as port:
