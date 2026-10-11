@@ -143,6 +143,13 @@ $config = [
                 'GET health' => 'health/index',
                 'HEAD health' => 'health/index',
 
+                'GET admin-api/session' => 'admin/session',
+                'POST admin-api/login' => 'admin/login',
+                'POST admin-api/logout' => 'admin/logout',
+                'GET admin-api/devices' => 'admin/devices',
+                'GET admin-api/games' => 'admin/games',
+                'PUT admin-api/devices/<id:\\d+>/game' => 'admin/set-game',
+
                 // Swagger API 文档路由
                 'GET swagger' => 'swagger/index',
                 'GET swagger/json-schema' => 'swagger/json-schema',
