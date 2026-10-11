@@ -1,6 +1,6 @@
 # 设备管理 API
 
-Vue 3 管理端部署在 `checkin.voxel.cn`，从同源 `/runtime-config.json` 自动获取部署中的一个或多个正式后端。一个后端自动连接，多个后端自动生成切换项；浏览器通过对应 `/backends/bN/admin-api/` 访问 Nginx。当前部署配置为 B0 `https://x.b0.01xr.com` 和 B1 `https://x.b1.01xr.com`。设备来自所选后端现有 v2 `device` 表，设备游戏映射到 `setup.scene_id`，游戏列表来自 A1 `/v1/server/checkin?expand=verse_id,name` 的 `verse_id` 和 `name`。
+Vue 3 管理端部署在 `checkin.voxel.cn`，从同源 `/runtime-config.json` 自动获取部署中的一个或多个正式后端。一个后端自动连接，多个后端自动生成切换项；浏览器通过对应 `/api/backends/bN/admin-api/` 访问 Nginx。当前部署配置为 B0 `https://x.b0.01xr.com` 和 B1 `https://x.b1.01xr.com`。设备来自所选后端现有 v2 `device` 表，设备游戏映射到 `setup.scene_id`，游戏列表来自 A1 `/v1/server/checkin?expand=verse_id,name` 的 `verse_id` 和 `name`。
 
 ## 登录与配置
 
@@ -139,9 +139,9 @@ php api/vendor/bin/phpunit --stderr --bootstrap api/tests/_bootstrap.php --filte
 
 运行时扫描 `APP_API_N_URL` 全部数字编号配置，按数字排序，允许编号缺口；编号 N 固定对应 b(N−1)。镜像不内置后端默认值，至少显式配置一个有效地址。启动脚本只接受 HTTPS origin，可包含端口；拒绝空值、路径、查询、用户凭据及配置注入字符。它统一生成隔离代理和公开清单，清单禁止缓存且只包含 id/name/host。增减后端只需修改部署变量并更新容器、刷新页面，不用重新构建 Vue；更改 DNS 地址后重启容器以重新解析。管理接口采用独立 Session，每次操作固定到所选环境，失败请求不会自动改投另一个环境。
 
-代理校验上游 TLS 证书和主机名，发送对应的 Host 与 SNI，使用系统 CA，不忽略证书错误。上游 Cookie 的 Path 统一改为对应的 `/backends/bN/`，已有 Domain 改为当前前端域名；无 Domain 的 Cookie 保持同源。Cookie 启用 Secure、HttpOnly、SameSite=Lax。这样同名 Session 和 CSRF Cookie 可在各环境独立保存；切换环境后应重新获取该环境的 Session 和 CSRF Token。
+代理校验上游 TLS 证书和主机名，发送对应的 Host 与 SNI，使用系统 CA，不忽略证书错误。上游 Cookie 的 Path 统一改为对应的 `/api/backends/bN/`，已有 Domain 改为当前前端域名；无 Domain 的 Cookie 保持同源。Cookie 启用 Secure、HttpOnly、SameSite=Lax。这样同名 Session 和 CSRF Cookie 可在各环境独立保存；切换环境后应重新获取该环境的 Session 和 CSRF Token。
 
-`/healthz` 仅返回容器静态健康状态。每个配置项生成 `/backends/bN/health`，只读访问对应后端的 `/health`，只接受 GET / HEAD，去掉查询参数、请求体、Cookie 和 Authorization，并隐藏上游 Set-Cookie。后端健康接口可用不表示管理接口已经部署。所有其他后端路径和 PHP、配置、数据库等源文件路径均不提供访问。
+`/healthz` 仅返回容器静态健康状态。每个配置项生成 `/api/backends/bN/health`，只读访问对应后端的 `/health`，只接受 GET / HEAD，去掉查询参数、请求体、Cookie 和 Authorization，并隐藏上游 Set-Cookie。后端健康接口可用不表示管理接口已经部署。旧 `/backends/bN/` 路径保持兼容。其他业务接口统一使用 `/api/<原后端路径>`，去掉 `/api` 后转发 B0 主 / B1 备，例如 `/api/v2/devices` → `/v2/devices`。`/api/admin-api/` 固定 B0，独立 Session Cookie Path；新 Web 使用带后端 ID 的固定别名。`/api/health` 与旧 `/mp-health` 为同一主备健康入口。调试入口、dotfiles、PHP 及配置/源码文件不通过此域名公开。Swagger HTML 内的根路径资源链接不自动改写；仅已知 HTTPS 上游及根相对 Location 改写为新前缀，HTTP 或协议相对绝对 Location 保持原样；支付回调保持原有后端地址。
 
 正式 Yii 后端仍需分别发布本仓库的 `AdminController`、`AdminAuthService`、`AdminDeviceService`、`AdminGameCatalog`、`AdminSceneFetcher`、`UrlManager` 及 `files/api/config/web.php` 中的管理路由，沿用各自正式环境已有的数据库配置和应用部署流程。首次对接前，B0、B1 的 `/admin-api/session` 均返回 404；前端会显示真实连接错误，不用演示数据替代。2026-10-11 已通过 develop → main → publish CI 发布管理接口，两端均自动更新到 `bb9a4e3`，并通过前端代理验证了 Session、登录、设备与场景查询。两端当前均返回 33 台设备与空场景目录。线上联调只读，不为测试而改动真实设备的游戏。
 
