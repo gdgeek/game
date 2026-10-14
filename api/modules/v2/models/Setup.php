@@ -108,7 +108,7 @@ class Setup extends \yii\db\ActiveRecord
     /**
      * 获取默认信息配置
      * 
-     * 从 A1Server 获取场景数据，并使用第一个场景的 scene_id 作为默认值
+     * 从场景服务器获取场景数据，并使用第一个场景的 scene_id 作为默认值
      * 
      * @return array 默认信息配置数组
      */
@@ -118,7 +118,7 @@ class Setup extends \yii\db\ActiveRecord
         $defaultSceneId = 638;
 
         /*
-        // 尝试从 A1Server 获取场景数据
+        // 尝试从场景服务器获取场景数据
         $scenesData = \app\modules\v2\helper\A1Server::forwardCheckinRequest();
 
         // 检查返回的数据是否为数组且不为空

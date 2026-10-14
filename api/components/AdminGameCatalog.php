@@ -2,11 +2,12 @@
 
 namespace app\components;
 
+use app\modules\v2\helper\A1Server;
 use yii\base\Component;
 use yii\caching\FileCache;
 use yii\web\HttpException;
 
-/** Read the same A1 scenes as the devices without altering Yii's response. */
+/** Read the same scene catalog as the devices without altering Yii's response. */
 class AdminGameCatalog extends Component
 {
     public $cache;
@@ -21,7 +22,7 @@ class AdminGameCatalog extends Component
 
     public function getGames(): array
     {
-        $key = 'admin-a1-games-v1';
+        $key = 'admin-scene-games-v2-' . sha1(A1Server::baseUrl());
         $cached = $this->cache->get($key);
         if (is_array($cached)) {
             return $cached;
@@ -44,7 +45,7 @@ class AdminGameCatalog extends Component
 
     private function normalize($payload): array
     {
-        // A1 may return a list directly or use common pagination/envelope keys.
+        // The scene server may return a list directly or use common envelope keys.
         for ($depth = 0; $depth < 5 && is_array($payload); $depth++) {
             if ($payload === [] || array_keys($payload) === range(0, count($payload) - 1)) {
                 break;

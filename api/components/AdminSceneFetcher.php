@@ -5,7 +5,7 @@ namespace app\components;
 use app\modules\v2\helper\A1Server;
 use yii\base\Component;
 
-/** Fetch a complete A1 catalog without copying upstream headers to Yii. */
+/** Fetch a complete scene catalog without copying upstream headers to Yii. */
 class AdminSceneFetcher extends Component
 {
     public $perPage = 15;
@@ -34,10 +34,10 @@ class AdminSceneFetcher extends Component
                 throw new \RuntimeException('Scene request deadline exceeded.');
             }
             // Build every page from the trusted endpoint; never follow Link URLs.
-            $url = A1Server::BASE_URL . '/checkin?' . http_build_query([
+            $url = A1Server::baseUrl() . '/checkin?' . http_build_query([
                 'expand' => 'verse_id,name',
                 'page' => $page,
-                'per-page' => $this->perPage,
+                'pageSize' => $this->perPage,
             ], '', '&', PHP_QUERY_RFC3986);
             $response = $this->transport !== null
                 ? call_user_func($this->transport, $url, $remainingMs)
