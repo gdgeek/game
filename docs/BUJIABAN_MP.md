@@ -37,6 +37,15 @@ pnpm run dev:mp-weixin
 | `src/api/a1.ts` | `GET /v2/server/scenes` | 获取场景列表，页面将场景 ID 写入 `setup.scene_id` |
 | 根仓库 `frontend/` | `/admin-api` | 使用 Session 与 CSRF；接口说明见 `docs/ADMIN_API.md` |
 
+场景列表由 `game` 的 `/v2/server/scenes` 适配层转发到 Y1 的
+`/v1/server/checkin?expand=verse_id,name`。每个后端实例通过
+`SCENE_SERVER_BASE_URL` 单独配置。Portainer 中 `game` 与 `y1-p` 共用
+`proxy` 网络时，直接设置为 `http://y1-p:8080/`；这是容器内直连，PHP 会自动拼接
+`/v1/server`，不经过公网域名。若不在同一 Docker 网络，生产 B0/B1 再分别使用
+`https://y1.b0.01xr.com` 和 `https://y1.b1.01xr.com`；开发 B0 为
+`https://y1.d.b0.01xr.com`，开发 B1 为
+`https://y1.d.b1.01xr.com`。B1 是 B0 的备用实例，二者共用数据库和缓存；切换实例时只需修改对应后端的 `SCENE_SERVER_BASE_URL`。响应需保持直接数组并包含 `verse_id`、`name`。
+
 小程序设备管理和 Web 管理后台都涉及 v2 的 `device` / `setup` 数据。调整字段时同时核对 `bujiaban-mp/src/api/device.ts`、`api/modules/v2/models/` 和 `api/components/AdminDeviceService.php`。
 
 后端路由源文件为 `files/api/config/web.php`。各仓库独立提交与发布；建立协作结构和本次扫码登录实现均只修改本地代码，尚未发布扫码登录。
