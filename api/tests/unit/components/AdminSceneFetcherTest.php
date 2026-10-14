@@ -29,7 +29,7 @@ class AdminSceneFetcherTest extends TestCase
         Yii::$aliases = $this->originalAliases;
     }
 
-    public function testReadsAllPagesUsingFixedA1UrlsAndCaseInsensitiveHeaders(): void
+    public function testReadsAllPagesUsingConfiguredSceneServerUrlsAndCaseInsensitiveHeaders(): void
     {
         $requests = [];
         $first = $this->page([$this->scene(1), $this->scene(2)], [
@@ -48,10 +48,10 @@ class AdminSceneFetcherTest extends TestCase
         $this->assertSame([$this->scene(1), $this->scene(2), $this->scene(3)], $fetcher->fetch());
         $this->assertCount(2, $requests);
         foreach ($requests as $index => $request) {
-            $this->assertSame(A1Server::BASE_URL . '/checkin', strtok($request['url'], '?'));
+            $this->assertSame(A1Server::baseUrl() . '/checkin', strtok($request['url'], '?'));
             parse_str(parse_url($request['url'], PHP_URL_QUERY), $query);
             $this->assertSame((string) ($index + 1), $query['page']);
-            $this->assertSame('15', $query['per-page']);
+            $this->assertSame('15', $query['pageSize']);
             $this->assertSame('verse_id,name', $query['expand']);
         }
     }
@@ -181,7 +181,7 @@ class AdminSceneFetcherTest extends TestCase
 
     public function testEachPageUsesTheRemainingTotalTimeBudget(): void
     {
-        $this->assertTrue(class_exists(AdminSceneFetcher::class), 'The A1 pagination fetcher must be available.');
+        $this->assertTrue(class_exists(AdminSceneFetcher::class), 'The scene pagination fetcher must be available.');
         $now = 1000;
         $timeouts = [];
         $fetcher = new AdminSceneFetcher([
@@ -252,7 +252,7 @@ class AdminSceneFetcherTest extends TestCase
 
     private function fetcher(array $responses, array &$requests, array $config = []): AdminSceneFetcher
     {
-        $this->assertTrue(class_exists(AdminSceneFetcher::class), 'The A1 pagination fetcher must be available.');
+        $this->assertTrue(class_exists(AdminSceneFetcher::class), 'The scene pagination fetcher must be available.');
         $config['transport'] = static function ($url, $timeoutMs) use (&$responses, &$requests) {
             $requests[] = ['url' => $url, 'timeoutMs' => $timeoutMs];
             if ($responses === []) {
