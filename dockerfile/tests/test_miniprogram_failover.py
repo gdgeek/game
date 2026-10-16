@@ -119,7 +119,7 @@ class LocalDNS:
             qtype = struct.unpack("!H", query[end + 1:end + 3])[0]
             self.queries.append(name)
             question = query[12:end + 5]
-            permitted = name in ("primary.fixture.test", "backup.fixture.test") and qtype == 1
+            permitted = name in ("localhost", "primary.fixture.test", "backup.fixture.test") and qtype == 1
             header = query[:2] + struct.pack("!HHHHH", 0x8180, 1, int(permitted), 0, 0)
             answer = (b"\xc0\x0c" + struct.pack("!HHIH", 1, 1, 1, 4) + socket.inet_aton("127.0.0.1")) if permitted else b""
             self.socket.sendto(header + question + answer, peer)
@@ -199,11 +199,12 @@ class MiniProgramProxyTests(unittest.TestCase):
             root.mkdir()
             (root / "index.html").write_text("local frontend")
             rendered = directory / "server.conf"
-            result = render(rendered, TEMPLATE, (self.b0.origin, self.b1.origin),
-                            runtime_config=root / "runtime-config.json")
-            self.assertEqual(result.returncode, 0, result.stderr)
             dns = LocalDNS()
             try:
+                result = render(rendered, TEMPLATE, (self.b0.origin, self.b1.origin),
+                                runtime_config=root / "runtime-config.json",
+                                settings={"APP_API_RESOLVER": f"127.0.0.1:{dns.port}"})
+                self.assertEqual(result.returncode, 0, result.stderr)
                 settings = {"APP_MP_API_ENABLED": "1" if enabled else "0",
                             "APP_MP_API_PRIMARY_URL": primary or f"https://primary.fixture.test:{self.b0.server_port}",
                             "APP_MP_API_BACKUP_URL": backup or f"https://backup.fixture.test:{self.b1.server_port}",
@@ -212,7 +213,11 @@ class MiniProgramProxyTests(unittest.TestCase):
                 result = configure(rendered, settings)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 server = rendered.read_text()
-                authorities = re.findall(r"server ([^ ;]+) resolve", server)
+                if "upstream miniprogram_api {" in server:
+                    mini_config = server.split("upstream miniprogram_api {", 1)[1].split("\n}", 1)[0]
+                    authorities = re.findall(r"server ([^ ;]+) resolve", mini_config)
+                else:
+                    authorities = []
                 self.assertTrue(all(re.fullmatch(r"(?:primary|backup)\.fixture\.test:[0-9]+|127\.0\.0\.1:[0-9]+", item)
                                     for item in authorities), "Never contact production upstreams")
                 with socket.socket() as reservation:
@@ -244,7 +249,7 @@ class MiniProgramProxyTests(unittest.TestCase):
                                 self.fail(log.read())
                             try:
                                 with socket.create_connection(("127.0.0.1", port), timeout=0.1):
-                                    if not authorities or not enabled or len(set(dns.queries)) == 2 or primary:
+                                    if not authorities or not enabled or {"primary.fixture.test", "backup.fixture.test"} <= set(dns.queries) or primary:
                                         break
                             except OSError:
                                 pass
@@ -381,18 +386,23 @@ class MiniProgramProxyTests(unittest.TestCase):
             self.assertEqual(self.request(port, "/api/v2/devices")[0], 200)
             self.assertIn(self.request(port, "/api/admin-api")[0], (301, 404))
             self.assertEqual(len(self.b1.records), 1)
-            # Pool quarantine must not affect independent fixed Web sessions.
+            # The Web proxy has an independent weighted pool and stable Bearer route.
             self.b0.mode = "ok"
             for path, cookie_path in (("/api/admin-api/session", "/api/admin-api/"),
                                       ("/api/%61dmin-api/session", "/api/admin-api/"),
                                       ("/api/backends/b0/admin-api/session", "/api/backends/b0/")):
-                status, headers, payload = self.request(port, path, headers={"Cookie": "session=fixture"})
-                self.assertEqual(status, 200)
+                status, headers, payload = self.request(port, path, headers={"Cookie": "session=fixture", "Authorization": "Bearer fixture"})
+                self.assertEqual(status, 200, self.error_log.read_text())
                 record = json.loads(payload)
-                self.assertEqual(record["backend"], "b0")
+                self.assertIn(record["backend"], {"b0", "b1"})
                 self.assertEqual(record["path"], "/admin-api/session")
-                self.assertEqual(record["headers"]["Cookie"], "session=fixture")
-                self.assertIn("Path=" + cookie_path, headers.get("Set-Cookie"))
+                if path.startswith("/api/backends/"):
+                    self.assertEqual(record["headers"]["Cookie"], "session=fixture")
+                    self.assertIn("Path=" + cookie_path, headers.get("Set-Cookie"))
+                else:
+                    self.assertNotIn("Cookie", record["headers"])
+                    self.assertEqual(record["headers"]["Authorization"], "Bearer fixture")
+                    self.assertIsNone(headers.get("Set-Cookie"))
 
     def test_api_http_redirects_retain_gateway_prefix_without_rewriting_external_origins(self):
         with self.nginx() as port:

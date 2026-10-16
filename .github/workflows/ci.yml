@@ -112,6 +112,10 @@ jobs:
 
       - name: Run unit tests
         working-directory: ./api
+        env:
+          ADMIN_AUTH_REDIS_HOST: 127.0.0.1
+          ADMIN_AUTH_REDIS_PORT: '6379'
+          ADMIN_AUTH_REDIS_DB: '15'
         run: php vendor/bin/codecept run unit --no-interaction
 
       - name: Run functional tests

@@ -42,6 +42,14 @@ $config = [
         'healthService' => [
             'class' => \app\components\HealthService::class,
         ],
+        'adminAuthRedis' => [
+            'class' => \yii\redis\Connection::class,
+            'hostname' => getenv('ADMIN_AUTH_REDIS_HOST') ?: getenv('REDIS_HOST'),
+            'port' => (int) (getenv('ADMIN_AUTH_REDIS_PORT') ?: (getenv('REDIS_PORT') ?: 6379)),
+            'database' => (int) (getenv('ADMIN_AUTH_REDIS_DB') !== false && getenv('ADMIN_AUTH_REDIS_DB') !== '' ? getenv('ADMIN_AUTH_REDIS_DB') : (getenv('REDIS_DB') ?: 0)),
+            'password' => getenv('ADMIN_AUTH_REDIS_PASSWORD') ?: (getenv('REDIS_PASSWORD') ?: null),
+            'connectionTimeout' => 1.5, 'dataTimeout' => 1.5, 'retries' => 0,
+        ],
         'redis' => [
             'class' => 'yii\redis\Connection',
             'hostname' => getenv('REDIS_HOST'),
@@ -69,6 +77,18 @@ $config = [
             'pub_key_id' => getenv('WECHAT_PUB_KEY_ID'),
             'pub_key_path' => getenv('WECHAT_PUB_KEY'),
             'secret_key' => getenv('WECHAT_SECRET_KEY'), // v3 API secret key
+        ],
+        'adminJwt' => [
+            'class' => \bizley\jwt\Jwt::class,
+            'signer' => \bizley\jwt\Jwt::ES256,
+            'signingKey' => [
+                'key' => getenv('ADMIN_JWT_KEY') ?: '/var/www/.ssh/jwt-key.pem',
+                'method' => \bizley\jwt\Jwt::METHOD_FILE,
+            ],
+            'verifyingKey' => [
+                'key' => getenv('ADMIN_JWT_PUB_KEY') ?: '/var/www/.ssh/jwt-key-pub.pem',
+                'method' => \bizley\jwt\Jwt::METHOD_FILE,
+            ],
         ],
         'jwt' => [
             'class' => \bizley\jwt\Jwt::class,
@@ -145,6 +165,7 @@ $config = [
 
                 'GET admin-api/session' => 'admin/session',
                 'POST admin-api/login' => 'admin/login',
+                'POST admin-api/refresh' => 'admin/refresh',
                 'POST admin-api/logout' => 'admin/logout',
                 'POST admin-api/scan-login/tickets' => 'admin/scan-login-create',
                 'GET admin-api/scan-login/tickets/<id:[a-f0-9]{32}>' => 'admin/scan-login-status',
@@ -442,6 +463,14 @@ if (YII_ENV_DEV) {
         // uncomment the following to add your IP if you are not connecting from localhost.
         'allowedIPs' => ['*', '::1'],
     ];
+}
+
+// Disable cookie identities before debug/gii bootstrap can restore a PHP session.
+// V1/V2 keep their existing user configuration and Bearer identity domain.
+$adminRequestPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+if (is_string($adminRequestPath) && preg_match('~^/(?:index\.php/)?admin-api(?:/|$)~D', $adminRequestPath)) {
+    $config['components']['user']['enableSession'] = false;
+    $config['components']['user']['enableAutoLogin'] = false;
 }
 
 return $config;

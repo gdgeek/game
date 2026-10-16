@@ -2,35 +2,31 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AlertCircle, LoaderCircle, QrCode, RefreshCw } from 'lucide-vue-next'
 import QRCode from 'qrcode'
-import type { BackendId, Session } from '../types'
-import { cancelScanLoginTicket, consumeScanLoginTicket, createScanLoginTicket, getScanLoginTicket, getSession } from '../lib/api'
+import type { Session } from '../types'
+import { cancelScanLoginTicket, consumeScanLoginTicket, createScanLoginTicket, getScanLoginTicket } from '../lib/api'
 import { createScanLoginController, type ScanLoginState } from '../lib/scan-login'
 
-const props = defineProps<{ backend: BackendId }>()
-const emit = defineEmits<{ authenticated: [session: Session, backend: BackendId]; busy: [value: boolean] }>()
-// Keep every request, including late cleanup and Session recovery, on this backend.
-const backend = props.backend
+const emit = defineEmits<{ authenticated: [session: Session]; busy: [value: boolean] }>()
 const state = ref<ScanLoginState>({ phase: 'idle', ticket: null, error: '' })
 const qrImage = ref('')
 const qrError = ref('')
 let imageVersion = 0
 const controller = createScanLoginController({
   api: {
-    create: () => createScanLoginTicket(backend),
-    get: id => getScanLoginTicket(id, backend),
-    consume: id => consumeScanLoginTicket(id, backend),
-    cancel: id => cancelScanLoginTicket(id, backend),
-    session: () => getSession(backend),
+    create: () => createScanLoginTicket(),
+    get: id => getScanLoginTicket(id),
+    consume: id => consumeScanLoginTicket(id),
+    cancel: id => cancelScanLoginTicket(id),
   },
   onState: value => { state.value = value },
-  onSession: session => emit('authenticated', session, backend),
+  onSession: session => emit('authenticated', session),
   onConsumeBusy: busy => emit('busy', busy),
 })
-const changingSession = computed(() => ['consuming', 'reconciling'].includes(state.value.phase))
+const changingSession = computed(() => state.value.phase === 'consuming')
 const creating = computed(() => ['idle', 'creating'].includes(state.value.phase))
 const message = computed(() => ({
   idle: '正在准备二维码…', creating: '正在生成二维码…', pending: '等待小程序扫码确认',
-  consuming: '已确认，正在安全登录…', reconciling: '正在确认登录状态…',
+  consuming: '已确认，正在安全登录…',
   expired: '二维码已过期，请刷新', cancelled: '二维码已取消，请刷新',
   consumed: '二维码已使用', error: '扫码登录暂时不可用',
 })[state.value.phase])
@@ -67,8 +63,7 @@ onBeforeUnmount(stop)
     <p class="scan-expiry">登录后仅可管理当前微信账号关联的设备。</p>
     <p v-if="state.phase === 'pending'" class="scan-expiry">二维码有效期 5 分钟，请使用自己的微信账号确认。</p>
     <p v-if="state.error || qrError" class="form-error" role="alert"><AlertCircle :size="16" />{{ state.error || qrError }}</p>
-    <button v-if="state.phase === 'reconciling' && state.error" type="button" class="button secondary scan-refresh" @click="controller.retrySession"><RefreshCw :size="15" />重试确认登录状态</button>
-    <button v-else type="button" class="button secondary scan-refresh" :disabled="creating || changingSession" @click="controller.refresh"><RefreshCw :size="15" />刷新二维码</button>
+    <button type="button" class="button secondary scan-refresh" :disabled="creating || changingSession" @click="controller.refresh"><RefreshCw :size="15" />刷新二维码</button>
   </section>
 </template>
 

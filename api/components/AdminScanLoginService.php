@@ -10,8 +10,6 @@ use yii\web\HttpException;
 /** A QR secret can approve a ticket; only its creating browser can consume it. */
 class AdminScanLoginService extends Component
 {
-    public const OWNER_KEY = 'game.admin.scan.owner';
-    public const CURRENT_KEY = 'game.admin.scan.current';
     private const TABLE = '{{%admin_scan_login_ticket}}';
     private const LIFETIME = 300;
     public $auth;
@@ -32,31 +30,32 @@ class AdminScanLoginService extends Component
     public function createTicket(): array
     {
         $this->requireEnabled();
-        $session = $this->auth->session(); // Hold the PHP session lock through mutation.
+        $ownerHash = $this->requireOwnerHash();
         $this->throttle('create', Yii::$app->request->userIP ?? 'unknown', 15);
-        if (!$session->has(self::OWNER_KEY)) {
-            $session->set(self::OWNER_KEY, bin2hex(random_bytes(32)));
-        }
         $id = bin2hex(random_bytes(16));
         $secret = bin2hex(random_bytes(32));
         $now = $this->now();
         $origin = $this->canonicalOrigin();
-        $this->database(function () use ($session, $id, $secret, $now, $origin) {
-            Yii::$app->db->transaction(function () use ($session, $id, $secret, $now, $origin) {
-                $this->cancelStoredCurrentTicket();
-                // Keep recent terminal tickets for deterministic status replies;
-                // prune older records so repeated use cannot grow storage forever.
-                Yii::$app->db->createCommand()->delete(self::TABLE, ['<=', 'expires_at', $now - 86400])->execute();
-                Yii::$app->db->createCommand()->update(self::TABLE, ['status' => 'expired'], ['and', ['status' => ['pending', 'approved']], ['<=', 'expires_at', $now]])->execute();
-                Yii::$app->db->createCommand()->insert(self::TABLE, [
-                    'id' => $id, 'secret_hash' => hash('sha256', $secret),
-                    'owner_hash' => hash('sha256', $session->get(self::OWNER_KEY)),
-                    'audience' => $origin, 'status' => 'pending',
-                    'created_at' => $now, 'expires_at' => $now + self::LIFETIME,
-                ])->execute();
+        $this->auth->tokens->store->withOwnerLock($ownerHash, function () use ($ownerHash, $id, $secret, $now, $origin) {
+            $this->database(function () use ($ownerHash, $id, $secret, $now, $origin) {
+                Yii::$app->db->transaction(function () use ($ownerHash, $id, $secret, $now, $origin) {
+                    Yii::$app->db->createCommand()->update(self::TABLE, ['status' => 'cancelled'], [
+                        'and', ['owner_hash' => $ownerHash, 'audience' => $origin, 'status' => ['pending', 'approved']], ['>', 'expires_at', $now],
+                    ])->execute();
+                    // Keep recent terminal tickets for deterministic status replies;
+                    // prune older records so repeated use cannot grow storage forever.
+                    Yii::$app->db->createCommand()->delete(self::TABLE, ['<=', 'expires_at', $now - 86400])->execute();
+                    Yii::$app->db->createCommand()->update(self::TABLE, ['status' => 'expired'], ['and', ['status' => ['pending', 'approved']], ['<=', 'expires_at', $now]])->execute();
+                    Yii::$app->db->createCommand()->insert(self::TABLE, [
+                        'id' => $id, 'secret_hash' => hash('sha256', $secret),
+                        'owner_hash' => $ownerHash,
+                        'audience' => $origin, 'status' => 'pending',
+                        'created_at' => $now, 'expires_at' => $now + self::LIFETIME,
+                    ])->execute();
+                    $this->auth->tokens->store->assertOwnerLock($ownerHash);
+                });
             });
         });
-        $session->set(self::CURRENT_KEY, $id);
         return [
             'ticketId' => $id,
             'qrText' => 'bujiaban-admin-login://v1/' . $id . '?secret=' . $secret . '&origin=' . rawurlencode($origin),
@@ -66,10 +65,10 @@ class AdminScanLoginService extends Component
 
     public function status(string $id): array
     {
-        $this->auth->session();
-        return $this->database(function () use ($id) {
+        $ownerHash = $this->requireOwnerHash();
+        return $this->database(function () use ($id, $ownerHash) {
             $ticket = $this->ticket($id);
-            $this->requireOwner($ticket);
+            $this->requireOwner($ticket, $ownerHash);
             $this->requireAudience($ticket);
             return $this->state($ticket);
         });
@@ -101,61 +100,60 @@ class AdminScanLoginService extends Component
     public function consume(string $id): array
     {
         $this->requireEnabled();
-        $session = $this->auth->session();
-        $userId = $this->database(function () use ($id, $session) {
-            return Yii::$app->db->transaction(function () use ($id, $session) {
-                $ticket = $this->ticket($id);
-                $this->requireOwner($ticket);
-                $this->requireAudience($ticket);
-                // Check terminal states before current-ticket binding so repeats
-                // return a deterministic expired/consumed/cancelled error.
-                $this->requireState($ticket, 'approved');
-                if ($session->get(self::CURRENT_KEY) !== $id) { throw new HttpException(409, '二维码已被刷新'); }
-                $userId = (int) $ticket['approved_user_id'];
-                $this->auth->requireWechatUser($userId);
-                $changed = Yii::$app->db->createCommand()->update(self::TABLE, ['status' => 'consumed', 'consumed_at' => $this->now()], [
-                    'and', ['id' => $id, 'status' => 'approved', 'owner_hash' => $ticket['owner_hash'], 'audience' => $this->canonicalOrigin(), 'approved_user_id' => $userId], ['>', 'expires_at', $this->now()],
-                ])->execute();
-                if ($changed !== 1) { throw new HttpException(409, '二维码已使用或已过期'); }
-                return $userId;
+        $ownerHash = $this->requireOwnerHash();
+        $userId = $this->auth->tokens->store->withOwnerLock($ownerHash, function () use ($id, $ownerHash) {
+            return $this->database(function () use ($id, $ownerHash) {
+                return Yii::$app->db->transaction(function () use ($id, $ownerHash) {
+                    $ticket = $this->ticket($id);
+                    $this->requireOwner($ticket, $ownerHash);
+                    $this->requireAudience($ticket);
+                    $this->requireState($ticket, 'approved');
+                    $userId = (int) $ticket['approved_user_id'];
+                    $this->auth->requireWechatUser($userId);
+                    $changed = Yii::$app->db->createCommand()->update(self::TABLE, ['status' => 'consumed', 'consumed_at' => $this->now()], [
+                        'and', ['id' => $id, 'status' => 'approved', 'owner_hash' => $ticket['owner_hash'], 'audience' => $this->canonicalOrigin(), 'approved_user_id' => $userId], ['>', 'expires_at', $this->now()],
+                    ])->execute();
+                    if ($changed !== 1) { throw new HttpException(409, '二维码已使用或已过期'); }
+                    $this->auth->tokens->store->assertOwnerLock($ownerHash);
+                    return $userId;
+                });
             });
         });
-        // No login happens on polling or approval. The database transition wins
-        // once; only then may this explicitly requested POST rotate the session.
-        $session->remove(self::CURRENT_KEY);
         return $this->auth->loginWechat($userId);
     }
 
     public function cancel(string $id): array
     {
-        $session = $this->auth->session();
-        return $this->database(function () use ($id, $session) {
-            $ticket = $this->ticket($id);
-            $this->requireOwner($ticket);
-            $this->requireAudience($ticket);
-            Yii::$app->db->createCommand()->update(self::TABLE, ['status' => 'cancelled'], ['id' => $id, 'status' => ['pending', 'approved']])->execute();
-            if ($session->get(self::CURRENT_KEY) === $id) { $session->remove(self::CURRENT_KEY); }
-            return $this->state($this->ticket($id));
+        $ownerHash = $this->requireOwnerHash();
+        return $this->auth->tokens->store->withOwnerLock($ownerHash, function () use ($id, $ownerHash) {
+            return $this->database(function () use ($id, $ownerHash) {
+                return Yii::$app->db->transaction(function () use ($id, $ownerHash) {
+                    $ticket = $this->ticket($id);
+                    $this->requireOwner($ticket, $ownerHash);
+                    $this->requireAudience($ticket);
+                    Yii::$app->db->createCommand()->update(self::TABLE, ['status' => 'cancelled'], ['id' => $id, 'owner_hash' => $ownerHash, 'audience' => $this->canonicalOrigin(), 'status' => ['pending', 'approved']])->execute();
+                    $state = $this->state($this->ticket($id));
+                    $this->auth->tokens->store->assertOwnerLock($ownerHash);
+                    return $state;
+                });
+            });
         });
     }
 
     public function cancelCurrentTicket(): void
     {
-        $session = $this->auth->session();
-        $this->cancelStoredCurrentTicket();
-        $session->remove(self::CURRENT_KEY);
-    }
-
-    private function cancelStoredCurrentTicket(): void
-    {
-        $session = $this->auth->session();
-        $id = $session->get(self::CURRENT_KEY);
-        if (!is_string($id)) { return; }
-        $this->database(function () use ($id, $session) {
-            $owner = $session->get(self::OWNER_KEY);
-            if (is_string($owner)) {
-                Yii::$app->db->createCommand()->update(self::TABLE, ['status' => 'cancelled'], ['id' => $id, 'owner_hash' => hash('sha256', $owner), 'status' => ['pending', 'approved']])->execute();
-            }
+        $ownerHash = $this->ownerHash();
+        $origin = $this->canonicalOrigin();
+        if ($ownerHash === null || $origin === null) { return; }
+        $this->auth->tokens->store->withOwnerLock($ownerHash, function () use ($ownerHash, $origin): void {
+            $this->database(function () use ($ownerHash, $origin): void {
+                Yii::$app->db->transaction(function () use ($ownerHash, $origin): void {
+                    Yii::$app->db->createCommand()->update(self::TABLE, ['status' => 'cancelled'], [
+                        'and', ['owner_hash' => $ownerHash, 'audience' => $origin, 'status' => ['pending', 'approved']], ['>', 'expires_at', $this->now()],
+                    ])->execute();
+                    $this->auth->tokens->store->assertOwnerLock($ownerHash);
+                });
+            });
         });
     }
 
@@ -168,10 +166,23 @@ class AdminScanLoginService extends Component
         return $ticket;
     }
 
-    private function requireOwner(array $ticket): void
+    private function requireOwner(array $ticket, string $ownerHash): void
     {
-        $owner = Yii::$app->session->get(self::OWNER_KEY);
-        if (!is_string($owner) || !hash_equals($ticket['owner_hash'], hash('sha256', $owner))) { throw new HttpException(404, '二维码不存在'); }
+        if (!hash_equals($ticket['owner_hash'], $ownerHash)) { throw new HttpException(404, '二维码不存在'); }
+    }
+
+    private function requireOwnerHash(): string
+    {
+        $ownerHash = $this->ownerHash();
+        if ($ownerHash === null) { throw new HttpException(400, '扫码浏览器凭据无效'); }
+        return $ownerHash;
+    }
+
+    private function ownerHash(): ?string
+    {
+        $proof = Yii::$app->request->headers->get('X-Admin-Scan-Owner');
+        if (!is_string($proof) || !preg_match('/^[a-f0-9]{64}$/D', $proof)) { return null; }
+        return hash('sha256', $proof);
     }
 
     private function requireAudience(array $ticket): void

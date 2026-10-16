@@ -1,13 +1,5 @@
 export type DeviceStatus = 'online' | 'offline' | 'unknown'
 
-export type BackendId = string
-
-export interface BackendOption {
-  readonly id: BackendId
-  readonly name: string
-  readonly host: string
-}
-
 export interface Device {
   id: number
   uuid: string
@@ -27,7 +19,9 @@ export interface Game {
 
 export interface Session {
   user: { username: string; role?: 'admin' | 'device_manager' } | null
-  csrfToken: string
+  csrfToken?: string
+  token?: { accessToken: string; refreshToken: string; expires: string; refreshExpires: string }
+  authMode?: 'jwt' | 'session'
   demo?: boolean
   scanLoginEnabled?: boolean
 }
