@@ -3,6 +3,9 @@
 namespace tests\unit\components;
 
 use app\components\AdminAuthService;
+use app\components\AdminTokenService;
+use tests\fixtures\InMemoryAdminTokenStore;
+use bizley\jwt\Jwt;
 use app\components\AdminDeviceService;
 use app\components\AdminGameCatalog;
 use app\controllers\AdminController;
@@ -14,6 +17,8 @@ use yii\caching\ArrayCache;
 use yii\web\Application;
 use yii\web\BadRequestHttpException;
 use yii\web\HttpException;
+
+require_once dirname(__DIR__, 2) . '/fixtures/InMemoryAdminTokenStore.php';
 
 /** Run independently of the deployment-only api/config directory. */
 class AdminApiTest extends TestCase
@@ -70,7 +75,9 @@ class AdminApiTest extends TestCase
                     'useCookies' => false,
                 ],
                 'db' => ['class' => 'yii\db\Connection', 'dsn' => 'sqlite::memory:'],
+                'user' => ['identityClass' => \app\modules\v2\models\User::class, 'enableSession' => false, 'enableAutoLogin' => false],
                 'cache' => ['class' => ArrayCache::class],
+                'jwt' => ['class' => Jwt::class, 'signer' => Jwt::HS256, 'signingKey' => ['key' => str_repeat('admin-api-test-key-', 3), 'method' => Jwt::METHOD_PLAIN]],
             ],
         ]);
         $db = $this->app->db;
@@ -94,6 +101,7 @@ class AdminApiTest extends TestCase
         ])->execute();
         // Tests deliberately use separate credentials, never the deployment password.
         $this->auth = new AdminAuthService([
+            'tokens' => new AdminTokenService(['jwt' => 'jwt', 'store' => new InMemoryAdminTokenStore()]),
             'username' => 'test-admin',
             'passwordHash' => password_hash('test-only-password', PASSWORD_DEFAULT),
             'cache' => new ArrayCache(),
@@ -142,16 +150,18 @@ class AdminApiTest extends TestCase
         @rmdir($this->runtime);
     }
 
-    public function testLoginRotatesSessionAndLogoutClearsOnlyAdminIdentity(): void
+    public function testLoginReturnsAdminJwtAndLogoutImmediatelyRevokesItWithoutPhpSession(): void
     {
-        $this->app->session->set('wechat-user', 42);
-        $before = $this->app->session->id;
-        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $this->auth->login('test-admin', 'test-only-password'));
-        $this->assertNotSame($before, $this->app->session->id);
-        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $this->auth->getUser());
-        $this->auth->logout();
-        $this->assertNull($this->auth->getUser());
-        $this->assertSame(42, $this->app->session->get('wechat-user'));
+        $before = session_status();
+        $result = $this->authenticate();
+        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $result['user']);
+        $this->assertSame('jwt', $result['authMode']);
+        $this->assertNotEmpty($result['token']['refreshToken']);
+        $this->assertSame($before, session_status());
+        $this->assertSame($result['user'], $this->auth->getUser());
+        $this->auth->logout($result['token']['refreshToken']);
+        $this->expectException(HttpException::class);
+        $this->auth->getUser();
     }
 
     public function testIncorrectPasswordAndUsernameShareGenericFailure(): void
@@ -180,37 +190,62 @@ class AdminApiTest extends TestCase
         $this->expectException(HttpException::class);
         $this->expectExceptionCode(0);
         try {
-            $this->auth->login('test-admin', 'test-only-password');
+            $this->authenticate();
         } catch (HttpException $e) {
             $this->assertSame(429, $e->statusCode);
             throw $e;
         }
     }
 
-    public function testExpiredAdminSessionIsRejected(): void
+    public function testPasswordFailureLimitIsSharedAcrossAuthServiceInstancesAndSuccessClearsIt(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
-        $identity = $this->app->session->get(AdminAuthService::SESSION_KEY);
-        $identity['expiresAt'] = time() - 1;
-        $this->app->session->set(AdminAuthService::SESSION_KEY, $identity);
-        $this->assertNull($this->auth->getUser());
-        $this->assertFalse($this->app->session->has(AdminAuthService::SESSION_KEY));
+        $store = $this->auth->tokens->store;
+        $second = new AdminAuthService([
+            'tokens' => new AdminTokenService(['jwt' => 'jwt', 'store' => $store]),
+            'username' => 'test-admin', 'passwordHash' => $this->auth->passwordHash,
+            'cache' => new ArrayCache(),
+        ]);
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            try { ($attempt % 2 ? $this->auth : $second)->login('wrong-' . $attempt, 'incorrect'); }
+            catch (HttpException $e) { $this->assertSame(401, $e->statusCode); }
+        }
+        try { $second->login('test-admin', 'incorrect'); $this->fail('A second node must see the shared limit.'); }
+        catch (HttpException $e) {
+            $this->assertSame(429, $e->statusCode);
+            $this->assertGreaterThan(0, (int) Yii::$app->response->headers->get('Retry-After'));
+        }
+        try { $this->auth->login('test-admin', 'test-only-password'); $this->fail('The saturated window must remain blocked until expiry.'); }
+        catch (HttpException $e) { $this->assertSame(429, $e->statusCode); }
+        $clearStore = new InMemoryAdminTokenStore();
+        $clearAuth = new AdminAuthService(['tokens' => new AdminTokenService(['jwt' => 'jwt', 'store' => $clearStore]), 'username' => 'test-admin', 'passwordHash' => $this->auth->passwordHash, 'cache' => new ArrayCache()]);
+        try { $clearAuth->login('test-admin', 'incorrect'); } catch (HttpException $e) { $this->assertSame(401, $e->statusCode); }
+        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $clearAuth->login('test-admin', 'test-only-password')['user']);
+        try { $clearAuth->login('test-admin', 'incorrect'); }
+        catch (HttpException $e) { $this->assertSame(401, $e->statusCode); return; }
+        $this->fail('Successful authentication must clear the shared failure window.');
     }
 
-    public function testAdminSessionHasAnEightHourAbsoluteDeadline(): void
+    public function testChangingPasswordInvalidatesExistingJwtAndRefresh(): void
     {
-        $now = time();
-        $this->auth->login('test-admin', 'test-only-password');
-        $identity = $this->app->session->get(AdminAuthService::SESSION_KEY);
-        $this->assertGreaterThanOrEqual($now + 28800, $identity['expiresAt']);
-        $this->assertLessThanOrEqual(time() + 28800, $identity['expiresAt']);
+        $result = $this->authenticate();
+        $this->auth->passwordHash = password_hash('replacement-password', PASSWORD_DEFAULT);
+        try { $this->auth->getUser(); $this->fail('Changed credentials must reject the old bearer.'); } catch (HttpException $e) { $this->assertSame(401, $e->statusCode); }
+        $this->expectException(HttpException::class);
+        $this->auth->refresh($result['token']['refreshToken']);
+    }
+
+    public function testAdminJwtHasAnEightHourAbsoluteDeadline(): void
+    {
+        $now = time(); $result = $this->authenticate();
+        $this->assertGreaterThanOrEqual($now + 28800, strtotime($result['token']['refreshExpires']));
+        $this->assertLessThanOrEqual(time() + 28800, strtotime($result['token']['refreshExpires']));
     }
 
     public function testAuthenticationDoesNotNeedTheApplicationRedisCache(): void
     {
         $this->app->set('cache', ['class' => 'yii\\redis\\Cache', 'redis' => ['class' => 'yii\\redis\\Connection', 'hostname' => 'unavailable.invalid']]);
-        $auth = new AdminAuthService(['username' => 'test-admin', 'passwordHash' => $this->auth->passwordHash]);
-        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $auth->login('test-admin', 'test-only-password'));
+        $auth = new AdminAuthService(['tokens' => $this->auth->tokens, 'username' => 'test-admin', 'passwordHash' => $this->auth->passwordHash]);
+        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $auth->login('test-admin', 'test-only-password')['user']);
     }
 
     public function testCredentialsCanBeOverriddenByEnvironment(): void
@@ -220,41 +255,28 @@ class AdminApiTest extends TestCase
         putenv('ADMIN_USERNAME=environment-admin');
         putenv('ADMIN_PASSWORD_HASH=' . password_hash('environment-test-password', PASSWORD_DEFAULT));
         try {
-            $auth = new AdminAuthService(['cache' => new ArrayCache()]);
-            $this->assertSame(['username' => 'environment-admin', 'role' => 'admin'], $auth->login('environment-admin', 'environment-test-password'));
+            $auth = new AdminAuthService(['tokens' => $this->auth->tokens, 'cache' => new ArrayCache()]);
+            $this->assertSame(['username' => 'environment-admin', 'role' => 'admin'], $auth->login('environment-admin', 'environment-test-password')['user']);
         } finally {
             putenv($originalUsername === false ? 'ADMIN_USERNAME' : 'ADMIN_USERNAME=' . $originalUsername);
             putenv($originalHash === false ? 'ADMIN_PASSWORD_HASH' : 'ADMIN_PASSWORD_HASH=' . $originalHash);
         }
     }
 
-    public function testAlreadyStartedSessionReceivesSecureCookiesWithoutLosingBootstrapData(): void
+    public function testAdminAuthenticationDoesNotOpenOrAlterPhpSession(): void
     {
-        $_SERVER['HTTPS'] = 'on';
-        $session = $this->app->session;
-        $session->setUseCookies(true);
-        $session->setTimeout(60);
-        $session->setUseStrictMode(false);
-        $session->setCookieParams(['secure' => false, 'httponly' => false, 'samesite' => '']);
-        $session->set('bootstrap-data', 'keep-me');
-        $this->assertTrue($session->isActive);
-
+        $before = session_status(); $id = session_id();
         $this->assertNull($this->auth->getUser());
-
-        $actualParameters = session_get_cookie_params();
-        $this->assertTrue($actualParameters['secure']);
-        $this->assertTrue($actualParameters['httponly']);
-        $this->assertSame('Lax', $actualParameters['samesite']);
-        $this->assertSame(28800, $session->getTimeout());
-        $this->assertTrue($session->getUseStrictMode());
-        $this->assertSame('keep-me', $session->get('bootstrap-data'));
+        $this->authenticate();
+        $this->assertSame($before, session_status());
+        $this->assertSame($id, session_id());
     }
 
-    public function testSessionEndpointReturnsCsrfAndNoIdentityBeforeLogin(): void
+    public function testSessionEndpointIsPublicAndDescribesJwtWithoutCsrfOrCookieIdentity(): void
     {
         $result = $this->controller()->runAction('session');
-        $this->assertNull($result['user']);
-        $this->assertNotEmpty($result['csrfToken']);
+        $this->assertNull($result['user']); $this->assertSame('jwt', $result['authMode']);
+        $this->assertArrayNotHasKey('csrfToken', $result);
         $this->assertSame('json', $this->app->response->format);
         $this->assertSame('no-store', $this->app->response->headers->get('Cache-Control'));
     }
@@ -271,40 +293,38 @@ class AdminApiTest extends TestCase
         }
     }
 
-    public function testLoginRequiresCsrfEvenWithValidCredentials(): void
+    public function testLoginAcceptsJsonCredentialsWithoutCsrfAndReturnsJwt(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'POST';
-        $this->app->request->setBodyParams(['username' => 'test-admin', 'password' => 'test-only-password']);
-        $this->expectException(BadRequestHttpException::class);
-        $this->controller()->runAction('login');
-    }
-
-    public function testLoginAcceptsCsrfHeaderAndReturnsFreshCsrf(): void
-    {
-        $initial = $this->controller()->runAction('session');
-        $_SERVER['REQUEST_METHOD'] = 'POST';
-        $this->app->request->headers->set('X-CSRF-Token', $initial['csrfToken']);
         $this->app->request->setBodyParams(['username' => 'test-admin', 'password' => 'test-only-password']);
         $result = $this->controller()->runAction('login');
-        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $result['user']);
-        $this->assertNotSame($initial['csrfToken'], $result['csrfToken']);
+        $this->assertSame('admin', $result['user']['role']); $this->assertSame('jwt', $result['authMode']);
+        $this->assertNotEmpty($result['token']['accessToken']); $this->assertArrayNotHasKey('csrfToken', $result);
     }
 
-    public function testLogoutUsesPostAndCsrfAndClearsAuthentication(): void
+    public function testRefreshEndpointAtomicallyRotatesTheSuppliedRefreshToken(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
-        $_SERVER['REQUEST_METHOD'] = 'POST';
-        $token = $this->app->request->getCsrfToken();
-        $this->app->request->headers->set('X-CSRF-Token', $token);
+        $initial = $this->authenticate(); $_SERVER['REQUEST_METHOD'] = 'POST';
+        $this->app->request->setBodyParams(['refreshToken' => $initial['token']['refreshToken']]);
+        $result = $this->controller()->runAction('refresh');
+        $this->assertSame($initial['user'], $result['user']);
+        $this->assertNotSame($initial['token']['refreshToken'], $result['token']['refreshToken']);
+        $this->assertSame($initial['token']['refreshExpires'], $result['token']['refreshExpires']);
+        $this->expectException(HttpException::class); $this->controller()->runAction('refresh');
+    }
+
+    public function testLogoutUsesPostAndRefreshTokenAndRevokesTheFamily(): void
+    {
+        $initial = $this->authenticate(); $_SERVER['REQUEST_METHOD'] = 'POST';
+        $this->app->request->setBodyParams(['refreshToken' => $initial['token']['refreshToken']]);
         $result = $this->controller()->runAction('logout');
-        $this->assertNull($result['user']);
-        $this->assertNull($this->auth->getUser());
-        $this->assertNotSame($token, $result['csrfToken']);
+        $this->assertNull($result['user']); $this->assertSame('jwt', $result['authMode']);
+        $this->expectException(HttpException::class); $this->auth->getUser();
     }
 
     public function testReadingDevicesDoesNotCreateSetupOrInventOnlineState(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
+        $this->authenticate();
         $result = $this->controller()->runAction('devices');
         $this->assertCount(2, $result);
         $this->assertSame(1, $result[0]['id']);
@@ -351,7 +371,7 @@ class AdminApiTest extends TestCase
 
     public function testInvalidGameDoesNotChangeExistingSetup(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
+        $this->authenticate();
         try {
             $this->devices->assignGame(1, 999999);
             $this->fail('Unknown scene must be rejected.');
@@ -363,7 +383,7 @@ class AdminApiTest extends TestCase
 
     public function testAssigningGameUpdatesOnlySceneAndKeepsOtherSetupFields(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
+        $this->authenticate();
         $before = $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne();
         $result = $this->devices->assignGame(1, 700);
         $this->assertSame(700, $result['gameId']);
@@ -375,7 +395,7 @@ class AdminApiTest extends TestCase
 
     public function testAssigningGameCreatesMissingSetupInTransaction(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
+        $this->authenticate();
         $transaction = $this->app->db->getTransaction();
         $initialLevel = $transaction === null ? 0 : $transaction->level;
         $insertLevel = null;
@@ -399,7 +419,7 @@ class AdminApiTest extends TestCase
 
     public function testFirstAssignmentPreservesExistingDeviceProtocolDefaults(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
+        $this->authenticate();
         $beforeInfo = Server::getInfo('device-b');
         $this->assertSame('未知', $beforeInfo['title']);
         $this->assertCount(4, $beforeInfo['pictures']);
@@ -422,7 +442,7 @@ class AdminApiTest extends TestCase
 
     public function testAssignmentReturnsPersistedTimestampConsistentWithNextRead(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
+        $this->authenticate();
         foreach ([1, 2] as $deviceId) {
             $result = $this->devices->assignGame($deviceId, 700);
             $this->assertSame('2026-10-11 15:00:00', $result['updatedAt']);
@@ -433,7 +453,7 @@ class AdminApiTest extends TestCase
 
     public function testDatabaseFailureRollsBackSetupAndDoesNotLeakSql(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
+        $this->authenticate();
         $transaction = $this->app->db->getTransaction();
         $initialLevel = $transaction === null ? 0 : $transaction->level;
         // FAIL preserves an already-inserted row unless the service rolls back;
@@ -454,7 +474,7 @@ class AdminApiTest extends TestCase
 
     public function testUpdatingUnknownDeviceReturns404(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
+        $this->authenticate();
         $this->expectException(HttpException::class);
         try {
             $this->devices->assignGame(999, 700);
@@ -464,11 +484,10 @@ class AdminApiTest extends TestCase
         }
     }
 
-    public function testUpdatingGameRequiresNumericJsonIdAndCsrf(): void
+    public function testBearerMutationStillRequiresNumericJsonGameId(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
+        $this->authenticate();
         $_SERVER['REQUEST_METHOD'] = 'PUT';
-        $this->app->request->headers->set('X-CSRF-Token', $this->app->request->getCsrfToken());
         $this->app->request->setBodyParams(['gameId' => '700']);
         $this->expectException(HttpException::class);
         try {
@@ -479,25 +498,21 @@ class AdminApiTest extends TestCase
         }
     }
 
-    public function testUpdatingGameWithoutCsrfDoesNotModifyDevice(): void
+    public function testCookieOrCsrfAloneCannotAuthorizeDeviceMutation(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
         $_SERVER['REQUEST_METHOD'] = 'PUT';
+        $this->app->session->set('__id', 123);
+        $this->app->request->headers->set('X-CSRF-Token', 'unrelated-cookie-token');
         $this->app->request->setBodyParams(['gameId' => 700]);
-        try {
-            $this->controller()->runAction('set-game', ['id' => 1]);
-            $this->fail('CSRF must protect updates.');
-        } catch (BadRequestHttpException $e) {
-            $this->assertSame(400, $e->statusCode);
-        }
+        try { $this->controller()->runAction('set-game', ['id' => 1]); $this->fail('Bearer is required.'); }
+        catch (HttpException $e) { $this->assertSame(401, $e->statusCode); }
         $this->assertSame(638, (int) $this->app->db->createCommand('SELECT scene_id FROM setup WHERE device_id = 1')->queryScalar());
     }
 
     public function testAuthenticatedPutReturnsUpdatedDevice(): void
     {
-        $this->auth->login('test-admin', 'test-only-password');
+        $this->authenticate();
         $_SERVER['REQUEST_METHOD'] = 'PUT';
-        $this->app->request->headers->set('X-CSRF-Token', $this->app->request->getCsrfToken());
         $this->app->request->setBodyParams(['gameId' => 700]);
         $result = $this->controller()->runAction('set-game', ['id' => 1]);
         $this->assertSame(1, $result['id']);
@@ -514,6 +529,7 @@ class AdminApiTest extends TestCase
             ['GET', 'admin-api/session', 'admin/session', []],
             ['POST', 'admin-api/login', 'admin/login', []],
             ['POST', 'admin-api/logout', 'admin/logout', []],
+            ['POST', 'admin-api/refresh', 'admin/refresh', []],
             ['GET', 'admin-api/devices', 'admin/devices', []],
             ['GET', 'admin-api/games', 'admin/games', []],
             ['PUT', 'admin-api/devices/42/game', 'admin/set-game', ['id' => '42']],
@@ -579,7 +595,7 @@ class AdminApiTest extends TestCase
     public function testErrorHandlerKeepsCsrfAndAuthenticationErrorsAsJsonWithSiteErrorConfigured(): void
     {
         $this->app->errorHandler->errorAction = 'site/error';
-        foreach ([['POST', 'login', 400], ['GET', 'devices', 401]] as $case) {
+        foreach ([['POST', 'login', 422], ['GET', 'devices', 401]] as $case) {
             $_SERVER['REQUEST_METHOD'] = $case[0];
             $response = $this->app->response;
             $response->format = 'html';
@@ -604,6 +620,13 @@ class AdminApiTest extends TestCase
                 $this->assertArrayNotHasKey('stack-trace', $json);
             }
         }
+    }
+
+    private function authenticate(): array
+    {
+        $result = $this->auth->login('test-admin', 'test-only-password');
+        $this->app->request->headers->set('Authorization', 'Bearer ' . $result['token']['accessToken']);
+        return $result;
     }
 
     private function controller(): AdminController

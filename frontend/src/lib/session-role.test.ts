@@ -12,7 +12,6 @@ describe('device management permission presentation', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.stubEnv('MODE', 'production')
-    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {} })
     fetchMock.mockReset()
     vi.stubGlobal('fetch', fetchMock)
   })
@@ -31,8 +30,8 @@ describe('device management permission presentation', () => {
     }
     const render = () => renderToString(createSSRApp(component))
     await render()
-    fetchMock.mockResolvedValueOnce(response({ backends: [{ id: 'b0', name: '后端', host: 'example.test' }] }))
-    fetchMock.mockResolvedValueOnce(response({ user: { username: '用户', ...(role ? { role } : {}) }, csrfToken: 'token' }))
+    fetchMock.mockResolvedValueOnce(response({ apiBase: '/api/admin-api', automatic: true, auth: 'jwt' }))
+    fetchMock.mockResolvedValueOnce(response({ user: { username: '用户', ...(role ? { role } : {}) }, authMode: 'jwt' }))
     fetchMock.mockResolvedValueOnce(response([]))
     fetchMock.mockResolvedValueOnce(response([]))
     await (state!.initializeWorkspace as () => Promise<void>)()
@@ -57,10 +56,10 @@ describe('device management permission presentation', () => {
   })
 
   it('explains that WeChat login manages associated devices without claiming administrator access', async () => {
-    const html = await renderToString(createSSRApp({ render: () => h(LoginView, { busy: false, error: '', demo: false, backend: 'b0', scanLoginEnabled: true }) }))
+    const html = await renderToString(createSSRApp({ render: () => h(LoginView, { busy: false, error: '', demo: false, scanLoginEnabled: true }) }))
     expect(html).toContain('微信扫码仅可管理自己关联的设备')
     expect(html).not.toContain('仅指定微信管理员')
-    const qr = await renderToString(createSSRApp({ render: () => h(ScanLogin, { backend: 'b0' }) }))
+    const qr = await renderToString(createSSRApp({ render: () => h(ScanLogin) }))
     expect(qr).toContain('登录后仅可管理当前微信账号关联的设备')
     expect(qr).toContain('我的 → 扫码登录设备后台')
     expect(qr).not.toContain('指定微信管理员')

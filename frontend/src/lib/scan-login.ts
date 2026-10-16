@@ -5,10 +5,9 @@ export interface ScanLoginApi {
   get(ticketId: string): Promise<ScanLoginTicketStatus>
   consume(ticketId: string): Promise<Session>
   cancel(ticketId: string): Promise<unknown>
-  session(): Promise<Session>
 }
 export interface ScanLoginState {
-  phase: 'idle' | 'creating' | 'pending' | 'consuming' | 'reconciling' | 'expired' | 'cancelled' | 'consumed' | 'error'
+  phase: 'idle' | 'creating' | 'pending' | 'consuming' | 'expired' | 'cancelled' | 'consumed' | 'error'
   ticket: ScanLoginTicket | null
   error: string
 }
@@ -24,8 +23,6 @@ export function createScanLoginController(options: ScanLoginOptions) {
   let generation = 0
   let disposed = false
   let consuming = false
-  let reconciling = false
-  let consumeError: unknown
   let timer: ReturnType<typeof setTimeout> | undefined
   const active = (version: number) => !disposed && generation === version
 
@@ -49,25 +46,12 @@ export function createScanLoginController(options: ScanLoginOptions) {
         if (session.user) {
           update('consumed')
           options.onSession(session)
-        } else update('error', state.ticket, consumeError instanceof Error ? consumeError.message : '登录未成功，请刷新二维码后重试。')
+        } else update('error', state.ticket, '登录未成功，请刷新二维码后重试。')
       }
     } finally {
       consuming = false
-      consumeError = undefined
       options.onConsumeBusy(false)
     }
-  }
-  async function reconcile(version: number) {
-    if (reconciling) return
-    reconciling = true
-    if (active(version)) update('reconciling')
-    try {
-      // A timed-out consume may already have committed its cookie. Resolve that
-      // Session on the same backend before allowing another authentication action.
-      finishSession(await options.api.session(), version)
-    } catch {
-      if (active(version)) update('reconciling', state.ticket, '暂时无法确认登录状态，请重试确认。')
-    } finally { reconciling = false }
   }
   async function consume(ticket: ScanLoginTicket, version: number) {
     consuming = true
@@ -76,8 +60,10 @@ export function createScanLoginController(options: ScanLoginOptions) {
     try {
       finishSession(await options.api.consume(ticket.ticketId), version)
     } catch (error) {
-      consumeError = error
-      await reconcile(version)
+      const confirmedFailure = error instanceof Error && 'status' in error && typeof error.status === 'number' && error.status >= 400
+      if (active(version)) update('error', ticket, confirmedFailure ? error.message : '登录结果无法确认，请刷新二维码后重新扫码。')
+      consuming = false
+      options.onConsumeBusy(false)
     }
   }
   function schedule(ticket: ScanLoginTicket, version: number) {
@@ -112,14 +98,11 @@ export function createScanLoginController(options: ScanLoginOptions) {
       if (active(version)) update('error', null, error instanceof Error ? error.message : '无法生成二维码，请重试。')
     }
   }
-  async function retrySession() {
-    if (!disposed && consuming && consumeError !== undefined) await reconcile(generation)
-  }
   function dispose() {
     if (disposed) return
     retire()
     disposed = true
-    // An outstanding consume keeps the lock until its cookie/Session settles.
+    // A completed consume response is required before this tab accepts a login.
   }
-  return { refresh, retrySession, dispose }
+  return { refresh, dispose }
 }

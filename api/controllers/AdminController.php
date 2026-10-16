@@ -15,6 +15,7 @@ use yii\web\UnprocessableEntityHttpException;
 
 class AdminController extends Controller
 {
+    public $enableCsrfValidation = false;
     public $auth;
     public $devices;
     public $catalog;
@@ -35,7 +36,7 @@ class AdminController extends Controller
             'verbs' => [
                 'class' => VerbFilter::class,
                 'actions' => [
-                    'session' => ['GET'], 'login' => ['POST'], 'logout' => ['POST'],
+                    'session' => ['GET'], 'login' => ['POST'], 'refresh' => ['POST'], 'logout' => ['POST'],
                     'devices' => ['GET'], 'games' => ['GET'], 'set-game' => ['PUT'],
                     'scan-login-create' => ['POST'], 'scan-login-status' => ['GET'],
                     'scan-login-consume' => ['POST'], 'scan-login-cancel' => ['POST'],
@@ -48,13 +49,14 @@ class AdminController extends Controller
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
         Yii::$app->response->headers->set('Cache-Control', 'no-store');
-        Yii::$app->request->csrfCookie = array_merge(Yii::$app->request->csrfCookie, [
-            'httpOnly' => true, 'sameSite' => 'Lax', 'secure' => Yii::$app->request->isSecureConnection,
-        ]);
+        // V1/V2 retain their own user component and credentials. Admin requests
+        // never restore a browser cookie identity through Yii's user component.
+        Yii::$app->user->enableSession = false;
+        Yii::$app->user->enableAutoLogin = false;
         if (!parent::beforeAction($action)) {
             return false;
         }
-        if (!in_array($action->id, ['session', 'login', 'logout', 'scan-login-create', 'scan-login-status', 'scan-login-consume', 'scan-login-cancel'], true) && $this->auth->getUser() === null) {
+        if (!in_array($action->id, ['session', 'login', 'refresh', 'logout', 'scan-login-create', 'scan-login-status', 'scan-login-consume', 'scan-login-cancel'], true) && $this->auth->getUser() === null) {
             throw new UnauthorizedHttpException('请先登录管理后台');
         }
         return true;
@@ -62,7 +64,7 @@ class AdminController extends Controller
 
     public function actionSession(): array
     {
-        return ['user' => $this->auth->getUser(), 'csrfToken' => Yii::$app->request->getCsrfToken(), 'scanLoginEnabled' => $this->scanLogin->isEnabled()];
+        return ['user' => $this->auth->getUser(), 'scanLoginEnabled' => $this->scanLogin->isEnabled(), 'authMode' => 'jwt'];
     }
 
     public function actionScanLoginCreate(): array { return $this->scanLogin->createTicket(); }
@@ -70,8 +72,7 @@ class AdminController extends Controller
     public function actionScanLoginCancel(string $id): array { return $this->scanLogin->cancel($id); }
     public function actionScanLoginConsume(string $id): array
     {
-        $user = $this->scanLogin->consume($id);
-        return ['user' => $user, 'csrfToken' => Yii::$app->request->getCsrfToken(true)];
+        return $this->scanLogin->consume($id);
     }
 
     public function actionLogin(): array
@@ -81,14 +82,22 @@ class AdminController extends Controller
             || strlen($body['username']) > 255 || strlen($body['password']) > 1024) {
             throw new UnprocessableEntityHttpException('请输入用户名和密码');
         }
-        $user = $this->auth->login($body['username'], $body['password']);
-        return ['user' => $user, 'csrfToken' => Yii::$app->request->getCsrfToken(true)];
+        return $this->auth->login($body['username'], $body['password']);
+    }
+
+    public function actionRefresh(): array
+    {
+        $refresh = Yii::$app->request->getBodyParam('refreshToken');
+        if (!is_string($refresh) || $refresh === '') { throw new UnprocessableEntityHttpException('请提供刷新令牌'); }
+        return $this->auth->refresh($refresh);
     }
 
     public function actionLogout(): array
     {
-        $this->auth->logout();
-        return ['user' => null, 'csrfToken' => Yii::$app->request->getCsrfToken(true)];
+        $refresh = Yii::$app->request->getBodyParam('refreshToken');
+        if ($refresh !== null && !is_string($refresh)) { throw new UnprocessableEntityHttpException('刷新令牌格式不正确'); }
+        $this->auth->logout($refresh);
+        return ['user' => null, 'authMode' => 'jwt'];
     }
 
     public function actionDevices(): array

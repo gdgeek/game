@@ -6,6 +6,7 @@ use app\components\AdminAuthService;
 use app\components\AdminScanLoginService;
 use app\components\AdminDeviceService;
 use app\components\AdminGameCatalog;
+use app\components\AdminTokenService;
 use app\controllers\AdminController;
 use app\modules\v2\controllers\SiteController;
 use app\modules\v2\controllers\WebLoginController;
@@ -20,6 +21,8 @@ use yii\caching\ArrayCache;
 use yii\web\Application;
 use yii\web\HttpException;
 
+require_once dirname(__DIR__, 2) . '/fixtures/InMemoryAdminTokenStore.php';
+
 class AdminScanLoginTest extends TestCase
 {
     private $app;
@@ -30,6 +33,9 @@ class AdminScanLoginTest extends TestCase
     private $original;
     private $devices;
     private $catalog;
+    private $ownerProof;
+    private $tokenStore;
+    private $originalScanOrigin;
 
     protected function setUp(): void
     {
@@ -77,7 +83,12 @@ class AdminScanLoginTest extends TestCase
         $migration = new \m261011_120000_create_admin_scan_login_ticket_table(['db' => $this->app->db, 'compact' => true]);
         $migration->safeUp();
         $this->now = time();
-        $this->auth = new AdminAuthService(['username' => 'test-admin', 'passwordHash' => password_hash('test-password', PASSWORD_DEFAULT), 'cache' => new ArrayCache()]);
+        $this->originalScanOrigin = getenv('ADMIN_SCAN_LOGIN_ORIGIN');
+        putenv('ADMIN_SCAN_LOGIN_ORIGIN=https://b0.example.com');
+        $this->tokenStore = new ScanOwnerLockTestStore();
+        $this->ownerProof = bin2hex(random_bytes(32));
+        $this->app->request->headers->set('X-Admin-Scan-Owner', $this->ownerProof);
+        $this->auth = new AdminAuthService(['username' => 'test-admin', 'passwordHash' => password_hash('test-password', PASSWORD_DEFAULT), 'cache' => new ArrayCache(), 'tokens' => new AdminTokenService(['store' => $this->tokenStore, 'jwt' => 'jwt'])]);
         $this->scan = new AdminScanLoginService(['auth' => $this->auth, 'origin' => 'https://b0.example.com', 'clock' => function () { return $this->now; }]);
         $this->catalog = new AdminGameCatalog(['cache' => new ArrayCache(), 'loader' => static function () { return [['verse_id' => 700, 'name' => '游戏']]; }]);
         $this->devices = new AdminDeviceService(['catalog' => $this->catalog, 'auth' => $this->auth]);
@@ -92,6 +103,8 @@ class AdminScanLoginTest extends TestCase
             $this->app->errorHandler->unregister();
         }
         [Yii::$app, Yii::$aliases, $_SERVER] = array_slice($this->original, 0, 3);
+        if ($this->originalScanOrigin === false) { putenv('ADMIN_SCAN_LOGIN_ORIGIN'); }
+        else { putenv('ADMIN_SCAN_LOGIN_ORIGIN=' . $this->originalScanOrigin); }
         foreach ($this->original[3] as $name => $value) { if (ini_get($name) !== $value) { ini_set($name, $value); } }
         session_id($this->original[4]);
         if ($this->original[7]) { session_start(); }
@@ -100,7 +113,7 @@ class AdminScanLoginTest extends TestCase
         rmdir($this->runtime);
     }
 
-    public function testFullFlowHashesSecretsAndOnlyConsumeCreatesRotatedSession(): void
+    public function testFullFlowHashesSecretsAndOnlyConsumeIssuesJwt(): void
     {
         $ticket = $this->scan->createTicket();
         $this->assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $ticket['ticketId']);
@@ -116,46 +129,83 @@ class AdminScanLoginTest extends TestCase
         $this->scan->approve($ticket['ticketId'], $query['secret'], 42);
         $this->assertSame('approved', $this->scan->status($ticket['ticketId'])['status']);
         $this->assertNull($this->auth->getUser());
-        $before = $this->app->session->id;
-        $user = $this->scan->consume($ticket['ticketId']);
-        $this->assertSame(['username' => 'wechat:42', 'role' => 'device_manager'], $user);
-        $this->assertSame($user, $this->auth->getUser());
-        $this->assertNotSame($before, $this->app->session->id);
+        $login = $this->scan->consume($ticket['ticketId']);
+        $this->assertSame(['username' => 'wechat:42', 'role' => 'device_manager'], $login['user']);
+        $this->assertSame('jwt', $login['authMode']);
+        $this->assertArrayHasKey('accessToken', $login['token']);
+        $this->authenticate($login);
+        $this->assertSame($login['user'], $this->auth->getUser());
         $this->assertSame('consumed', $this->row($ticket)['status']);
         $this->assertHttp(409, function () use ($ticket) { $this->scan->consume($ticket['ticketId']); });
+    }
+
+    public function testOwnerProofIsRequiredAndHashedInsteadOfUsingSessionState(): void
+    {
+        $this->app->request->headers->remove('X-Admin-Scan-Owner');
+        $this->assertHttp(400, function () { $this->scan->createTicket(); });
+        $this->app->request->headers->set('X-Admin-Scan-Owner', 'not-a-proof');
+        $this->assertHttp(400, function () { $this->scan->createTicket(); });
+        $this->app->request->headers->set('X-Admin-Scan-Owner', $this->ownerProof);
+
+        $ticket = $this->scan->createTicket();
+        $this->assertSame(1, $this->tokenStore->ownerLockCalls);
+        $this->assertSame(hash('sha256', $this->ownerProof), $this->row($ticket)['owner_hash']);
+        $this->assertStringNotContainsString($this->ownerProof, $ticket['qrText']);
+        $this->assertStringNotContainsString($this->ownerProof, json_encode($this->row($ticket)));
+
+        $this->app->request->headers->set('X-Admin-Scan-Owner', bin2hex(random_bytes(32)));
+        $this->assertHttp(404, function () use ($ticket) { $this->scan->status($ticket['ticketId']); });
+    }
+
+    public function testOwnerProofSharesCurrentTicketAcrossServiceInstancesAndNoProofLoginIsNoop(): void
+    {
+        $ticket = $this->scan->createTicket();
+        $secondNode = new AdminScanLoginService(['auth' => $this->auth, 'origin' => 'https://b0.example.com']);
+        $this->assertSame('pending', $secondNode->status($ticket['ticketId'])['status']);
+
+        $this->app->request->headers->remove('X-Admin-Scan-Owner');
+        $this->auth->login('test-admin', 'test-password');
+        $this->assertSame('pending', $this->row($ticket)['status']);
+
+        $this->app->request->headers->set('X-Admin-Scan-Owner', $this->ownerProof);
+        $replacement = $secondNode->createTicket();
+        $this->assertSame('cancelled', $this->row($ticket)['status']);
+        $this->assertSame('pending', $secondNode->status($replacement['ticketId'])['status']);
+        $this->auth->login('test-admin', 'test-password');
+        $this->assertSame('cancelled', $this->row($replacement)['status']);
+        $this->assertSame(3, $this->tokenStore->ownerLockCalls);
     }
 
     public function testOtherBrowserCannotReadConsumeOrCancel(): void
     {
         $ticket = $this->scan->createTicket();
         $this->scan->approve($ticket['ticketId'], $this->query($ticket)['secret'], 42);
-        $sessionData = $_SESSION;
-        $_SESSION = [];
+        $this->app->request->headers->set('X-Admin-Scan-Owner', bin2hex(random_bytes(32)));
         foreach (['status', 'consume', 'cancel'] as $method) {
             $this->assertHttp(404, function () use ($ticket, $method) { $this->scan->$method($ticket['ticketId']); });
         }
-        $_SESSION = $sessionData;
+        $this->app->request->headers->set('X-Admin-Scan-Owner', $this->ownerProof);
         $this->assertSame('approved', $this->scan->status($ticket['ticketId'])['status']);
     }
 
-    public function testWechatSessionIsAlwaysDeviceManagerAndOnlyOwnsLinkedDevices(): void
+    public function testWechatJwtIsAlwaysDeviceManagerAndOnlyOwnsLinkedDevices(): void
     {
-        $this->auth->loginWechat(42);
+        $login = $this->auth->loginWechat(42);
+        $this->authenticate($login);
         $this->assertSame(['username' => 'wechat:42', 'role' => 'device_manager'], $this->auth->getUser());
         $this->assertSame([1], array_column($this->devices->getDevices(), 'id'));
         $this->assertSame(700, $this->devices->assignGame(1, 700)['gameId']);
         $this->assertHttp(404, function () { $this->devices->assignGame(2, 700); });
         $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM setup')->queryScalar());
-        $identity = $this->app->session->get(AdminAuthService::SESSION_KEY);
-        $identity['role'] = 'admin';
-        $this->app->session->set(AdminAuthService::SESSION_KEY, $identity);
+        $sid = $this->app->jwt->parse($login['token']['accessToken'])->claims()->get('sid');
+        $this->tokenStore->records[$sid]['identity']['role'] = 'admin';
         $this->assertSame('device_manager', $this->auth->getUser()['role']);
         $this->assertSame([1], array_column($this->devices->getDevices(), 'id'));
     }
 
     public function testControlRevocationImmediatelyRemovesReadAndWriteAccess(): void
     {
-        $this->auth->loginWechat(42);
+        $this->authenticate($this->auth->loginWechat(42));
         $this->assertSame([1], array_column($this->devices->getDevices(), 'id'));
         $this->app->db->createCommand()->delete('control', ['user_id' => 42])->execute();
         $this->assertSame([], $this->devices->getDevices());
@@ -166,23 +216,23 @@ class AdminScanLoginTest extends TestCase
 
     public function testWechatRootCannotGainAdminAndPasswordRemainsAllDevices(): void
     {
-        $this->auth->loginWechat(43);
+        $this->authenticate($this->auth->loginWechat(43));
         $this->assertSame('device_manager', $this->auth->getUser()['role']);
         $this->assertSame([2], array_column($this->devices->getDevices(), 'id'));
         $this->assertHttp(404, function () { $this->devices->assignGame(1, 700); });
-        $this->auth->login('test-admin', 'test-password');
+        $adminLogin = $this->auth->login('test-admin', 'test-password');
+        $this->authenticate($adminLogin);
         $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $this->auth->getUser());
         $this->assertSame([1, 2], array_column($this->devices->getDevices(), 'id'));
         $this->devices->assignGame(2, 700);
-        $identity = $this->app->session->get(AdminAuthService::SESSION_KEY);
-        unset($identity['source'], $identity['role']);
-        $this->app->session->set(AdminAuthService::SESSION_KEY, $identity);
+        $adminSid = $this->app->jwt->parse($adminLogin['token']['accessToken'])->claims()->get('sid');
+        $this->tokenStore->records[$adminSid]['identity']['role'] = 'device_manager';
         $this->assertSame('admin', $this->auth->getUser()['role']);
     }
 
     public function testHttpBodyCannotElevateWechatDeviceScopeOrChangeOwner(): void
     {
-        $this->auth->loginWechat(42);
+        $this->authenticate($this->auth->loginWechat(42));
         $_SERVER['REQUEST_METHOD'] = 'PUT';
         $this->app->request->headers->set('X-CSRF-Token', $this->app->request->getCsrfToken());
         $this->app->request->setBodyParams(['gameId' => 700, 'role' => 'admin', 'source' => 'password', 'wechatUserId' => 43, 'userId' => 43]);
@@ -202,21 +252,20 @@ class AdminScanLoginTest extends TestCase
         $this->app->request->headers->set('Authorization', 'Bearer ' . $this->token(44));
         $this->assertTrue($this->webLogin()->runAction('approve', ['id' => $ticket['ticketId']])['success']);
         $this->assertSame(44, (int) $this->row($ticket)['approved_user_id']);
-        $this->assertSame(['username' => 'wechat:44', 'role' => 'device_manager'], $this->scan->consume($ticket['ticketId']));
+        $login = $this->scan->consume($ticket['ticketId']);
+        $this->assertSame(['username' => 'wechat:44', 'role' => 'device_manager'], $login['user']);
+        $this->authenticate($login);
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $this->assertSame([], $this->admin()->runAction('devices'));
         $this->assertHttp(404, function () { $this->devices->assignGame(1, 700); });
     }
 
-    public function testDeviceServiceRequiresSessionAndRejectsMalformedIdentitySource(): void
+    public function testDeviceServiceRequiresBearerAndRejectsMalformedIdentitySource(): void
     {
         $this->assertHttp(401, function () { $this->devices->getDevices(); });
         $this->assertHttp(401, function () { $this->devices->assignGame(1, 700); });
-        foreach (['client-claimed-admin', 'wechat'] as $source) {
-            $this->app->session->set(AdminAuthService::SESSION_KEY, ['source' => $source, 'username' => 'test-admin', 'wechatUserId' => 42, 'role' => 'admin', 'expiresAt' => time() + 28800]);
-            $this->assertNull($this->auth->getUser());
-            $this->assertHttp(401, function () { $this->devices->getDevices(); });
-        }
+        $this->app->request->headers->set('Authorization', 'Bearer malformed');
+        $this->assertHttp(401, function () { $this->devices->getDevices(); });
     }
 
     public function testV2DeviceRoutesScopeIndexViewUpdateAndManageForEveryWechatRole(): void
@@ -275,13 +324,9 @@ class AdminScanLoginTest extends TestCase
     {
         $configuration = require dirname(__DIR__, 4) . '/files/api/config/web.php';
         $this->app->set('user', array_merge(['class' => 'yii\web\User'], $configuration['components']['user']));
-        $this->app->session->set('__id', 43);
-        $this->auth->login('test-admin', 'test-password');
-        $sessionData = $_SESSION;
-        $sessionId = $this->app->session->id;
+        $login = $this->auth->login('test-admin', 'test-password');
+        $this->authenticate($login);
         $this->assertSame([1], array_column($this->v2Route('GET', 'v2/devices'), 'id'));
-        $this->assertSame($sessionId, $this->app->session->id);
-        $this->assertSame($sessionData, $_SESSION);
         $this->assertFalse($this->app->user->enableSession);
         $this->assertFalse($this->app->user->enableAutoLogin);
         $this->app->request->headers->remove('Authorization');
@@ -292,6 +337,7 @@ class AdminScanLoginTest extends TestCase
         $this->assertSame([], $this->v2Route('GET', 'v2/setups'));
         $this->assertHttp(404, function () { $this->v2Route('PUT', 'v2/setups/1', ['title' => '撤销后修改']); });
         $this->assertSame('关联配置', $this->app->db->createCommand('SELECT title FROM setup WHERE id=1')->queryScalar());
+        $this->authenticate($login);
         $this->assertSame('admin', $this->auth->getUser()['role']);
         $this->assertSame([1, 2], array_column($this->devices->getDevices(), 'id'));
     }
@@ -303,7 +349,7 @@ class AdminScanLoginTest extends TestCase
         $this->assertSame('cancelled', $this->scan->status($old['ticketId'])['status']);
         $this->scan->cancel($old['ticketId']);
         $this->scan->approve($new['ticketId'], $this->query($new)['secret'], 42);
-        $this->assertSame(['username' => 'wechat:42', 'role' => 'device_manager'], $this->scan->consume($new['ticketId']));
+        $this->assertSame(['username' => 'wechat:42', 'role' => 'device_manager'], $this->scan->consume($new['ticketId'])['user']);
     }
 
     public function testPendingAndApprovedExpireAtExactDeadline(): void
@@ -334,7 +380,7 @@ class AdminScanLoginTest extends TestCase
         $this->assertNull($this->auth->getUser());
     }
 
-    public function testDeletedUserCannotApproveOrKeepSession(): void
+    public function testDeletedUserCannotApproveOrKeepJwt(): void
     {
         $ticket = $this->scan->createTicket();
         $this->scan->approve($ticket['ticketId'], $this->query($ticket)['secret'], 42);
@@ -372,26 +418,21 @@ class AdminScanLoginTest extends TestCase
         }
     }
 
-    public function testWebMutationsRequireCsrfAndConsumeReturnsNewCsrf(): void
+    public function testWebScanConsumeReturnsJwtWithoutSessionCsrf(): void
     {
         $initial = $this->admin()->runAction('session');
         $this->assertTrue($initial['scanLoginEnabled']);
+        $this->assertSame('jwt', $initial['authMode']);
         $_SERVER['REQUEST_METHOD'] = 'POST';
-        $this->assertHttp(400, function () { $this->admin()->runAction('scan-login-create'); });
-        $this->app->request->headers->set('X-CSRF-Token', $initial['csrfToken']);
         $ticket = $this->admin()->runAction('scan-login-create');
         $this->scan->approve($ticket['ticketId'], $this->query($ticket)['secret'], 42);
-        $this->app->request->headers->remove('X-CSRF-Token');
-        foreach (['scan-login-consume', 'scan-login-cancel'] as $action) {
-            $this->assertHttp(400, function () use ($action, $ticket) { $this->admin()->runAction($action, ['id' => $ticket['ticketId']]); });
-        }
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $this->assertHttp(405, function () use ($ticket) { $this->admin()->runAction('scan-login-consume', ['id' => $ticket['ticketId']]); });
         $_SERVER['REQUEST_METHOD'] = 'POST';
-        $this->app->request->headers->set('X-CSRF-Token', $initial['csrfToken']);
         $result = $this->admin()->runAction('scan-login-consume', ['id' => $ticket['ticketId']]);
         $this->assertSame(['username' => 'wechat:42', 'role' => 'device_manager'], $result['user']);
-        $this->assertNotSame($initial['csrfToken'], $result['csrfToken']);
+        $this->assertSame('jwt', $result['authMode']);
+        $this->assertArrayHasKey('refreshToken', $result['token']);
         $this->assertSame('no-store', $this->app->response->headers->get('Cache-Control'));
     }
 
@@ -487,18 +528,16 @@ class AdminScanLoginTest extends TestCase
         $this->assertHttp(401, function () use ($ticket) { $this->webLogin()->runAction('approve', ['id' => $ticket['ticketId']]); });
     }
 
-    public function testProductionV1ControllerSelectsPlayerIdentityWithoutChangingBrowserSession(): void
+    public function testProductionV1ControllerSelectsPlayerIdentityWithoutChangingAdminBearer(): void
     {
         $configuration = require dirname(__DIR__, 4) . '/files/api/config/web.php';
         $this->app->set('user', array_merge(['class' => 'yii\web\User'], $configuration['components']['user']));
         $this->assertSame(User::class, $this->app->user->identityClass);
         $this->app->user->setIdentity(User::findOne(43));
-        $this->app->session->set('__id', 43);
-        $this->app->session->set(AdminAuthService::SESSION_KEY, ['username' => 'test-admin', 'expiresAt' => time() + 28800]);
-        $sessionData = $_SESSION;
-        $sessionId = $this->app->session->id;
+        $adminLogin = $this->auth->login('test-admin', 'test-password');
         $token = \app\modules\v1\models\User::findOne(42)->token()['accessToken'];
         $this->app->request->headers->set('Authorization', 'Bearer ' . $token);
+        $this->assertHttp(401, function () { $this->auth->getUser(); });
         $module = new \app\modules\v1\Module('v1', $this->app);
         $controller = new \app\modules\v1\controllers\PlayerController('player', $module);
         $result = $controller->runAction('view', ['id' => 42]);
@@ -507,15 +546,14 @@ class AdminScanLoginTest extends TestCase
         $this->assertSame(42, (int) $this->app->user->identity->id);
         $this->assertFalse($this->app->user->enableSession);
         $this->assertFalse($this->app->user->enableAutoLogin);
-        $this->assertSame($sessionId, $this->app->session->id);
-        $this->assertSame($sessionData, $_SESSION);
-        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $this->auth->getUser());
         $this->app->request->headers->remove('Authorization');
         $this->assertHttp(401, function () use ($controller) { $controller->runAction('view', ['id' => 42]); });
         $this->app->request->headers->set('Authorization', 'Bearer ' . $this->token(42));
         $this->assertHttp(401, function () use ($controller) { $controller->runAction('view', ['id' => 42]); });
         $this->app->request->headers->set('Authorization', 'Bearer ' . $this->tamper($token, 43));
         $this->assertHttp(401, function () use ($controller) { $controller->runAction('view', ['id' => 42]); });
+        $this->authenticate($adminLogin);
+        $this->assertSame($adminLogin['user'], $this->auth->getUser());
     }
 
     public function testLegacyTokensWithoutDomainAndSignedTokensWithoutExpiryAreRejected(): void
@@ -562,7 +600,6 @@ class AdminScanLoginTest extends TestCase
             $this->assertNull($exception->getPrevious());
         }
         $this->assertSame('pending', $this->row($ticket)['status']);
-        $this->assertSame($ticket['ticketId'], $this->app->session->get(AdminScanLoginService::CURRENT_KEY));
         $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM admin_scan_login_ticket')->queryScalar());
     }
 
@@ -573,15 +610,37 @@ class AdminScanLoginTest extends TestCase
         $this->assertHttp(503, function () use ($ticket) { $this->scan->approve($ticket['ticketId'], $this->query($ticket)['secret'], 42); });
     }
 
-    public function testConsumeFailureRollsBackAndDoesNotEstablishSession(): void
+    public function testConsumeFailureRollsBackAndDoesNotIssueToken(): void
     {
         $ticket = $this->scan->createTicket();
         $this->scan->approve($ticket['ticketId'], $this->query($ticket)['secret'], 42);
         $this->app->db->pdo->exec("CREATE TRIGGER reject_scan_consume AFTER UPDATE ON admin_scan_login_ticket WHEN NEW.status = 'consumed' BEGIN SELECT RAISE(FAIL, 'private-consume-error'); END");
         $this->assertHttp(503, function () use ($ticket) { $this->scan->consume($ticket['ticketId']); });
         $this->assertSame('approved', $this->row($ticket)['status']);
-        $this->assertSame($ticket['ticketId'], $this->app->session->get(AdminScanLoginService::CURRENT_KEY));
         $this->assertNull($this->auth->getUser());
+    }
+
+    public function testLostOwnerLockAbortsTicketTransactionBeforeCommit(): void
+    {
+        $this->tokenStore->ownerLockLost = true;
+        $this->assertHttp(503, function () { $this->scan->createTicket(); });
+        $this->assertSame(0, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM admin_scan_login_ticket')->queryScalar());
+    }
+
+    public function testLostOwnerLockRollsBackSingleTicketCancellation(): void
+    {
+        $ticket = $this->scan->createTicket();
+        $this->tokenStore->ownerLockLost = true;
+        $this->assertHttp(503, function () use ($ticket) { $this->scan->cancel($ticket['ticketId']); });
+        $this->assertSame('pending', $this->row($ticket)['status']);
+    }
+
+    public function testLostOwnerLockRollsBackCurrentTicketCancellation(): void
+    {
+        $ticket = $this->scan->createTicket();
+        $this->tokenStore->ownerLockLost = true;
+        $this->assertHttp(503, function () { $this->scan->cancelCurrentTicket(); });
+        $this->assertSame('pending', $this->row($ticket)['status']);
     }
 
     public function testOldTicketsArePrunedAndMigrationCanBeReversed(): void
@@ -596,7 +655,7 @@ class AdminScanLoginTest extends TestCase
         $this->assertNull($this->app->db->schema->getTableSchema('admin_scan_login_ticket', true));
     }
 
-    public function testApproveNeverUsesOrPersistsExistingYiiSessionIdentity(): void
+    public function testApproveNeverCreatesAdminBearerOrPersistsYiiSessionIdentity(): void
     {
         $this->app->user->enableSession = true;
         $this->app->user->enableAutoLogin = true;
@@ -610,9 +669,8 @@ class AdminScanLoginTest extends TestCase
         $this->webLogin()->runAction('approve', ['id' => $ticket['ticketId']]);
         $this->assertFalse($this->app->user->enableSession);
         $this->assertFalse($this->app->user->enableAutoLogin);
-        $this->assertNull($this->auth->getUser());
-        $this->assertFalse($this->app->session->has(AdminAuthService::SESSION_KEY));
         $this->app->request->headers->remove('Authorization');
+        $this->assertNull($this->auth->getUser());
         $this->assertHttp(401, function () use ($ticket) { $this->webLogin()->runAction('approve', ['id' => $ticket['ticketId']]); });
     }
 
@@ -643,6 +701,7 @@ class AdminScanLoginTest extends TestCase
     }
 
     private function query(array $ticket): array { parse_str(parse_url($ticket['qrText'], PHP_URL_QUERY), $query); return $query; }
+    private function authenticate(array $login): void { $this->app->request->headers->set('Authorization', 'Bearer ' . $login['token']['accessToken']); }
     private function v2Route(string $method, string $path, array $body = [], int $userId = 42)
     {
         $configuration = require dirname(__DIR__, 4) . '/files/api/config/web.php';
@@ -682,4 +741,14 @@ class ScanTestHelper extends \yii\base\Component
 {
     public $records = 0;
     public function record() { $this->records++; }
+}
+
+class ScanOwnerLockTestStore extends \tests\fixtures\InMemoryAdminTokenStore
+{
+    public int $ownerLockCalls = 0;
+    public function withOwnerLock(string $ownerHash, callable $callback)
+    {
+        $this->ownerLockCalls++;
+        return parent::withOwnerLock($ownerHash, $callback);
+    }
 }

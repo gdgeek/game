@@ -2,9 +2,9 @@
 import { computed, ref, watch } from 'vue'
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Monitor, ShieldCheck, UserRound, LoaderCircle, AlertCircle } from 'lucide-vue-next'
 import ScanLogin from './ScanLogin.vue'
-import type { BackendId, Session } from '../types'
-const props = defineProps<{ busy: boolean; disabled?: boolean; error: string; demo: boolean; scanLoginEnabled?: boolean; backend: BackendId }>()
-const emit = defineEmits<{ login: [username: string, password: string]; authenticated: [session: Session, backend: BackendId]; 'scan-busy': [busy: boolean] }>()
+import type { Session } from '../types'
+const props = defineProps<{ busy: boolean; disabled?: boolean; error: string; demo: boolean; scanLoginEnabled?: boolean }>()
+const emit = defineEmits<{ login: [username: string, password: string]; authenticated: [session: Session]; 'scan-busy': [busy: boolean] }>()
 const username = ref('dirui')
 const password = ref('')
 const visible = ref(false)
@@ -12,7 +12,7 @@ const scan = ref<InstanceType<typeof ScanLogin>>()
 const scanBusy = ref(false)
 const canScan = computed(() => props.scanLoginEnabled === true && !props.demo)
 const mode = ref<'scan' | 'password'>(canScan.value ? 'scan' : 'password')
-watch([() => props.backend, canScan], () => { if (!scanBusy.value) mode.value = canScan.value ? 'scan' : 'password' })
+watch(canScan, () => { if (!scanBusy.value) mode.value = canScan.value ? 'scan' : 'password' })
 const baseUrl = import.meta.env.BASE_URL
 function submit() {
   if (!props.busy && !props.disabled && !scanBusy.value && username.value.trim() && password.value) emit('login', username.value.trim(), password.value)
@@ -55,7 +55,7 @@ defineExpose({ stopScan })
           <button type="button" :aria-pressed="mode === 'scan'" :disabled="busy || disabled || scanBusy" @click="chooseMode('scan')">微信扫码登录</button>
           <button type="button" :aria-pressed="mode === 'password'" :disabled="busy || disabled || scanBusy" @click="chooseMode('password')">账号密码登录</button>
         </div>
-        <ScanLogin v-if="canScan && mode === 'scan' && !busy && !disabled" ref="scan" :key="backend" :backend="backend" @authenticated="(session, target) => emit('authenticated', session, target)" @busy="setScanBusy" />
+        <ScanLogin v-if="canScan && mode === 'scan' && !busy && !disabled" ref="scan" @authenticated="session => emit('authenticated', session)" @busy="setScanBusy" />
         <p v-if="mode === 'scan' && error" class="form-error" role="alert"><AlertCircle :size="16" />{{ error }}</p>
         <form v-if="mode === 'password'" @submit.prevent="submit">
           <label for="username">用户名</label>

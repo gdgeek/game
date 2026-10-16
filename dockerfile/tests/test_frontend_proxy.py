@@ -19,6 +19,7 @@ import re
 import shutil
 import socket
 import ssl
+import struct
 import subprocess
 import tempfile
 import threading
@@ -47,7 +48,7 @@ def test_environment() -> dict[str, str]:
 def render(
     output: Path, template: Path,
     origins: tuple[str, ...] | dict[int | str, str] | None = None,
-    runtime_config: Path | None = None,
+    runtime_config: Path | None = None, settings: dict[str, str] | None = None,
 ):
     env = test_environment()
     for key in list(env):
@@ -56,6 +57,12 @@ def render(
     env["NGINX_FRONTEND_TEMPLATE_PATH"] = str(template)
     env["NGINX_FRONTEND_OUTPUT_PATH"] = str(output)
     env["NGINX_FRONTEND_RUNTIME_CONFIG_PATH"] = str(runtime_config or output.parent / "runtime-config.json")
+    env.pop("APP_API_UPSTREAM_HOST", None)
+    env.pop("APP_API_RESOLVER", None)
+    for key in list(env):
+        if re.fullmatch(r"APP_API_[0-9]+_WEIGHT", key):
+            env.pop(key)
+    env.update(settings or {})
     if origins is not None:
         configured = origins.items() if isinstance(origins, dict) else enumerate(origins, 1)
         for slot, origin in configured:
@@ -72,7 +79,7 @@ class RendererTests(unittest.TestCase):
         self.directory = Path(self.tmp.name)
         self.template = self.directory / "variables.template"
         self.template.write_text(
-            "before\n# FRONTEND_BACKEND_ROUTES\n# FRONTEND_RUNTIME_CONFIG\n"
+            "before\n# FRONTEND_HTTP_CONFIG\n# FRONTEND_BACKEND_ROUTES\n# FRONTEND_RUNTIME_CONFIG\n"
             "$host|${host}|$request_uri\nafter\n"
         )
         self.output = self.directory / "rendered.conf"
@@ -95,6 +102,7 @@ class RendererTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 config = self.output.read_text()
                 expected = [f"b{slot - 1}" for slot in sorted(slots)]
+                expected_api = expected if "b0" in expected else expected + ["b0"]
                 self.assertEqual(
                     re.findall(r"location \^~ /backends/(b[0-9]+)/admin-api/", config),
                     expected,
@@ -104,30 +112,66 @@ class RendererTests(unittest.TestCase):
                     expected,
                 )
                 self.assertEqual(
-                    re.findall(r"location \^~ /api/backends/(b[0-9]+)/admin-api/", config), expected,
+                    re.findall(r"location \^~ /api/backends/(b[0-9]+)/admin-api/", config), expected_api,
                 )
                 self.assertEqual(
                     re.findall(r"location = /api/backends/(b[0-9]+)/health", config), expected,
                 )
-                self.assertEqual(self.manifest(), {
-                    "backends": [
-                        {"id": f"b{slot - 1}", "name": f"正式后端 {slot}",
-                         "host": f"api{slot}.example"}
-                        for slot in sorted(slots)
-                    ]
-                })
+                self.assertEqual(self.manifest(), {"apiBase": "/api/admin-api", "automatic": True, "auth": "jwt"})
                 self.assertNotIn("# FRONTEND_BACKEND_ROUTES", config)
                 self.assertNotIn("# FRONTEND_RUNTIME_CONFIG", config)
                 self.assertIn("before\n", config)
                 self.assertIn("$host|${host}|$request_uri\nafter\n", config)
 
     def test_manifest_is_a_separate_file_for_more_than_one_hundred_backends(self):
-        origins = {slot: f"https://api{slot}.example" for slot in range(1, 102)}
+        origins = {slot: f"https://api{slot}.example" for slot in range(1, 6)}
         result = render(self.output, self.template, origins)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(len(self.manifest()["backends"]), 101)
-        self.assertEqual(self.manifest()["backends"][-1]["id"], "b100")
+        self.assertEqual(self.manifest(), {"apiBase": "/api/admin-api", "automatic": True, "auth": "jwt"})
         self.assertNotIn('"backends":', self.output.read_text())
+
+    def test_weighted_pools_default_to_one_and_accept_valid_overrides(self):
+        result = render(self.output, self.template, {1: "https://api1.example", 3: "https://api3.example"},
+                        settings={"APP_API_1_WEIGHT": "3", "APP_API_3_WEIGHT": "1"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        config = self.output.read_text()
+        self.assertIn('split_clients "$request_id" $api_pool', config)
+        self.assertIn("75.00% api_pool_b0;", config)
+        self.assertIn("* api_pool_b2;", config)
+        self.assertIn("upstream api_pool_b0", config)
+        self.assertIn("server api1.example:443 resolve max_fails=1 fail_timeout=10s;", config)
+        self.assertIn("server api3.example:443 resolve max_fails=1 fail_timeout=10s backup;", config)
+        self.assertIn("upstream api_pool_b2", config)
+        self.assertIn("server api3.example:443 resolve max_fails=1 fail_timeout=10s;", config)
+        self.assertEqual(self.manifest(), {"apiBase": "/api/admin-api", "automatic": True, "auth": "jwt"})
+
+    def test_invalid_weights_and_orphan_weights_fail_before_writing(self):
+        for settings in (
+            {"APP_API_1_WEIGHT": "0"}, {"APP_API_1_WEIGHT": "01"},
+            {"APP_API_1_WEIGHT": "-1"}, {"APP_API_1_WEIGHT": "1.5"},
+            {"APP_API_1_WEIGHT": "1; include /tmp/x;"},
+            {"APP_API_2_WEIGHT": "2"},
+            {"APP_API_1_WEIGHT": "1", "APP_API_2_WEIGHT": "10000"},
+        ):
+            with self.subTest(settings=settings):
+                self.output.unlink(missing_ok=True)
+                result = render(self.output, self.template, {1: "https://api1.example"}, settings=settings)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(self.output.exists())
+
+    def test_common_upstream_host_and_resolver_are_validated(self):
+        for settings in (
+            {"APP_API_UPSTREAM_HOST": "shared.example/path"},
+            {"APP_API_UPSTREAM_HOST": "shared.example;return 444"},
+            {"APP_API_RESOLVER": "localhost"},
+            {"APP_API_RESOLVER": "127.0.0.1:0"},
+            {"APP_API_RESOLVER": "127.0.0.1;include"},
+        ):
+            with self.subTest(settings=settings):
+                self.output.unlink(missing_ok=True)
+                result = render(self.output, self.template, {1: "https://api1.example"}, settings=settings)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(self.output.exists())
 
     def test_local_host_ports_and_one_trailing_slash(self):
         result = render(
@@ -136,14 +180,11 @@ class RendererTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         config = self.output.read_text()
-        self.assertIn("proxy_pass https://localhost:18443/admin-api/;", config)
-        self.assertIn("proxy_set_header Host localhost:18443;", config)
-        self.assertIn("proxy_ssl_name localhost;", config)
-        self.assertEqual(self.manifest(), {"backends": [
-            {"id": "b0", "name": "正式后端 1", "host": "localhost:18443"},
-            {"id": "b1", "name": "正式后端 2", "host": "127.0.0.1:65535"},
-            {"id": "b2", "name": "正式后端 3", "host": "api.example"},
-        ]})
+        self.assertIn("proxy_pass $api_upstream_url$api_admin_target;", config)
+        self.assertIn("proxy_set_header Host $api_upstream_host;", config)
+        self.assertIn("proxy_ssl_name $api_upstream_tls_name;", config)
+        self.assertIn("map $api_pool $api_upstream_host", config)
+        self.assertEqual(self.manifest(), {"apiBase": "/api/admin-api", "automatic": True, "auth": "jwt"})
 
     def test_manifest_normalizes_default_and_non_default_port_numbers(self):
         result = render(
@@ -151,8 +192,10 @@ class RendererTests(unittest.TestCase):
             ("https://api.example:00443", "https://other.example:08080", "https://third.example:00080"),
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([entry["host"] for entry in self.manifest()["backends"]],
-                         ["api.example", "other.example:8080", "third.example:80"])
+        config = self.output.read_text()
+        self.assertIn("proxy_pass https://api.example/admin-api/;", config)
+        self.assertIn("proxy_pass https://other.example:8080/admin-api/;", config)
+        self.assertIn("proxy_pass https://third.example:80/admin-api/;", config)
 
     def test_set_but_empty_origins_fail_in_any_slot(self):
         for slot in (1, 2, 3, 10):
@@ -211,6 +254,7 @@ class FixtureServer(http.server.ThreadingHTTPServer):
         self.name = name
         self.records: list[dict] = []
         self.names: list[str | None] = []
+        self.drop_all = False
         self.record_lock = threading.Lock()
         tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         tls.load_cert_chain(str(certificate), str(key))
@@ -231,6 +275,7 @@ class FixtureServer(http.server.ThreadingHTTPServer):
             ipv6.records = self.records
             ipv6.names = self.names
             ipv6.record_lock = self.record_lock
+            ipv6.controller = self
             ipv6.socket = tls.wrap_socket(ipv6.socket, server_side=True)
             self.listeners.append(ipv6)
         for listener in self.listeners:
@@ -245,12 +290,54 @@ class FixtureServer(http.server.ThreadingHTTPServer):
         with self.record_lock:
             self.records.clear()
             self.names.clear()
+        self.drop_all = False
 
     def close(self):
         for listener in self.listeners:
             listener.shutdown()
             listener.server_close()
             listener.thread.join(timeout=3)
+
+
+class LocalDNS:
+    """Resolve only localhost A records to loopback; never forward DNS traffic."""
+    def __init__(self):
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.bind(("127.0.0.1", 0))
+        self.socket.settimeout(0.1)
+        self.port = self.socket.getsockname()[1]
+        self.queries = []
+        self.running = True
+        self.thread = threading.Thread(target=self.serve, daemon=True)
+        self.thread.start()
+
+    def serve(self):
+        while self.running:
+            try:
+                query, peer = self.socket.recvfrom(4096)
+            except socket.timeout:
+                continue
+            except OSError:
+                return
+            end, labels = 12, []
+            while query[end]:
+                length = query[end]
+                labels.append(query[end + 1:end + 1 + length].decode("ascii"))
+                end += length + 1
+            name = ".".join(labels)
+            qtype = struct.unpack("!H", query[end + 1:end + 3])[0]
+            self.queries.append(name)
+            question = query[12:end + 5]
+            permitted = name == "localhost" and qtype == 1
+            header = query[:2] + struct.pack("!HHHHH", 0x8180, 1, int(permitted), 0, 0)
+            answer = (b"\xc0\x0c" + struct.pack("!HHIH", 1, 1, 1, 4) +
+                      socket.inet_aton("127.0.0.1")) if permitted else b""
+            self.socket.sendto(header + question + answer, peer)
+
+    def close(self):
+        self.running = False
+        self.thread.join(timeout=2)
+        self.socket.close()
 
 
 class FixtureHandler(http.server.BaseHTTPRequestHandler):
@@ -268,17 +355,18 @@ class FixtureHandler(http.server.BaseHTTPRequestHandler):
 
     def handle_request(self):
         body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+        controller = getattr(self.server, "controller", self.server)
         record = {
-            "backend": self.server.name,
+            "backend": controller.name,
             "method": self.command,
             "path": self.path,
             "body": body.decode("utf-8"),
             "headers": dict(self.headers.items()),
             "sni": getattr(self.connection, "fixture_sni", None),
         }
-        with self.server.record_lock:
-            self.server.records.append(record)
-        if self.path.startswith("/admin-api/drop"):
+        with controller.record_lock:
+            controller.records.append(record)
+        if self.path.startswith("/admin-api/drop") or getattr(controller, "drop_all", False):
             self.connection.shutdown(socket.SHUT_RDWR)
             self.connection.close()
             return
@@ -379,76 +467,85 @@ class NginxProxyTests(unittest.TestCase):
             server.clear()
 
     @contextlib.contextmanager
-    def nginx(self, origins: tuple[str, ...] | dict[int, str] | None = None):
-        with tempfile.TemporaryDirectory(prefix="frontend-nginx-") as temporary:
-            directory = Path(temporary)
-            (directory / "logs").mkdir()
-            root = directory / "html"
-            root.mkdir()
-            (root / "index.html").write_text("<title>local frontend fixture</title>")
-            (root / "asset.js").write_text("window.frontendFixture = true;")
-            for blocked_file in ("index.php", ".env", "source.sql", "source.map"):
-                (root / blocked_file).write_text("must not be served by Nginx")
-            rendered = directory / "server.conf"
-            result = render(
-                rendered, TEMPLATE,
-                origins if origins is not None else (self.b0.origin, self.b1.origin, self.b2.origin),
-                runtime_config=root / "runtime-config.json",
-            )
-            self.assertEqual(result.returncode, 0, result.stderr)
-            with socket.socket() as reservation:
-                reservation.bind(("127.0.0.1", 0))
-                port = reservation.getsockname()[1]
-            server = rendered.read_text()
-            self.assertTrue(
-                all(authority.startswith("localhost:") for authority in
-                    re.findall(r"proxy_pass https://([^/]+)/", server)),
-                "Integration fixtures must never start with non-local upstreams",
-            )
-            # Only relocate container resources. Proxy rules, TLS validation and
-            # headers are the actual shipped configuration, unmodified.
-            server = server.replace("/usr/share/nginx/html", str(root))
-            server = server.replace("/etc/ssl/certs/ca-certificates.crt", str(self.ca))
-            server, count = re.subn(r"\blisten\s+80\s*;", f"listen 127.0.0.1:{port};", server)
-            self.assertEqual(count, 1, "Expected one container HTTP listen directive")
-            rendered.write_text(server)
-            config = directory / "nginx.conf"
-            self.error_log = directory / "error.log"
-            config.write_text(
-                "daemon off;\nmaster_process off;\nworker_processes 1;\n"
-                f"pid {directory}/nginx.pid;\nerror_log {directory}/error.log info;\n"
-                "events { worker_connections 128; }\n"
-                "http {\naccess_log off;\ndefault_type application/octet-stream;\n"
-                f"client_body_temp_path {directory}/client_temp;\n"
-                f"proxy_temp_path {directory}/proxy_temp;\ninclude {rendered};\n}}\n"
-            )
-            command = [str(self.binary), "-p", str(directory), "-c", str(config)]
-            syntax = subprocess.run(command + ["-t"], text=True, capture_output=True, timeout=10)
-            self.assertEqual(syntax.returncode, 0, syntax.stderr)
-            with (directory / "process.log").open("w+") as process_log:
-                process = subprocess.Popen(command, stdout=process_log, stderr=process_log)
-                try:
-                    deadline = time.monotonic() + 5
-                    while time.monotonic() < deadline:
-                        if process.poll() is not None:
-                            process_log.seek(0)
-                            self.fail(f"Nginx exited early: {process_log.read()}")
-                        try:
-                            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
-                                break
-                        except OSError:
-                            time.sleep(0.025)
-                    else:
-                        self.fail("Local Nginx did not start within five seconds")
-                    yield port
-                finally:
-                    process.terminate()
+    def nginx(self, origins: tuple[str, ...] | dict[int, str] | None = None, settings=None):
+        dns = LocalDNS()
+        try:
+            with tempfile.TemporaryDirectory(prefix="frontend-nginx-") as temporary:
+                directory = Path(temporary)
+                (directory / "logs").mkdir()
+                root = directory / "html"
+                root.mkdir()
+                (root / "index.html").write_text("<title>local frontend fixture</title>")
+                (root / "asset.js").write_text("window.frontendFixture = true;")
+                for blocked_file in ("index.php", ".env", "source.sql", "source.map"):
+                    (root / blocked_file).write_text("must not be served by Nginx")
+                rendered = directory / "server.conf"
+                render_settings = {"APP_API_RESOLVER": f"127.0.0.1:{dns.port}", **(settings or {})}
+                result = render(
+                    rendered, TEMPLATE,
+                    origins if origins is not None else (self.b0.origin, self.b1.origin, self.b2.origin),
+                    runtime_config=root / "runtime-config.json", settings=render_settings,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                with socket.socket() as reservation:
+                    reservation.bind(("127.0.0.1", 0))
+                    port = reservation.getsockname()[1]
+                server = rendered.read_text()
+                self.assertTrue(
+                    all(authority.startswith("localhost:") for authority in
+                        re.findall(r"proxy_pass https://([^/]+)/", server)),
+                    "Integration fixtures must never start with non-local upstreams",
+                )
+                # Only relocate container resources. Proxy rules, TLS validation and
+                # headers are the actual shipped configuration, unmodified.
+                server = server.replace("/usr/share/nginx/html", str(root))
+                server = server.replace("/etc/ssl/certs/ca-certificates.crt", str(self.ca))
+                server, count = re.subn(r"\blisten\s+80\s*;", f"listen 127.0.0.1:{port};", server)
+                self.assertEqual(count, 1, "Expected one container HTTP listen directive")
+                rendered.write_text(server)
+                config = directory / "nginx.conf"
+                self.error_log = directory / "error.log"
+                config.write_text(
+                    "daemon off;\nmaster_process off;\nworker_processes 1;\n"
+                    f"pid {directory}/nginx.pid;\nerror_log {directory}/error.log info;\n"
+                    "events { worker_connections 128; }\n"
+                    "http {\naccess_log off;\ndefault_type application/octet-stream;\n"
+                    f"client_body_temp_path {directory}/client_temp;\n"
+                    f"proxy_temp_path {directory}/proxy_temp;\ninclude {rendered};\n}}\n"
+                )
+                command = [str(self.binary), "-p", str(directory), "-c", str(config)]
+                syntax = subprocess.run(command + ["-t"], text=True, capture_output=True, timeout=10)
+                self.assertEqual(syntax.returncode, 0, syntax.stderr)
+                with (directory / "process.log").open("w+") as process_log:
+                    process = subprocess.Popen(command, stdout=process_log, stderr=process_log)
                     try:
-                        process.wait(timeout=3)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait(timeout=3)
-
+                        deadline = time.monotonic() + 5
+                        while time.monotonic() < deadline:
+                            if process.poll() is not None:
+                                process_log.seek(0)
+                                self.fail(f"Nginx exited early: {process_log.read()}")
+                            try:
+                                with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+                                    break
+                            except OSError:
+                                time.sleep(0.025)
+                        else:
+                            self.fail("Local Nginx did not start within five seconds")
+                        dns_deadline = time.monotonic() + 5
+                        while not dns.queries and time.monotonic() < dns_deadline:
+                            time.sleep(0.02)
+                        self.assertIn("localhost", dns.queries, "Nginx must resolve fixture upstreams through local DNS")
+                        time.sleep(0.05)
+                        yield port
+                    finally:
+                        process.terminate()
+                        try:
+                            process.wait(timeout=3)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            process.wait(timeout=3)
+        finally:
+            dns.close()
     def request(self, port: int, path: str, method="GET", body=None, headers=None):
         connection = http.client.HTTPConnection("127.0.0.1", port, timeout=8)
         try:
@@ -490,26 +587,18 @@ class NginxProxyTests(unittest.TestCase):
                 self.assertIsNone(headers.get("ETag"))
                 self.assertIsNone(headers.get("Last-Modified"))
                 self.assertIsNone(headers.get("Set-Cookie"))
-                self.assertEqual(json.loads(payload), {"backends": [
-                    {"id": server.name, "name": f"正式后端 {index}",
-                     "host": f"localhost:{server.server_port}"}
-                    for index, server in enumerate((self.b0, self.b1, self.b2), 1)
-                ]})
+                self.assertEqual(json.loads(payload), {"apiBase": "/api/admin-api", "automatic": True, "auth": "jwt"})
         for server in (self.b0, self.b1, self.b2):
             self.assertEqual(server.records, [])
 
-    def test_over_one_hundred_backends_load_in_nginx_and_serve_the_complete_manifest(self):
-        origins = {slot: self.b0.origin for slot in range(1, 102)}
+    def test_multiple_backends_load_in_nginx_and_serve_the_automatic_manifest(self):
+        origins = {slot: self.b0.origin for slot in range(1, 6)}
         with self.nginx(origins) as port:
             status, headers, payload = self.request(port, "/runtime-config.json")
             self.assertEqual(status, 200)
             self.assertEqual(headers.get("Cache-Control"), "no-store")
-            backends = json.loads(payload)["backends"]
-            self.assertEqual(len(backends), 101)
-            self.assertEqual(backends[-1], {
-                "id": "b100", "name": "正式后端 101", "host": f"localhost:{self.b0.server_port}",
-            })
-            self.assertEqual(self.request(port, "/backends/b101/health")[0], 404)
+            self.assertEqual(json.loads(payload), {"apiBase": "/api/admin-api", "automatic": True, "auth": "jwt"})
+            self.assertEqual(self.request(port, "/backends/b5/health")[0], 404)
         self.assertEqual(self.b0.records, [])
         self.assertEqual(self.b1.records, [])
         self.assertEqual(self.b2.records, [])
@@ -576,10 +665,8 @@ class NginxProxyTests(unittest.TestCase):
         self.assertEqual(len(self.b2.records), 1)
 
     def test_api_session_aliases_preserve_fixed_backend_and_isolate_cookie_paths(self):
-        jar = http.cookiejar.CookieJar()
-        routes = [("/api/admin-api/", self.b0, "/api/admin-api/")]
-        routes += [(f"/api/backends/{server.name}/admin-api/", server,
-                    f"/api/backends/{server.name}/") for server in (self.b0, self.b1, self.b2)]
+        routes = [(f"/api/backends/{server.name}/admin-api/", server,
+                   f"/api/backends/{server.name}/") for server in (self.b0, self.b1, self.b2)]
         routes += [("/backends/b0/admin-api/", self.b0, "/backends/b0/")]
         with self.nginx() as port:
             for prefix, server, cookie_path in routes:
@@ -600,29 +687,81 @@ class NginxProxyTests(unittest.TestCase):
                         parsed = SimpleCookie()
                         parsed.load(value)
                         self.assertEqual(next(iter(parsed.values()))["path"], cookie_path)
-                    url = f"https://console.test{path}"
-                    response = urllib.response.addinfourl(io.BytesIO(payload), headers, url, status)
-                    jar.extract_cookies(response, urllib.request.Request(url))
-            for prefix, server, _ in routes:
-                request = urllib.request.Request(f"https://console.test{prefix}devices")
-                jar.add_cookie_header(request)
-                cookies = request.get_header("Cookie")
-                self.assertIsNotNone(cookies)
-                self.assertEqual(cookies.count("CHECKINADMINSESSID="), 1)
-                self.assertEqual(cookies.count("_csrf-checkin-admin="), 1)
-                self.assertIn(f"fixture-{server.name}", cookies)
-            for path in ("/api/v2/devices", "/api/health", "/"):
-                request = urllib.request.Request(f"https://console.test{path}")
-                jar.add_cookie_header(request)
-                self.assertIsNone(request.get_header("Cookie"))
+        with self.nginx((self.b0.origin, self.b1.origin)) as port:
+            path = "/api/admin-api/session?next=a%2Fb&x=1&x=2"
+            status, headers, payload = self.request(port, path, "POST", "fixture-body",
+                                                   {"Cookie": "fixture-session=1"})
+            self.assertEqual(status, 200)
+            record = json.loads(payload)
+            self.assertIn(record["backend"], {"b0", "b1"})
+            self.assertEqual(record["path"], "/admin-api/session?next=a%2Fb&x=1&x=2")
+            self.assertEqual(record["body"], "fixture-body")
+            self.assertNotIn("Cookie", record["headers"])
+            self.assertNotIn("Authorization", record["headers"])
+            self.assertEqual(record["headers"]["Host"], f"localhost:{self.b0.server_port}")
+            self.assertEqual(record["sni"], "localhost")
+            self.assertIsNone(headers.get("Set-Cookie"))
+
+    def test_stable_admin_route_uses_request_id_weight_and_shared_host(self):
+        origins = (self.b0.origin, self.b1.origin)
+        with self.nginx(origins, {"APP_API_1_WEIGHT": "3", "APP_API_2_WEIGHT": "1"}) as port:
+            counts = {"b0": 0, "b1": 0}
+            for index in range(300):
+                status, response_headers, payload = self.request(
+                    port, f"/api/admin-api/session?sample={index}&next=a%2Fb&x=2",
+                    headers={"Cookie": "fixture-session=1", "Authorization": "Bearer fixture-access", "X-CSRF-Token": "obsolete"},
+                )
+                self.assertEqual(status, 200, self.error_log.read_text())
+                record = json.loads(payload)
+                counts[record["backend"]] += 1
+                self.assertEqual(record["path"], f"/admin-api/session?sample={index}&next=a%2Fb&x=2")
+                self.assertEqual(record["headers"]["Host"], f"localhost:{self.b0.server_port}")
+                self.assertEqual(record["sni"], "localhost")
+                self.assertEqual(record["headers"]["Authorization"], "Bearer fixture-access")
+                self.assertNotIn("Cookie", record["headers"])
+                self.assertNotIn("X-CSRF-Token", record["headers"])
+                self.assertIsNone(response_headers.get("Set-Cookie"))
+            self.assertGreater(counts["b0"], 180, counts)
+            self.assertLess(counts["b0"], 270, counts)
+            self.assertGreater(counts["b1"], 0, counts)
+
+    def test_read_failover_retries_but_mutation_and_method_override_do_not_replay(self):
+        self.b0.drop_all = True
+        origins = (self.b0.origin, self.b1.origin)
+        with self.nginx(origins) as port:
+            # The selected b0 bucket records one failed attempt and returns from b1.
+            for _ in range(60):
+                status, _, payload = self.request(port, "/api/admin-api/session")
+                self.assertEqual(status, 200, self.error_log.read_text())
+                self.assertIn(json.loads(payload)["backend"], {"b0", "b1"})
+                if self.b0.records and self.b1.records:
+                    break
+            self.assertTrue(self.b0.records, "Weighted traffic must select b0")
+            self.assertTrue(self.b1.records, "Safe read failure must use the backup")
+
+        # A new Nginx instance has a fresh passive state; every POST and
+        # method-overridden GET must generate exactly one upstream request.
+        self.b0.clear()
+        self.b1.clear()
+        self.b0.drop_all = True
+        with self.nginx(origins) as port:
+            attempts = 40
+            for index in range(attempts):
+                self.request(port, "/api/admin-api/login", "POST", f"body-{index}")
+            self.assertEqual(len(self.b0.records) + len(self.b1.records), attempts)
+            self.b0.clear()
+            self.b1.clear()
+            for _ in range(attempts):
+                self.request(port, "/api/admin-api/devices", "GET", headers={
+                    "X-Http-Method-Override": "DELETE",
+                })
+            self.assertEqual(len(self.b0.records) + len(self.b1.records), attempts)
 
     def test_api_session_aliases_never_retry_and_encoded_admin_names_stay_fixed(self):
         for path in ("/api/admin-api/drop", "/api/%61dmin-api/drop",
                      "/api/backends/b0/admin-api/drop"):
-            # Each fresh process avoids quarantined localhost address state
-            # from an earlier independent request to the same fixed origin.
             self.b0.clear()
-            with self.nginx() as port:
+            with self.nginx((self.b0.origin,)) as port:
                 self.assertEqual(self.request(port, path, "POST", "fixture")[0], 502)
                 self.assertIn(self.request(port, "/api/admin-api")[0], (301, 404))
             self.assertEqual(len(self.b0.records), 1)
@@ -631,15 +770,19 @@ class NginxProxyTests(unittest.TestCase):
 
     def test_api_session_without_b0_and_unknown_backend_aliases_are_rejected(self):
         with self.nginx({3: self.b2.origin}) as port:
-            for path in ("/api/admin-api/session", "/api/%61dmin-api/session", "/api/admin-api",
-                         "/api/backends/b0/admin-api/session", "/api/backends/b0/health"):
+            for path in ("/api/admin-api", "/api/backends/b0/admin-api/session",
+                         "/api/backends/b0/health"):
                 self.assertEqual(self.request(port, path)[0], 404)
+            for path in ("/api/admin-api/session", "/api/%61dmin-api/session"):
+                status, _, body = self.request(port, path)
+                self.assertEqual(status, 200)
+                self.assertEqual(json.loads(body)["backend"], "b2")
             status, _, body = self.request(port, "/api/backends/b2/admin-api/session")
             self.assertEqual(status, 200)
             self.assertEqual(json.loads(body)["backend"], "b2")
         self.assertEqual(self.b0.records, [])
         self.assertEqual(self.b1.records, [])
-        self.assertEqual(len(self.b2.records), 1)
+        self.assertEqual(len(self.b2.records), 3)
 
     def test_api_backend_health_aliases_are_fixed_credential_free_reads(self):
         with self.nginx() as port:
