@@ -1,6 +1,6 @@
 services:
   checkin:
-    image: checkin-frontend:20261012-api-1
+    image: checkin-frontend:20261016-auto-1
     restart: unless-stopped
     networks:
       - proxy
@@ -10,7 +10,7 @@ services:
       APP_MP_API_ENABLED: "1"
       APP_MP_API_PRIMARY_URL: https://x.b0.01xr.com
       APP_MP_API_BACKUP_URL: https://x.b1.01xr.com
-      APP_MP_API_UPSTREAM_HOST: x.4mr.cn
+      APP_MP_API_UPSTREAM_HOST: x.b0.01xr.com
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy

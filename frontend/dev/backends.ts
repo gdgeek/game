@@ -1,9 +1,7 @@
-import type { BackendOption } from '../src/types'
+export interface ConfiguredBackend { id: string; name: string; host: string; origin: string }
 
-export interface ConfiguredBackend extends BackendOption { origin: string }
-
-// Only the development server reads these variables. The browser receives the
-// same public manifest that the production Nginx entrypoint generates.
+// Only the development server reads this private upstream list.
+// The browser receives only the automatic API route.
 export function readBackends(env: Record<string, string>): ConfiguredBackend[] {
   const slots = Object.keys(env).filter(key => /^APP_API_[0-9]+_URL$/.test(key)).map(key => {
     const rawSlot = key.slice(8, -4)

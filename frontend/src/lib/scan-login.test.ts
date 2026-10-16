@@ -19,7 +19,6 @@ function setup() {
     get: vi.fn<ScanLoginApi['get']>().mockResolvedValue(pending),
     consume: vi.fn<ScanLoginApi['consume']>().mockResolvedValue(session),
     cancel: vi.fn<ScanLoginApi['cancel']>().mockResolvedValue(undefined),
-    session: vi.fn<ScanLoginApi['session']>().mockResolvedValue({ user: null, csrfToken: 'anonymous' }),
   }
   const onSession = vi.fn()
   const onConsumeBusy = vi.fn()
@@ -176,7 +175,7 @@ describe('scan login lifecycle', () => {
   it('surfaces errors and releases the busy lock so a fresh ticket can be requested', async () => {
     const { api, states, onConsumeBusy, controller } = setup()
     api.get.mockResolvedValueOnce(approved)
-    api.consume.mockRejectedValueOnce(new Error('管理员权限已撤销'))
+    api.consume.mockRejectedValueOnce(Object.assign(new Error('管理员权限已撤销'), { status: 403 }))
     await controller.refresh()
     await vi.advanceTimersByTimeAsync(10000)
     expect(states.at(-1)).toMatchObject({ phase: 'error', error: '管理员权限已撤销' })
@@ -187,40 +186,19 @@ describe('scan login lifecycle', () => {
     controller.dispose()
   })
 
-  it('recovers a committed Session after an ambiguous consume failure while keeping the lock', async () => {
-    const { api, states, onSession, onConsumeBusy, controller } = setup()
-    const recovering = deferred<Session>()
+  it('does not infer login from a later anonymous session after consume response loss', async () => {
+    const { api, states, controller, onConsumeBusy } = setup()
     api.get.mockResolvedValueOnce(approved)
-    api.consume.mockRejectedValueOnce(new Error('请求超时'))
-    api.session.mockReturnValueOnce(recovering.promise)
+    api.consume.mockRejectedValueOnce(new TypeError('response lost'))
     await controller.refresh()
     await vi.advanceTimersByTimeAsync(2000)
-    expect(states.at(-1)?.phase).toBe('reconciling')
-    expect(onConsumeBusy.mock.calls).toEqual([[true]])
+    expect(states.at(-1)).toMatchObject({ phase: 'error', error: expect.stringContaining('刷新二维码') })
+    expect(onConsumeBusy).toHaveBeenLastCalledWith(false)
+    const replacement = ticket('d'.repeat(32))
+    api.create.mockResolvedValueOnce(replacement)
     await controller.refresh()
-    expect(api.create).toHaveBeenCalledTimes(1)
-    recovering.resolve(session)
-    await vi.advanceTimersByTimeAsync(0)
-    expect(onSession).toHaveBeenCalledExactlyOnceWith(session)
-    expect(onConsumeBusy.mock.calls).toEqual([[true], [false]])
-    controller.dispose()
+    expect(states.at(-1)?.phase).toBe('pending')
+    expect(states.at(-1)?.ticket).toEqual(replacement)
   })
 
-  it('keeps authentication locked after failed reconciliation until an explicit retry settles it', async () => {
-    const { api, states, onConsumeBusy, controller } = setup()
-    api.get.mockResolvedValueOnce(approved)
-    api.consume.mockRejectedValueOnce(new Error('请求超时'))
-    api.session.mockRejectedValueOnce(new Error('离线'))
-    await controller.refresh()
-    await vi.advanceTimersByTimeAsync(2000)
-    expect(states.at(-1)).toMatchObject({ phase: 'reconciling' })
-    expect(states.at(-1)?.error).not.toBe('')
-    expect(onConsumeBusy.mock.calls).toEqual([[true]])
-    await controller.refresh()
-    expect(api.create).toHaveBeenCalledTimes(1)
-    await controller.retrySession()
-    expect(states.at(-1)).toMatchObject({ phase: 'error', error: '请求超时' })
-    expect(onConsumeBusy.mock.calls).toEqual([[true], [false]])
-    controller.dispose()
-  })
 })

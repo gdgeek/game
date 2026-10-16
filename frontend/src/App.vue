@@ -5,20 +5,17 @@ import LoginView from './components/LoginView.vue'
 import GamePicker from './components/GamePicker.vue'
 import GameArtwork from './components/GameArtwork.vue'
 import HelpDialog from './components/HelpDialog.vue'
-import BackendSwitcher from './components/BackendSwitcher.vue'
-import type { BackendId, BackendOption, Device, Game, Session } from './types'
-import { ApiError, assignGame, getDevices, getGames, getSelectedBackend, getSession, initializeBackends, isDemoMode, login, logout, setSelectedBackend } from './lib/api'
+import type { Device, Game, Session } from './types'
+import { ApiError, assignGame, getDevices, getGames, getSession, initializeApi, isDemoMode, login, logout, onAuthIdentityChange } from './lib/api'
 import { filterDevices, summarizeDevices } from './lib/devices'
 
 const ready = ref(false)
 const user = ref<Session['user']>(null)
 const demo = ref(isDemoMode)
-const selectedBackend = ref<BackendId>(getSelectedBackend())
-const backends = ref<readonly BackendOption[]>([])
 const configurationReady = ref(isDemoMode)
 const configurationBusy = ref(false)
 const configurationError = ref('')
-const connectingBackend = ref(false)
+const connectingSession = ref(false)
 const loginBusy = ref(false)
 const scanConsumeBusy = ref(false)
 const scanLoginEnabled = ref(false)
@@ -94,10 +91,11 @@ function resetWorkspace() {
   helpOpen.value = false
   sidebarOpen.value = false
   loading.value = false
-  connectingBackend.value = false
+  connectingSession.value = false
   saving.value = false
   loginBusy.value = false
   logoutBusy.value = false
+  scanLoginEnabled.value = false
   lastSynced.value = null
   activeView.value = 'devices'
   search.value = ''
@@ -117,7 +115,7 @@ function expireSession(error: unknown) {
     viewVersion++
     loadVersion++
     resetWorkspace()
-    connectingBackend.value = false
+    connectingSession.value = false
     ready.value = true
     loginError.value = '登录已过期，请重新登录。'
     return true
@@ -142,7 +140,7 @@ async function loadData() {
   loading.value = false
 }
 async function submitLogin(username: string, password: string) {
-  if (!configurationReady.value || loginBusy.value || scanConsumeBusy.value || connectingBackend.value || configurationBusy.value) return
+  if (!configurationReady.value || loginBusy.value || scanConsumeBusy.value || connectingSession.value || configurationBusy.value) return
   loginView.value?.stopScan()
   const version = viewVersion
   loginBusy.value = true
@@ -157,8 +155,8 @@ async function submitLogin(username: string, password: string) {
   } catch (error) { if (version === viewVersion) loginError.value = messageOf(error, '登录失败，请检查网络后重试。') }
   finally { if (version === viewVersion) loginBusy.value = false }
 }
-async function acceptScanSession(session: Session, backend: BackendId) {
-  if (backend !== selectedBackend.value || !scanConsumeBusy.value || loginBusy.value || connectingBackend.value || !session.user) return
+async function acceptScanSession(session: Session) {
+  if (!scanConsumeBusy.value || loginBusy.value || connectingSession.value || !session.user) return
   const version = viewVersion
   user.value = { ...session.user, role: session.user.role ?? 'device_manager' }
   demo.value = false
@@ -185,7 +183,7 @@ function openPicker(device: Device) {
   pickerDevice.value = device
 }
 async function saveGame(gameId: number) {
-  if (!user.value || !pickerDevice.value || saving.value || connectingBackend.value) return
+  if (!user.value || !pickerDevice.value || saving.value || connectingSession.value) return
   const version = viewVersion
   const target = pickerDevice.value
   saving.value = true
@@ -200,9 +198,9 @@ async function saveGame(gameId: number) {
   finally { if (version === viewVersion) saving.value = false }
 }
 
-async function connectBackend() {
+async function connectSession() {
   const version = viewVersion
-  connectingBackend.value = true
+  connectingSession.value = true
   loginError.value = ''
   try {
     const session = await getSession()
@@ -212,9 +210,9 @@ async function connectBackend() {
     scanLoginEnabled.value = !isDemoMode && session.scanLoginEnabled === true
     if (user.value) await loadData()
   } catch (error) {
-    if (version === viewVersion) loginError.value = messageOf(error, '无法连接当前后端，请重试或选择另一个后端。')
+    if (version === viewVersion) loginError.value = messageOf(error, '无法连接服务，请稍后重试。')
   } finally {
-    if (version === viewVersion) { connectingBackend.value = false; ready.value = true }
+    if (version === viewVersion) { connectingSession.value = false; ready.value = true }
   }
 }
 
@@ -223,11 +221,10 @@ async function initializeWorkspace() {
   configurationBusy.value = true
   loginError.value = ''
   try {
-    backends.value = await initializeBackends()
-    selectedBackend.value = getSelectedBackend()
+    await initializeApi()
     configurationReady.value = true
     configurationError.value = ''
-    await connectBackend()
+    await connectSession()
   } catch (error) {
     configurationReady.value = false
     configurationError.value = messageOf(error, '无法加载后端配置，请重试加载配置。')
@@ -235,18 +232,6 @@ async function initializeWorkspace() {
   } finally { configurationBusy.value = false }
 }
 
-async function switchBackend(backend: BackendId) {
-  if (isDemoMode || !configurationReady.value || !backends.value.some(option => option.id === backend) || backend === selectedBackend.value || saving.value || loginBusy.value || scanConsumeBusy.value || logoutBusy.value || configurationBusy.value) return
-  loginView.value?.stopScan()
-  viewVersion++
-  loadVersion++
-  scanLoginEnabled.value = false
-  setSelectedBackend(backend)
-  selectedBackend.value = backend
-  resetWorkspace()
-  ready.value = true
-  await connectBackend()
-}
 function gameById(id: number | null) { return games.value.find(game => game.id === id) }
 function gameDeviceCount(id: number) { return devices.value.filter(device => device.gameId === id).length }
 function formatTime(value: string) {
@@ -264,16 +249,25 @@ function exportDevices() {
   const link = document.createElement('a'); link.href = url; link.download = `不加班-设备列表-${new Date().toLocaleDateString('sv-SE')}.csv`; link.click(); URL.revokeObjectURL(url)
   showToast(`已导出 ${filteredDevices.value.length} 台设备`)
 }
-onMounted(initializeWorkspace)
-onBeforeUnmount(() => clearTimeout(toastTimeout))
+let unsubscribeAuthChanges: (() => void) | undefined
+onMounted(() => {
+  unsubscribeAuthChanges = onAuthIdentityChange(() => {
+    viewVersion++
+    loadVersion++
+    resetWorkspace()
+    ready.value = true
+    if (configurationReady.value) void connectSession()
+  })
+  void initializeWorkspace()
+})
+onBeforeUnmount(() => { unsubscribeAuthChanges?.(); clearTimeout(toastTimeout) })
 </script>
 
 <template>
   <div v-if="!ready" class="boot-screen" role="status"><span class="brand-symbol">不<span></span></span><LoaderCircle :size="22" class="spin" /><span>正在连接工作空间…</span></div>
-  <LoginView v-else-if="!user" ref="loginView" :busy="loginBusy || connectingBackend" :disabled="configurationBusy || !configurationReady" :error="loginError" :demo="demo" :backend="selectedBackend" :scan-login-enabled="scanLoginEnabled" @login="submitLogin" @authenticated="acceptScanSession" @scan-busy="scanConsumeBusy = $event">
+  <LoginView v-else-if="!user" ref="loginView" :busy="loginBusy || connectingSession" :disabled="configurationBusy || !configurationReady" :error="loginError" :demo="demo" :scan-login-enabled="scanLoginEnabled" @login="submitLogin" @authenticated="acceptScanSession" @scan-busy="scanConsumeBusy = $event">
     <template #environment>
       <div v-if="configurationError" class="data-error" role="alert"><CircleX :size="20" /><div><strong>无法加载后端配置</strong><p>{{ configurationError }}</p><button type="button" class="button secondary" :disabled="configurationBusy" @click="initializeWorkspace">{{ configurationBusy ? '正在加载配置…' : '重试加载配置' }}</button></div></div>
-      <BackendSwitcher v-if="!isDemoMode" :backends="backends" :model-value="selectedBackend" :disabled="loginBusy || scanConsumeBusy || saving || logoutBusy || configurationBusy" @update:model-value="switchBackend" />
     </template>
   </LoginView>
   <div v-else class="app-shell" :inert="!!pickerDevice || helpOpen">
@@ -287,7 +281,7 @@ onBeforeUnmount(() => clearTimeout(toastTimeout))
       <div class="sidebar-bottom"><div class="sidebar-tip"><span class="tip-icon"><Sparkles :size="17" /></span><strong>为设备找到合适的游戏</strong><p>在游戏库查看可用游戏，<br />一处完成所有设备配置。</p><button @click="activeView = 'games'">探索游戏库<ArrowRight :size="14" /></button></div><button class="help-nav" @click="helpOpen = true"><CircleHelp :size="18" />使用帮助<ChevronRight :size="15" /></button><div class="sidebar-account"><span class="account-avatar">不</span><div><strong>{{ user.username }}</strong><small>{{ identityLabel }}</small></div><button class="icon-button" aria-label="退出登录" title="退出登录" :disabled="logoutBusy || saving" @click="signOut"><LoaderCircle v-if="logoutBusy" :size="18" class="spin" /><LogOut v-else :size="18" /></button></div></div>
     </aside>
     <div class="main-shell" :inert="sidebarOpen">
-      <header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" aria-label="打开导航" @click="sidebarOpen = !sidebarOpen"><Menu :size="21" /></button><span>工作空间</span><ChevronRight :size="13" /><strong>{{ currentTitle }}</strong></div><div class="topbar-right"><BackendSwitcher v-if="!isDemoMode" :backends="backends" :model-value="selectedBackend" :disabled="saving || loginBusy || logoutBusy" compact @update:model-value="switchBackend" /><span v-if="demo" class="demo-label"><span class="status-dot amber"></span>演示模式</span><span class="topbar-divider"></span><span class="topbar-account">不</span><span class="topbar-name">{{ user.username }}</span></div></header>
+      <header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" aria-label="打开导航" @click="sidebarOpen = !sidebarOpen"><Menu :size="21" /></button><span>工作空间</span><ChevronRight :size="13" /><strong>{{ currentTitle }}</strong></div><div class="topbar-right"><span v-if="demo" class="demo-label"><span class="status-dot amber"></span>演示模式</span><span class="topbar-divider"></span><span class="topbar-account">不</span><span class="topbar-name">{{ user.username }}</span></div></header>
       <main class="workspace">
         <div class="page-heading"><div><div class="page-eyebrow">{{ activeView === 'devices' ? 'DEVICE OVERVIEW' : 'GAME LIBRARY' }}</div><h1>{{ currentTitle }}<span class="heading-dot"></span></h1><p>{{ activeView === 'devices' ? (deviceManager ? '你关联的设备，一目了然。为自己的设备配置游戏。' : '所有设备，一目了然。为每一台设备配置专属游戏。') : (deviceManager ? '发现可用游戏，查看关联设备的游戏配置情况。' : '发现可用游戏，查看每个游戏的设备配置情况。') }}</p></div><button class="button secondary refresh-button" :disabled="loading" @click="loadData"><RefreshCw :size="16" :class="{ spin: loading }" />{{ loading ? '正在同步…' : '刷新数据' }}</button></div>
 

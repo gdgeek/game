@@ -4,93 +4,69 @@ namespace app\components;
 
 use Yii;
 use yii\base\Component;
-use yii\caching\FileCache;
 use yii\web\HttpException;
 use yii\web\UnauthorizedHttpException;
 
-/** Password administrators and WeChat device managers share a safe browser session. */
+/** Administrator Bearer tokens preserve password and WeChat permission domains. */
 class AdminAuthService extends Component
 {
-    public const SESSION_KEY = 'game.admin.identity';
-    private const SESSION_SECONDS = 28800;
     private const ATTEMPT_WINDOW = 900;
     private const MAX_ATTEMPTS = 5;
 
     public $username;
     public $passwordHash;
     public $cache;
-    private $sessionPrepared = false;
+    public $tokens;
 
     public function init(): void
     {
         parent::init();
         $this->username = $this->username ?? (getenv('ADMIN_USERNAME') ?: 'dirui');
         $this->passwordHash = $this->passwordHash ?? (getenv('ADMIN_PASSWORD_HASH') ?: '$2y$12$C6bpwclb.JM.9bhsTvVYR..TbbTRDm2bbGraU/hdgXeRx0jOO5YQq');
-        // Authentication must keep working when the optional Redis service is absent.
-        $this->cache = $this->cache ?? new FileCache(['cachePath' => '@runtime/admin-auth-cache']);
+        $this->tokens = $this->tokens ?? new AdminTokenService();
+        // This cache remains available for scan-login throttles; password limits use shared auth storage.
+        $this->cache = $this->cache ?? new \yii\caching\FileCache(['cachePath' => '@runtime/admin-auth-cache']);
     }
 
     public function getUser(): ?array
     {
-        $identity = $this->session()->get(self::SESSION_KEY);
-        if (!is_array($identity)
-            || !isset($identity['username'], $identity['expiresAt'])
-            || !is_string($identity['username'])
-            || !is_int($identity['expiresAt'])
-            || $identity['expiresAt'] <= time()) {
-            $this->session()->remove(self::SESSION_KEY);
-            return null;
-        }
-        if (($identity['source'] ?? 'password') === 'wechat') {
-            if (!is_int($identity['wechatUserId'] ?? null)
-                || $identity['username'] !== 'wechat:' . $identity['wechatUserId']
-                || !$this->isWechatUser($identity['wechatUserId'])) {
-                $this->session()->remove(self::SESSION_KEY);
-                return null;
-            }
-        } elseif (($identity['source'] ?? 'password') !== 'password' || !hash_equals($this->username, $identity['username'])) {
-            $this->session()->remove(self::SESSION_KEY);
-            return null;
-        }
-        return ['username' => $identity['username'], 'role' => ($identity['source'] ?? 'password') === 'wechat' ? 'device_manager' : 'admin'];
+        $identity = $this->tokens->identityFromRequest();
+        if ($identity === null) { return null; }
+        if (!$this->isCurrentIdentity($identity)) { throw new UnauthorizedHttpException('管理登录凭据无效或已过期，请重新登录'); }
+        return $this->publicUser($identity);
     }
 
     public function login(string $username, string $password): array
     {
-        // Limit by IP so changing the supplied username does not bypass the limit.
-        $key = ['admin-login-attempts', Yii::$app->request->userIP ?? 'unknown'];
-        $attempts = $this->cache->get($key);
-        $now = time();
-        if (!is_array($attempts) || ($attempts['expiresAt'] ?? 0) <= $now) {
-            $attempts = ['count' => 0, 'expiresAt' => $now + self::ATTEMPT_WINDOW];
-        }
-        if ($attempts['count'] >= self::MAX_ATTEMPTS) {
-            Yii::$app->response->headers->set('Retry-After', (string) max(1, $attempts['expiresAt'] - $now));
+        // Reserve before checking credentials so a saturated window still blocks
+        // the next request, including a correct password, as before.
+        $issuer = $this->tokens->getIssuer();
+        $attempt = $this->tokens->store->reservePasswordAttempt(Yii::$app->request->userIP ?? 'unknown', self::MAX_ATTEMPTS, self::ATTEMPT_WINDOW, $issuer);
+        if (!$attempt['allowed']) {
+            Yii::$app->response->headers->set('Retry-After', (string) max(1, $attempt['retryAfter']));
             throw new HttpException(429, '登录尝试过于频繁，请稍后重试');
         }
-
         // Always verify the hash, including when the username is incorrect.
         $validPassword = strlen($password) <= 1024 && password_verify($password, $this->passwordHash);
         if (!hash_equals($this->username, $username) || !$validPassword) {
-            $attempts['count']++;
-            $this->cache->set($key, $attempts, max(1, $attempts['expiresAt'] - $now));
             throw new UnauthorizedHttpException('用户名或密码错误');
         }
 
-        $this->cache->delete($key);
-        $session = $this->session();
-        (new AdminScanLoginService(['auth' => $this]))->cancelCurrentTicket();
-        $session->regenerateID(true);
-        $session->set(self::SESSION_KEY, ['source' => 'password', 'username' => $this->username, 'expiresAt' => $now + self::SESSION_SECONDS]);
-        return ['username' => $this->username, 'role' => 'admin'];
+        $this->tokens->store->clearPasswordAttempts(Yii::$app->request->userIP ?? 'unknown', $issuer);
+        $this->cancelBrowserTicket();
+        return $this->issueIdentity(['source' => 'password', 'username' => $this->username, 'credentialFingerprint' => hash('sha256', $this->passwordHash)]);
     }
 
-    public function logout(): void
+    public function refresh(string $refreshToken): array
     {
-        $session = $this->session();
-        (new AdminScanLoginService(['auth' => $this]))->cancelCurrentTicket();
-        $session->remove(self::SESSION_KEY);
-        $session->regenerateID(true);
+        $result = $this->tokens->refresh($refreshToken, function (array $identity) { return $this->isCurrentIdentity($identity); });
+        return ['user' => $this->publicUser($result['identity']), 'token' => $result['token'], 'authMode' => 'jwt'];
+    }
+
+    public function logout(?string $refreshToken = null): void
+    {
+        $this->cancelBrowserTicket();
+        $this->tokens->revoke($refreshToken);
     }
 
     public function isWechatUser(int $id): bool
@@ -112,43 +88,41 @@ class AdminAuthService extends Component
     public function loginWechat(int $id): array
     {
         $this->requireWechatUser($id);
-        $session = $this->session();
-        (new AdminScanLoginService(['auth' => $this]))->cancelCurrentTicket();
-        $session->regenerateID(true);
-        $username = 'wechat:' . $id;
-        $session->set(self::SESSION_KEY, ['source' => 'wechat', 'wechatUserId' => $id, 'username' => $username, 'expiresAt' => time() + self::SESSION_SECONDS]);
-        return ['username' => $username, 'role' => 'device_manager'];
+        $this->cancelBrowserTicket();
+        return $this->issueIdentity(['source' => 'wechat', 'wechatUserId' => $id, 'username' => 'wechat:' . $id]);
     }
 
     /** Null means password administrator; a user ID means control-scoped access. */
     public function requireDeviceUserId(): ?int
     {
-        $user = $this->getUser();
-        if ($user === null) { throw new UnauthorizedHttpException('请先登录设备管理后台'); }
-        if ($user['role'] === 'admin') { return null; }
-        return $this->session()->get(self::SESSION_KEY)['wechatUserId'];
+        $identity = $this->tokens->identityFromRequest();
+        if ($identity === null || !$this->isCurrentIdentity($identity)) { throw new UnauthorizedHttpException('请先登录设备管理后台'); }
+        return $identity['source'] === 'password' ? null : $identity['wechatUserId'];
     }
 
-    /** Open and retain the browser session lock while changing login state. */
-    public function session(): \yii\web\Session
+    private function isCurrentIdentity(array $identity): bool
     {
-        $session = Yii::$app->session;
-        if (!$this->sessionPrepared) {
-            // Bootstrap components may have already opened the shared PHP session.
-            // Reopen it to apply cookie/INI settings while preserving all identities.
-            if ($session->isActive) {
-                $session->close();
-            }
-            $session->setTimeout(self::SESSION_SECONDS);
-            $session->setUseStrictMode(true);
-            $session->setCookieParams(array_merge($session->getCookieParams(), [
-                'httponly' => true,
-                'secure' => Yii::$app->request->isSecureConnection,
-                'samesite' => 'Lax',
-            ]));
-            $this->sessionPrepared = true;
+        if (($identity['source'] ?? null) === 'password') {
+            return is_string($identity['username'] ?? null) && hash_equals($this->username, $identity['username'])
+                && is_string($identity['credentialFingerprint'] ?? null)
+                && hash_equals(hash('sha256', $this->passwordHash), $identity['credentialFingerprint']);
         }
-        $session->open();
-        return $session;
+        return ($identity['source'] ?? null) === 'wechat' && is_int($identity['wechatUserId'] ?? null)
+            && $identity['wechatUserId'] > 0 && ($identity['username'] ?? null) === 'wechat:' . $identity['wechatUserId']
+            && $this->isWechatUser($identity['wechatUserId']);
+    }
+    private function publicUser(array $identity): array
+    {
+        return ['username' => $identity['username'], 'role' => $identity['source'] === 'password' ? 'admin' : 'device_manager'];
+    }
+    private function issueIdentity(array $identity): array
+    {
+        return ['user' => $this->publicUser($identity), 'token' => $this->tokens->issue($identity), 'authMode' => 'jwt'];
+    }
+    private function cancelBrowserTicket(): void
+    {
+        if (Yii::$app->request->headers->get('X-Admin-Scan-Owner') !== null) {
+            (new AdminScanLoginService(['auth' => $this]))->cancelCurrentTicket();
+        }
     }
 }
