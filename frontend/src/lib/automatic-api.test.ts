@@ -35,6 +35,29 @@ describe('automatic JWT API', () => {
     expect(localStorage.removeItem).toHaveBeenCalled()
   })
 
+  it.each([200, 503, 401])('sends one partial device configuration write through JWT auth for HTTP %i', async status => {
+    const api = await import('./api')
+    fetchMock.mockResolvedValueOnce(response(session('access')))
+    await api.login('admin', 'password')
+    const patch = { title: '大厅新名称', slogans: ['欢迎'], pictures: [] }
+    const updated = { ...device, name: patch.title, ...patch, thumbs: ['retained.webp'] }
+    fetchMock.mockResolvedValueOnce(response(status === 200 ? updated : { message: '保存失败' }, status))
+    const pending = api.updateDeviceConfiguration(1, patch)
+    if (status === 200) expect(await pending).toEqual(updated)
+    else await expect(pending).rejects.toMatchObject({ status, message: '保存失败' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const [url, init] = fetchMock.mock.calls[1]!
+    expect(url).toBe('/api/admin-api/devices/1/configuration')
+    expect(init?.method).toBe('PUT')
+    expect(init?.credentials).toBe('omit')
+    expect(JSON.parse(String(init?.body))).toEqual(patch)
+    const headers = new Headers(init?.headers)
+    expect(headers.get('Authorization')).toBe('Bearer access')
+    expect(headers.has('Cookie')).toBe(false)
+    expect(headers.has('X-CSRF-Token')).toBe(false)
+    if (status === 401) expect(localStorage.removeItem).toHaveBeenCalled()
+  })
+
   it('singleflights token refresh before concurrent writes', async () => {
     const api = await import('./api')
     localStorage.getItem.mockReturnValue(JSON.stringify(token('old', '2026-10-16T12:00:20Z')))

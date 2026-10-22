@@ -1,4 +1,4 @@
-import type { Device, Game, ScanLoginTicket, ScanLoginTicketStatus, Session } from '../types'
+import type { Device, DeviceConfigurationPatch, Game, ScanLoginTicket, ScanLoginTicketStatus, Session } from '../types'
 
 export const isDemoMode = import.meta.env.MODE === 'demo'
 interface ApiConfiguration { readonly apiBase: '/api/admin-api' | '/admin-api'; readonly automatic: boolean; readonly auth: 'jwt' | 'session' }
@@ -247,10 +247,13 @@ function isDevice(value: unknown): value is Device {
     && Number.isSafeInteger(value.id)
     && typeof value.uuid === 'string'
     && typeof value.name === 'string'
+    && (value.title === undefined || typeof value.title === 'string')
     && typeof value.ip === 'string'
     && typeof value.status === 'string' && ['online', 'offline', 'unknown'].includes(value.status)
     && typeof value.updatedAt === 'string'
     && (value.gameId === null || Number.isSafeInteger(value.gameId))
+    && ['slogans', 'pictures', 'thumbs'].every(field => value[field] === undefined
+      || (Array.isArray(value[field]) && value[field].every(item => typeof item === 'string')))
 }
 
 function isGame(value: unknown): value is Game {
@@ -523,4 +526,8 @@ export async function getGames(): Promise<Game[]> {
 
 export async function assignGame(deviceId: number, gameId: number): Promise<Device> {
   return decode(await write(`/devices/${deviceId}/game`, 'PUT', { gameId }), isDevice)
+}
+
+export async function updateDeviceConfiguration(deviceId: number, patch: DeviceConfigurationPatch): Promise<Device> {
+  return decode(await write(`/devices/${deviceId}/configuration`, 'PUT', patch), isDevice)
 }

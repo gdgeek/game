@@ -149,3 +149,45 @@ td{border-color:#ececec}tbody tr:hover{background:#fafcfb}
 .toast-message{background:#176b3c;border-color:#2b8853;color:#fff}
 .toast-message>svg,.toast-message .icon-button{color:#c5efda}
 @media(max-width:760px){.configure-button{padding:8px 10px!important}.table-scroll td:nth-child(4):before{color:#888}}
+
+/* Device content editor shares the existing configuration dialog. */
+.device-name-cell>span:last-child{min-width:0;max-width:240px}
+.device-name-cell strong{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toast-message>span{min-width:0;overflow-wrap:anywhere}
+.toast-message>svg,.toast-message>.icon-button{flex-shrink:0}
+.game-picker{display:flex;flex-direction:column;overflow:hidden;max-width:720px}
+.game-picker>.modal-header,.game-picker>.modal-footer{flex-shrink:0}
+.game-picker>.picker-content{min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.game-picker .picker-games{max-height:230px;overflow-y:auto;padding:1px}
+.configuration-game-title,.configuration-heading h3{font-size:14px;font-weight:600;color:#333;margin:0 0 12px}
+.configuration-name{margin-bottom:24px}
+.configuration-name label{display:block;font-size:14px;font-weight:600;margin-bottom:12px}
+.configuration-name input{display:block;width:100%;border:1px solid #ddd;border-radius:6px;padding:10px 11px;font:inherit;font-size:13px;line-height:20px;background:#fff;color:#333}
+.configuration-name input:focus{outline:none;border-color:#07c160;box-shadow:0 0 0 3px #07c16012}
+.configuration-name input[aria-invalid=true]{border-color:#b32d24}
+.configuration-name input:disabled{background:#fafafa;color:#888}
+.configuration-name p{font-size:12px;line-height:1.7;color:#777;margin-top:6px}
+.configuration-name .form-error{color:#b32d24}
+.configuration-list{border-top:1px solid #ececec;padding-top:22px;margin-top:24px}
+.configuration-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+.configuration-heading h3{margin-bottom:6px}
+.configuration-heading p,.configuration-catalog-note,.configuration-empty{font-size:12px;line-height:1.7;color:#777}
+.configuration-catalog-note{margin-top:14px}
+.configuration-add{display:flex;align-items:center;gap:4px;color:#07813f;font-size:12px;min-height:32px;padding:5px 8px;flex-shrink:0;border-radius:5px}
+.configuration-add:hover:not(:disabled){background:#effaf4}
+.configuration-empty{padding:10px 12px;border:1px dashed #ddd;border-radius:6px;background:#fafafa}
+.configuration-row{display:flex;align-items:center;gap:10px;margin-top:10px}
+.configuration-index{font-size:10px;font-variant-numeric:tabular-nums;color:#888;width:16px;flex-shrink:0}
+.configuration-row input{min-width:0;flex:1;border:1px solid #ddd;border-radius:6px;padding:10px 11px;font:inherit;font-size:13px;line-height:20px;color:#333;background:#fff}
+.configuration-row input:focus{outline:none;border-color:#07c160;box-shadow:0 0 0 3px #07c16012}
+.configuration-row input::placeholder{color:#999}
+.configuration-row input:disabled{background:#fafafa;color:#888}
+.configuration-preview{width:42px;height:42px;flex-shrink:0;border:1px solid #ececec;border-radius:5px;background:#f7f8fa;color:#999;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.configuration-preview img{width:100%;height:100%;object-fit:contain}
+.configuration-remove{width:32px;height:36px;flex-shrink:0;color:#888}
+.configuration-remove:hover:not(:disabled){background:#fff1f0;color:#b32d24}
+.configuration-error{flex-shrink:0;padding:12px 28px;margin:0;border-top:1px solid #ececec;max-height:100px;overflow:auto}
+.game-picker .picker-selection{min-width:0}
+.game-picker .picker-selection>strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.game-picker .button-group{flex-shrink:0}
+@media(max-width:760px){.configuration-list{padding-top:18px;margin-top:20px}.configuration-row{gap:7px}.configuration-row input,.configuration-name input{font-size:16px;padding:8px}.configuration-index{width:13px;font-size:9px}.configuration-preview{width:34px;height:38px}.configuration-heading p,.configuration-empty{font-size:11px}.configuration-error{padding:12px 17px}.game-picker .picker-selection>strong{max-width:120px}}

@@ -74,6 +74,7 @@ php -r 'echo password_hash(rtrim(fgets(STDIN), "\r\n"), PASSWORD_DEFAULT), PHP_E
 | GET | `/admin-api/devices` | 必须登录 | 设备数组 |
 | GET | `/admin-api/games` | 必须登录 | 游戏数组 |
 | PUT | `/admin-api/devices/<id>/game` | `{gameId: number}`，必须登录 | 更新后的单个设备 |
+| PUT | `/admin-api/devices/<id>/configuration` | `{gameId?: number, title?: string, slogans?: string[], pictures?: string[], thumbs?: string[]}`，必须登录 | 更新后的单个设备 |
 
 JSON 请求带 `Content-Type: application/json`，生产管理接口不发送 CSRF Token 或 Cookie。需要认证的请求带 Bearer；刷新与退出携带当前 `refreshToken`。正式前端会在发送业务请求之前执行单次共享刷新，业务请求一经发送，收到 401、超时或网络错误均不自动重放写入。
 
@@ -84,14 +85,26 @@ JSON 请求带 `Content-Type: application/json`，生产管理接口不发送 CS
   "id": 1,
   "uuid": "device-a",
   "name": "大厅一号",
+  "title": "大厅一号",
   "ip": "192.168.1.10",
   "status": "unknown",
   "updatedAt": "2026-10-11 12:30:00",
-  "gameId": 638
+  "gameId": 638,
+  "slogans": ["欢迎来到这里"],
+  "pictures": ["https://example.com/welcome.png"],
+  "thumbs": ["https://example.com/welcome.webp"]
 }
 ```
 
-`name` 优先使用设备 `tag`，其次为 `uuid`。没有 `setup` 或未配置 `scene_id` 时 `gameId` 为 `null`。现有模型没有可信的在线心跳字段，因此 `status` 始终为 `unknown`。`updatedAt` 优先取配置更新时间，其次为设备更新时间，并沿用数据库的时间格式。设备总数是返回数组长度。读取设备列表不会创建缺失的 `setup`。
+`title` 返回 `setup.title` 原值，无配置或空值时为 `""`，与小程序的设备名称对应。`name` 优先使用去掉首尾空白的 `title`；名称为空或仍为协议默认值 `未知` 时，沿用设备 `tag`，其次为 `uuid`。设备 `tag` 和 `uuid` 是物理标识，编辑名称不会修改它们。没有 `setup` 或未配置 `scene_id` 时 `gameId` 为 `null`。现有模型没有可信的在线心跳字段，因此 `status` 始终为 `unknown`。`updatedAt` 优先取配置更新时间，其次为设备更新时间，并沿用数据库的时间格式。设备总数是返回数组长度。读取设备列表不会创建缺失的 `setup`。
+
+`slogans` 为欢迎词/口号，`pictures` 为图片地址，`thumbs` 为缩略图地址，直接对应现有设备 `setup` 的同名字段。返回值始终为字符串列表；缺少配置或字段为空时返回 `[]`。读取时过滤历史数据中的非字符串和空项，并去掉字符串首尾空白，不修改数据库。
+
+`/configuration` 使用局部修改：只允许 `gameId`、`title`、`slogans`、`pictures`、`thumbs`，至少提供一个字段；省略的字段保持原值，显式 `[]` 清空对应列表。`title` 必须为字符串，去掉首尾空白后最多 255 个 Unicode 字符，空字符串可清除自定义名称并恢复标签/UUID 显示。三个内容字段必须是 JSON 字符串数组，字符串会去掉首尾空白并过滤空项。无效名称、非列表（包括 `{}`）、非字符串元素、未知字段、空请求对象、非正整数 `gameId` 或不在当前目录中的 `gameId` 返回 422。每次显式提交 `gameId` 都校验当前目录，包括与原值相同的编号；目录失败时返回 503。仅编辑已有配置的名称或内容不会请求目录，原场景已下架或为空也可保存。
+
+当前部署的 MySQL 连接使用 `utf8`（三字节字符集）；该连接或 `utf8mb3` 下，名称中的四字节 Unicode 字符（如多数表情符号）会在写入前返回 422：`设备名称暂不支持表情符号，请使用文字或数字`。普通中文仍支持上述 255 字边界；`utf8mb4` 连接不受此兼容限制。本次不修改数据库连接字符集或表结构。
+
+配置修改沿用现有管理 Bearer JWT 和设备归属校验，事务内锁定设备行并保存本次全部字段。金额、拍照次数及其他未提交的字段保留。首次保存缺少 `setup` 的设备时保留现有设备协议默认值；未提交 `gameId` 时使用当前动态默认场景，目录为空则保持未分配。响应为完整设备对象，包含从数据库回读的 `updatedAt`。现有 `/game` 接口继续可用。
 
 游戏格式示例：
 
@@ -127,7 +140,7 @@ Y1 目录通过配置的服务地址及明确的 `page` / `pageSize=15` 参数�
 php api/vendor/bin/phpunit --stderr --bootstrap api/tests/_bootstrap.php --filter 'AdminApiTest|AdminSceneFetcherTest|AdminScanLoginTest' api/tests/unit/components
 ```
 
-测试覆盖 JWT 签名和时间、身份域隔离、密码与微信角色、跨节点令牌读取、原子刷新、八小时总期限、立即注销、用户及设备权限变化、Cookie/CSRF 移除、扫码 owner 与一次性消费，以及现有设备和场景读取/写入事务。测试只使用独立账号、测试密钥和随机 Redis 键前缀。
+测试覆盖 JWT 签名和时间、身份域隔离、密码与微信角色、跨节点令牌读取、原子刷新、八小时总期限、立即注销、用户及设备权限变化、Cookie/CSRF 移除、扫码 owner 与一次性消费，以及现有设备和场景读取/写入事务。同时覆盖设备名称与欢迎词/图片/缩略图的局部保存、清空、长度校验、物理标识保留、目录不可用时保存和事务回滚。测试只使用独立账号、测试密钥和随机 Redis 键前缀。
 
 真实联调需要现有数据库、已执行的 v2 表迁移、两节点匹配的 JWT 签名验证材料、共同可达的专用令牌 Redis，以及可访问本机 Y1 的服务器网络。扫码还需票据表迁移、相同规范 origin、微信凭据及已发布的小程序。
 

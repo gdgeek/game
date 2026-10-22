@@ -37,7 +37,7 @@ class AdminController extends Controller
                 'class' => VerbFilter::class,
                 'actions' => [
                     'session' => ['GET'], 'login' => ['POST'], 'refresh' => ['POST'], 'logout' => ['POST'],
-                    'devices' => ['GET'], 'games' => ['GET'], 'set-game' => ['PUT'],
+                    'devices' => ['GET'], 'games' => ['GET'], 'set-game' => ['PUT'], 'set-configuration' => ['PUT'],
                     'scan-login-create' => ['POST'], 'scan-login-status' => ['GET'],
                     'scan-login-consume' => ['POST'], 'scan-login-cancel' => ['POST'],
                 ],
@@ -117,5 +117,26 @@ class AdminController extends Controller
             throw new UnprocessableEntityHttpException('gameId 必须为有效的游戏编号');
         }
         return $this->devices->assignGame((int) $id, $gameId);
+    }
+
+    public function actionSetConfiguration($id): array
+    {
+        $request = Yii::$app->request;
+        $patch = $request->bodyParams;
+        $contentType = strtolower(trim(explode(';', $request->contentType, 2)[0]));
+        if ($contentType === 'application/json' && $request->getRawBody() !== '') {
+            // Keep JSON objects distinct from lists: {} must never mean clear [].
+            $parser = new \yii\web\JsonParser();
+            $parser->asArray = false;
+            $body = $parser->parse($request->getRawBody(), $request->contentType);
+            if (!$body instanceof \stdClass) {
+                throw new UnprocessableEntityHttpException('设备配置必须为 JSON 对象');
+            }
+            $patch = (array) $body;
+        }
+        if (!is_array($patch)) {
+            throw new UnprocessableEntityHttpException('设备配置必须为 JSON 对象');
+        }
+        return $this->devices->updateConfiguration((int) $id, $patch);
     }
 }

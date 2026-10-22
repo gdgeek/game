@@ -1,6 +1,6 @@
 # 不加班设备管理后台
 
-Vue 3 + TypeScript + Vite 中文管理后台，视觉参考 `gdgeek/bujiaban-mp`。提供管理员登录、设备统计、筛选、分页、CSV 导出和逐设备场景配置。
+Vue 3 + TypeScript + Vite 中文管理后台，视觉参考 `gdgeek/bujiaban-mp`。提供管理员登录、设备统计、筛选、分页、CSV 导出，以及逐设备的名称、游戏、欢迎词（口号）、图片和缩略图配置。
 
 ## 本地演示
 
@@ -41,7 +41,7 @@ npm run dev
 
 增减后端只需调整 Portainer Stack 的 `APP_API_N_URL` 并更新容器，沿用同一个前端镜像。允许编号缺口，按数字排序；部署必须显式配置至少一个有效 HTTPS origin。节点地址只在代理服务器侧使用，不进入公开配置。Nginx 保留 TLS 证书校验、SNI 与正确 Host。
 
-正式上游均须发布本仓库的 `/admin-api`。它使用现有 v2 `device`、`setup` 数据，场景目录来自各实例配置的 Y1。保存配置只修改 `setup.scene_id`，设备下次读取现有 info 接口时使用新场景。接口没有心跳字段，页面显示“状态未知”；场景目录为空时禁止分配。接口说明见 [ADMIN_API.md](../docs/ADMIN_API.md)。
+正式上游均须发布本仓库的 `/admin-api`。它使用现有 v2 `device`、`setup` 数据，场景目录来自各实例配置的 Y1。点击「配置设备」可修改设备名称、选择游戏，增删欢迎词、图片地址和缩略图地址；HTTP(S) 图片地址提供预览。只提交本次修改的 `title`、`gameId`、`slogans`、`pictures`、`thumbs`，设备下次读取配置时生效。设备名称与小程序共用 `setup.title`，最多 255 个字符；名称为空或默认“未知”时，列表显示原设备标签或 UUID。列表保留顺序和重复项，忽略首尾空白与空项，删除全部条目可清空列表。接口没有心跳字段，页面显示“状态未知”；场景目录为空或加载失败时仍可编辑设备名称、欢迎词和图片。接口说明见 [ADMIN_API.md](../docs/ADMIN_API.md)。
 
 ## 本地连接正式接口
 
