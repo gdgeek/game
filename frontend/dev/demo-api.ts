@@ -282,6 +282,13 @@ export function demoApiPlugin(): Plugin {
           return
         }
 
+        const previewMatch = path.match(/^\/devices\/(\d+)\/image-previews$/)
+        if (method === 'GET' && previewMatch) {
+          if (!devices.some(device => device.id === Number(previewMatch[1]))) throw new HttpError(404, '设备不存在')
+          sendJson(response, 200, { previews: [] })
+          return
+        }
+
         const deletionMatch = path.match(/^\/devices\/(\d+)$/)
         if (method === 'DELETE' && deletionMatch) {
           if (session.user.role !== 'admin') throw new HttpError(403, '只有管理员可以删除设备')

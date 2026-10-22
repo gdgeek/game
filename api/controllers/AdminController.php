@@ -5,6 +5,7 @@ namespace app\controllers;
 use app\components\AdminAuthService;
 use app\components\AdminDeviceService;
 use app\components\AdminGameCatalog;
+use app\components\AdminImagePreviewService;
 use app\components\AdminScanLoginService;
 use Yii;
 use yii\filters\VerbFilter;
@@ -20,6 +21,7 @@ class AdminController extends Controller
     public $devices;
     public $catalog;
     public $scanLogin;
+    public $imagePreviews;
 
     public function init(): void
     {
@@ -28,6 +30,7 @@ class AdminController extends Controller
         $this->scanLogin = $this->scanLogin ?? new AdminScanLoginService(['auth' => $this->auth]);
         $this->catalog = $this->catalog ?? new AdminGameCatalog();
         $this->devices = $this->devices ?? new AdminDeviceService(['catalog' => $this->catalog, 'auth' => $this->auth]);
+        $this->imagePreviews = $this->imagePreviews ?? new AdminImagePreviewService(['devices' => $this->devices]);
     }
 
     public function behaviors(): array
@@ -37,7 +40,7 @@ class AdminController extends Controller
                 'class' => VerbFilter::class,
                 'actions' => [
                     'session' => ['GET'], 'login' => ['POST'], 'refresh' => ['POST'], 'logout' => ['POST'],
-                    'devices' => ['GET'], 'games' => ['GET'], 'set-game' => ['PUT'], 'set-configuration' => ['PUT'],
+                    'devices' => ['GET'], 'image-previews' => ['GET'], 'games' => ['GET'], 'set-game' => ['PUT'], 'set-configuration' => ['PUT'],
                     'delete-device' => ['DELETE'],
                     'scan-login-create' => ['POST'], 'scan-login-status' => ['GET'],
                     'scan-login-consume' => ['POST'], 'scan-login-cancel' => ['POST'],
@@ -104,6 +107,11 @@ class AdminController extends Controller
     public function actionDevices(): array
     {
         return $this->devices->getDevices();
+    }
+
+    public function actionImagePreviews($id): array
+    {
+        return ['previews' => $this->imagePreviews->getPreviews((int) $id)];
     }
 
     public function actionGames(): array
