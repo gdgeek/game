@@ -226,6 +226,7 @@ class AdminDeviceService extends Component
         $displayTitle = trim($title);
         return [
             'id' => (int) $device->id,
+            'version' => (int) $device->version,
             'uuid' => (string) $device->uuid,
             'name' => $displayTitle !== '' && $displayTitle !== '未知'
                 ? $displayTitle : (string) ($device->tag ?: ($device->uuid ?: '设备 ' . $device->id)),
