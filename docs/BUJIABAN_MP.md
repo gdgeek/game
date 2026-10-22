@@ -53,6 +53,14 @@ pnpm run dev:mp-weixin
 默认场景沿用目录的 30 秒缓存；目录为空时为 `null`，Y1 请求失败时返回 503，重试前不留下部分初始化的新设备。
 已有设备配置保持原值；后台明确选择游戏时使用已校验的选中编号。
 
+Unity 通过 `POST /v2/server/device` 或 `POST /v2/server/refresh` 上报设备时，
+可在请求 body 中随 `uuid`、`token` 一起传入 `version`（例如 `2`）。每次包含
+UUID 的设备请求都会将对应 `device.version` 同步为该值；省略 `version` 时写入
+`0`，已绑定设备的同一 token 再次请求也会更新。支持 JSON 整数及表单整数字符串，
+范围为 `0` 至 `2147483647`；非法值返回 400。沿用现有 `time` / `hash` 签名，
+`version` 不加入签名公式。无 UUID 的小程序、文件和状态读取请求不修改设备版本；
+`GET /v2/server/info` 不参与此次版本上报，其他入口新增设备仍默认写入 `1`。
+
 后端路由源文件为 `files/api/config/web.php`。各仓库独立提交与发布；建立协作结构和本次扫码登录实现均只修改本地代码，尚未发布扫码登录。
 
 ## 接入记录
