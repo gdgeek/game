@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowDownToLine, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, CircleX, Gamepad2, LayoutGrid, LoaderCircle, LogOut, Menu, Monitor, MonitorCheck, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Unplug, X } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, CircleX, Gamepad2, LayoutGrid, LoaderCircle, LogOut, Menu, Monitor, MonitorCheck, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Unplug, X } from 'lucide-vue-next'
 import LoginView from './components/LoginView.vue'
 import GamePicker from './components/GamePicker.vue'
 import GameArtwork from './components/GameArtwork.vue'
 import HelpDialog from './components/HelpDialog.vue'
+import DeviceDeleteDialog from './components/DeviceDeleteDialog.vue'
 import type { Device, DeviceConfigurationPatch, Game, Session } from './types'
-import { ApiError, updateDeviceConfiguration, getDevices, getGames, getSession, initializeApi, isDemoMode, login, logout, onAuthIdentityChange } from './lib/api'
+import { ApiError, deleteDevice, updateDeviceConfiguration, getDevices, getGames, getSession, initializeApi, isDemoMode, login, logout, onAuthIdentityChange } from './lib/api'
 import { filterDevices, summarizeDevices } from './lib/devices'
 
 const ready = ref(false)
@@ -39,6 +40,9 @@ const sidebar = ref<HTMLElement>()
 const pickerDevice = ref<Device | null>(null)
 const saving = ref(false)
 const saveError = ref('')
+const deletionDevice = ref<Device | null>(null)
+const deleting = ref(false)
+const deleteError = ref('')
 const toast = ref<{ text: string; error: boolean } | null>(null)
 const helpOpen = ref(false)
 const logoutBusy = ref(false)
@@ -57,6 +61,7 @@ const syncingTime = computed(() => lastSynced.value?.toLocaleTimeString('zh-CN',
 const statusLabels = { online: '在线', offline: '离线', unknown: '状态未知' }
 const currentTitle = computed(() => activeView.value === 'devices' ? '设备管理' : '游戏库')
 const deviceManager = computed(() => user.value?.role === 'device_manager')
+const canDeleteDevices = computed(() => user.value?.role === 'admin')
 const identityLabel = computed(() => deviceManager.value ? '关联设备管理' : '管理员')
 
 watch([search, status, gameFilter, pageSize], () => { page.value = 1 })
@@ -88,6 +93,9 @@ function resetWorkspace() {
   devices.value = []
   games.value = []
   pickerDevice.value = null
+  deletionDevice.value = null
+  deleting.value = false
+  deleteError.value = ''
   helpOpen.value = false
   sidebarOpen.value = false
   loading.value = false
@@ -123,7 +131,7 @@ function expireSession(error: unknown) {
   return false
 }
 async function loadData() {
-  if (!user.value) return
+  if (!user.value || deleting.value) return
   const currentView = viewVersion
   const version = ++loadVersion
   loading.value = true
@@ -164,7 +172,7 @@ async function acceptScanSession(session: Session) {
   if (version === viewVersion) await loadData()
 }
 async function signOut() {
-  if (logoutBusy.value || scanConsumeBusy.value || saving.value) return
+  if (logoutBusy.value || scanConsumeBusy.value || saving.value || deleting.value) return
   const version = viewVersion
   logoutBusy.value = true
   try {
@@ -177,12 +185,12 @@ async function signOut() {
   finally { if (version === viewVersion) logoutBusy.value = false }
 }
 function openPicker(device: Device) {
-  if (loading.value || devicesError.value) return
+  if (loading.value || devicesError.value || deletionDevice.value) return
   saveError.value = ''
   pickerDevice.value = device
 }
 async function saveConfiguration(configuration: DeviceConfigurationPatch) {
-  if (!user.value || !pickerDevice.value || saving.value || connectingSession.value) return
+  if (!user.value || !pickerDevice.value || saving.value || connectingSession.value || deletionDevice.value) return
   const version = viewVersion
   const target = pickerDevice.value
   saving.value = true
@@ -195,6 +203,35 @@ async function saveConfiguration(configuration: DeviceConfigurationPatch) {
     showToast(`已保存「${updated.name || `设备 #${target.id}`}」的设备配置`)
   } catch (error) { if (version === viewVersion && !expireSession(error)) saveError.value = messageOf(error, '配置保存失败，请重试。') }
   finally { if (version === viewVersion) saving.value = false }
+}
+
+function openDeletion(device: Device) {
+  if (!canDeleteDevices.value || loading.value || devicesError.value || saving.value || deleting.value || connectingSession.value || logoutBusy.value || pickerDevice.value) return
+  deleteError.value = ''
+  deletionDevice.value = device
+}
+function closeDeletion() {
+  if (deleting.value) return
+  deletionDevice.value = null
+  deleteError.value = ''
+}
+async function confirmDeletion() {
+  if (!canDeleteDevices.value || !deletionDevice.value || deleting.value || saving.value || connectingSession.value || logoutBusy.value) return
+  const version = viewVersion
+  const target = deletionDevice.value
+  deleting.value = true
+  deleteError.value = ''
+  try {
+    await deleteDevice(target.id)
+    if (version !== viewVersion) return
+    devices.value = devices.value.filter(device => device.id !== target.id)
+    deletionDevice.value = null
+    deleting.value = false
+    showToast(`已删除「${target.name || `设备 #${target.id}`}」`)
+    await nextTick()
+    if (version === viewVersion && typeof document !== 'undefined') document.querySelector<HTMLButtonElement>('.refresh-button')?.focus()
+  } catch (error) { if (version === viewVersion && !expireSession(error)) deleteError.value = messageOf(error, '设备删除失败，请重试。') }
+  finally { if (version === viewVersion) deleting.value = false }
 }
 
 async function connectSession() {
@@ -269,7 +306,7 @@ onBeforeUnmount(() => { unsubscribeAuthChanges?.(); clearTimeout(toastTimeout) }
       <div v-if="configurationError" class="data-error" role="alert"><CircleX :size="20" /><div><strong>无法加载后端配置</strong><p>{{ configurationError }}</p><button type="button" class="button secondary" :disabled="configurationBusy" @click="initializeWorkspace">{{ configurationBusy ? '正在加载配置…' : '重试加载配置' }}</button></div></div>
     </template>
   </LoginView>
-  <div v-else class="app-shell" :inert="!!pickerDevice || helpOpen">
+  <div v-else class="app-shell" :inert="!!pickerDevice || !!deletionDevice || helpOpen">
     <div v-if="sidebarOpen" class="sidebar-shade" @click="sidebarOpen = false"></div>
     <aside ref="sidebar" class="sidebar" :class="{ open: sidebarOpen }" @keydown="sidebarKeydown">
       <button class="icon-button sidebar-close" aria-label="关闭导航" @click="sidebarOpen = false"><X :size="20" /></button>
@@ -277,12 +314,12 @@ onBeforeUnmount(() => { unsubscribeAuthChanges?.(); clearTimeout(toastTimeout) }
       <div class="workspace-label"><span class="workspace-avatar">不</span><div><strong>不加班工作空间</strong><small>设备管理中心</small></div><ShieldCheck :size="16" /></div>
       <span class="nav-section-label">工作空间</span>
       <nav aria-label="主要导航"><button :class="{ active: activeView === 'devices' }" @click="activeView = 'devices'"><LayoutGrid :size="19" /><span>设备管理</span><span class="nav-count">{{ devices.length }}</span></button><button :class="{ active: activeView === 'games' }" @click="activeView = 'games'"><Gamepad2 :size="20" /><span>游戏库</span></button></nav>
-      <div class="sidebar-bottom"><div class="sidebar-tip"><span class="tip-icon"><Sparkles :size="17" /></span><strong>为设备找到合适的游戏</strong><p>在游戏库查看可用游戏，<br />一处完成所有设备配置。</p><button @click="activeView = 'games'">探索游戏库<ArrowRight :size="14" /></button></div><button class="help-nav" @click="helpOpen = true"><CircleHelp :size="18" />使用帮助<ChevronRight :size="15" /></button><div class="sidebar-account"><span class="account-avatar">不</span><div><strong>{{ user.username }}</strong><small>{{ identityLabel }}</small></div><button class="icon-button" aria-label="退出登录" title="退出登录" :disabled="logoutBusy || saving" @click="signOut"><LoaderCircle v-if="logoutBusy" :size="18" class="spin" /><LogOut v-else :size="18" /></button></div></div>
+      <div class="sidebar-bottom"><div class="sidebar-tip"><span class="tip-icon"><Sparkles :size="17" /></span><strong>为设备找到合适的游戏</strong><p>在游戏库查看可用游戏，<br />一处完成所有设备配置。</p><button @click="activeView = 'games'">探索游戏库<ArrowRight :size="14" /></button></div><button class="help-nav" @click="helpOpen = true"><CircleHelp :size="18" />使用帮助<ChevronRight :size="15" /></button><div class="sidebar-account"><span class="account-avatar">不</span><div><strong>{{ user.username }}</strong><small>{{ identityLabel }}</small></div><button class="icon-button" aria-label="退出登录" title="退出登录" :disabled="logoutBusy || saving || deleting" @click="signOut"><LoaderCircle v-if="logoutBusy" :size="18" class="spin" /><LogOut v-else :size="18" /></button></div></div>
     </aside>
     <div class="main-shell" :inert="sidebarOpen">
       <header class="topbar"><div class="breadcrumb"><button class="icon-button mobile-menu" aria-label="打开导航" @click="sidebarOpen = !sidebarOpen"><Menu :size="21" /></button><span>工作空间</span><ChevronRight :size="13" /><strong>{{ currentTitle }}</strong></div><div class="topbar-right"><span v-if="demo" class="demo-label"><span class="status-dot amber"></span>演示模式</span><span class="topbar-divider"></span><span class="topbar-account">不</span><span class="topbar-name">{{ user.username }}</span></div></header>
       <main class="workspace">
-        <div class="page-heading"><div><div class="page-eyebrow">{{ activeView === 'devices' ? 'DEVICE OVERVIEW' : 'GAME LIBRARY' }}</div><h1>{{ currentTitle }}<span class="heading-dot"></span></h1><p>{{ activeView === 'devices' ? (deviceManager ? '你关联的设备，一目了然。配置游戏、欢迎词和图片。' : '所有设备，一目了然。配置游戏、欢迎词和图片。') : (deviceManager ? '发现可用游戏，查看关联设备的游戏配置情况。' : '发现可用游戏，查看每个游戏的设备配置情况。') }}</p></div><button class="button secondary refresh-button" :disabled="loading" @click="loadData"><RefreshCw :size="16" :class="{ spin: loading }" />{{ loading ? '正在同步…' : '刷新数据' }}</button></div>
+        <div class="page-heading"><div><div class="page-eyebrow">{{ activeView === 'devices' ? 'DEVICE OVERVIEW' : 'GAME LIBRARY' }}</div><h1>{{ currentTitle }}<span class="heading-dot"></span></h1><p>{{ activeView === 'devices' ? (deviceManager ? '你关联的设备，一目了然。配置游戏、欢迎词和图片。' : '所有设备，一目了然。配置游戏、欢迎词和图片。') : (deviceManager ? '发现可用游戏，查看关联设备的游戏配置情况。' : '发现可用游戏，查看每个游戏的设备配置情况。') }}</p></div><button class="button secondary refresh-button" :disabled="loading || deleting" @click="loadData"><RefreshCw :size="16" :class="{ spin: loading }" />{{ loading ? '正在同步…' : '刷新数据' }}</button></div>
 
         <template v-if="activeView === 'devices'">
           <section class="stats-strip" aria-label="设备统计" :aria-busy="loading">
@@ -299,7 +336,7 @@ onBeforeUnmount(() => { unsubscribeAuthChanges?.(); clearTimeout(toastTimeout) }
             <div v-if="devicesError" class="data-error" role="alert"><CircleX :size="21" /><div><strong>无法同步设备</strong><p>{{ devicesError }}</p></div><button class="button secondary" :disabled="loading" @click="loadData">重试</button></div>
             <div v-if="gamesError" class="inline-warning" role="alert"><CircleHelp :size="16" /><span>游戏目录未能加载，仍可编辑欢迎词和图片。{{ gamesError }}</span><button :disabled="loading" @click="loadData">重试</button></div>
             <div class="table-scroll" :class="{ 'table-loading': loading }" :aria-busy="loading">
-              <table><thead><tr><th class="device-col">设备名称</th><th>状态</th><th class="game-col">当前游戏</th><th>IP 地址</th><th>更新时间</th><th class="action-col">操作</th></tr></thead><tbody><tr v-for="device in pageDevices" :key="device.id"><td><div class="device-name-cell"><span class="device-icon" :class="{ muted: device.status === 'offline' }"><Monitor :size="20" :stroke-width="1.6" /></span><span><strong :title="device.name || `设备 #${device.id}`">{{ device.name || `设备 #${device.id}` }}</strong><small class="mono" :title="device.uuid">{{ device.uuid || `DEVICE-${String(device.id).padStart(4, '0')}` }}</small></span></div></td><td><span class="status-badge" :class="device.status"><span class="status-dot" :class="device.status"></span>{{ statusLabels[device.status] }}</span></td><td><div v-if="device.gameId !== null" class="current-game"><GameArtwork :id="device.gameId" /><span><strong>{{ gameById(device.gameId)?.name || `场景 ${device.gameId}` }}</strong><small>SCENE {{ device.gameId }}</small></span></div><button v-else class="unconfigured-label" :disabled="loading || !!devicesError" @click="openPicker(device)"><span class="unconfigured-dash">—</span>尚未配置游戏</button></td><td class="mono ip-cell">{{ device.ip || '—' }}</td><td class="date-cell">{{ formatTime(device.updatedAt) }}</td><td><button class="configure-button" :disabled="loading || !!devicesError" :aria-label="`为${device.name || `设备 ${device.id}`}配置设备`" @click="openPicker(device)"><Settings2 :size="15" />配置设备<ChevronRight :size="14" /></button></td></tr></tbody></table>
+              <table><thead><tr><th class="device-col">设备名称</th><th>状态</th><th class="game-col">当前游戏</th><th>IP 地址</th><th>更新时间</th><th class="action-col">操作</th></tr></thead><tbody><tr v-for="device in pageDevices" :key="device.id"><td><div class="device-name-cell"><span class="device-icon" :class="{ muted: device.status === 'offline' }"><Monitor :size="20" :stroke-width="1.6" /></span><span><strong :title="device.name || `设备 #${device.id}`">{{ device.name || `设备 #${device.id}` }}</strong><small class="mono" :title="device.uuid">{{ device.uuid || `DEVICE-${String(device.id).padStart(4, '0')}` }}</small></span></div></td><td><span class="status-badge" :class="device.status"><span class="status-dot" :class="device.status"></span>{{ statusLabels[device.status] }}</span></td><td><div v-if="device.gameId !== null" class="current-game"><GameArtwork :id="device.gameId" /><span><strong>{{ gameById(device.gameId)?.name || `场景 ${device.gameId}` }}</strong><small>SCENE {{ device.gameId }}</small></span></div><button v-else class="unconfigured-label" :disabled="loading || !!devicesError" @click="openPicker(device)"><span class="unconfigured-dash">—</span>尚未配置游戏</button></td><td class="mono ip-cell">{{ device.ip || '—' }}</td><td class="date-cell">{{ formatTime(device.updatedAt) }}</td><td><div class="device-actions"><button class="configure-button" :disabled="loading || !!devicesError || deleting" :aria-label="`为${device.name || `设备 ${device.id}`}配置设备`" @click="openPicker(device)"><Settings2 :size="15" />配置设备<ChevronRight :size="14" /></button><button v-if="canDeleteDevices" class="delete-device-button" :disabled="loading || !!devicesError || deleting" :aria-label="`删除${device.name || `设备 ${device.id}`}`" @click="openDeletion(device)"><Trash2 :size="15" />删除</button></div></td></tr></tbody></table>
               <div v-if="loading && !devices.length" class="empty-state" role="status"><LoaderCircle :size="28" class="spin" /><strong>正在获取设备…</strong></div>
               <div v-else-if="!pageDevices.length && !devicesError" class="empty-state"><span class="empty-icon"><component :is="devices.length ? Search : Unplug" :size="29" :stroke-width="1.5" /></span><strong>{{ devices.length ? '没有找到匹配的设备' : (deviceManager ? '还没有关联设备' : '还没有接入设备') }}</strong><p>{{ devices.length ? '试试其他关键词，或清除筛选条件。' : (deviceManager ? '请先在「不加班」小程序中关联设备，再刷新此列表。' : '设备接入后会显示在这里，点击刷新获取最新列表。') }}</p><button v-if="devices.length" class="button secondary" @click="resetFilters">清除筛选</button></div>
             </div>
@@ -320,6 +357,7 @@ onBeforeUnmount(() => { unsubscribeAuthChanges?.(); clearTimeout(toastTimeout) }
     </div>
   </div>
   <Transition name="modal"><GamePicker v-if="pickerDevice" :device="pickerDevice" :games="games" :busy="saving" :error="saveError" :games-error="gamesError" @close="pickerDevice = null" @save="saveConfiguration" /></Transition>
+  <Transition name="modal"><DeviceDeleteDialog v-if="deletionDevice" :device="deletionDevice" :busy="deleting" :error="deleteError" @close="closeDeletion" @confirm="confirmDeletion" /></Transition>
   <Transition name="toast"><div v-if="toast" class="toast-message" :class="{ error: toast.error }" role="status"><CircleX v-if="toast.error" :size="18" /><Check v-else :size="18" /><span>{{ toast.text }}</span><button class="icon-button" aria-label="关闭提示" @click="toast = null"><X :size="15" /></button></div></Transition>
   <Transition name="modal"><HelpDialog v-if="helpOpen" :demo="demo" :device-manager="deviceManager" @close="helpOpen = false" /></Transition>
 </template>

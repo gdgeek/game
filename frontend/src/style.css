@@ -191,3 +191,21 @@ td{border-color:#ececec}tbody tr:hover{background:#fafcfb}
 .game-picker .picker-selection>strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .game-picker .button-group{flex-shrink:0}
 @media(max-width:760px){.configuration-list{padding-top:18px;margin-top:20px}.configuration-row{gap:7px}.configuration-row input,.configuration-name input{font-size:16px;padding:8px}.configuration-index{width:13px;font-size:9px}.configuration-preview{width:34px;height:38px}.configuration-heading p,.configuration-empty{font-size:11px}.configuration-error{padding:12px 17px}.game-picker .picker-selection>strong{max-width:120px}}
+
+/* Administrator device deletion. */
+.device-actions{display:flex;align-items:center;gap:10px}
+.delete-device-button{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:34px;padding:7px 8px;border-radius:6px;color:#b32d24;font-size:11px;white-space:nowrap}
+.delete-device-button:hover:not(:disabled){background:#fff1f0;color:#90231c}
+.button.danger{background:#b32d24;border-color:#b32d24;color:#fff}
+.button.danger:hover:not(:disabled){background:#90231c;border-color:#90231c}
+.device-delete-dialog{width:100%;max-width:480px;max-height:calc(100dvh - 32px);overflow:auto;background:#fff;border-radius:12px;box-shadow:0 20px 80px #0003;outline:none}
+.device-delete-content{padding:24px 28px;color:#555;font-size:13px;line-height:1.8}
+.device-delete-target{display:flex;gap:14px;align-items:flex-start;margin-bottom:20px;padding:16px;background:#fff7f6;border:1px solid #f5dedb;border-radius:7px;color:#b32d24}
+.device-delete-target>svg{margin-top:2px}
+.device-delete-target>div{min-width:0;overflow-wrap:anywhere}
+.device-delete-target strong{display:block;color:#333;font-size:14px;margin-bottom:4px}
+.device-delete-target span{display:block;font-size:11px;color:#777}
+.device-delete-content .device-delete-note{color:#888;font-size:12px;margin-top:10px}
+.device-delete-content .form-error{margin:16px 0 0;overflow-wrap:anywhere}
+.device-delete-dialog .modal-footer{justify-content:flex-end}
+@media(max-width:760px){.device-actions{flex-direction:column;align-items:flex-end;gap:3px}.delete-device-button{min-height:36px}.device-delete-content{padding:20px 22px}.device-delete-target{padding:13px}}

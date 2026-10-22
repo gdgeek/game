@@ -531,3 +531,8 @@ export async function assignGame(deviceId: number, gameId: number): Promise<Devi
 export async function updateDeviceConfiguration(deviceId: number, patch: DeviceConfigurationPatch): Promise<Device> {
   return decode(await write(`/devices/${deviceId}/configuration`, 'PUT', patch), isDevice)
 }
+
+export async function deleteDevice(deviceId: number): Promise<void> {
+  const result = await write(`/devices/${deviceId}`, 'DELETE')
+  if (!isRecord(result) || result.id !== deviceId || result.deleted !== true) throw invalidResponse()
+}

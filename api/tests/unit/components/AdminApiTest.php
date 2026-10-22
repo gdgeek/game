@@ -995,6 +995,156 @@ class AdminApiTest extends TestCase
         $this->assertSame(700, $result['gameId']);
     }
 
+    public function testPasswordAdministratorCanDeleteDeviceAndItsConfiguration(): void
+    {
+        $this->authenticate();
+        $this->createDeletionRelations();
+        $_SERVER['REQUEST_METHOD'] = 'DELETE';
+
+        $this->assertSame(['id' => 1, 'deleted' => true], $this->controller()->runAction('delete-device', ['id' => 1]));
+
+        foreach (['device' => 'id', 'setup' => 'device_id', 'control' => 'device_id', 'manager' => 'device_id'] as $table => $column) {
+            $this->assertSame(0, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $column . ' = 1')->queryScalar());
+        }
+        $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM device WHERE id = 2')->queryScalar());
+        $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM control WHERE device_id = 2')->queryScalar());
+        $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM manager WHERE device_id = 2')->queryScalar());
+        $this->assertSame([2], array_column($this->devices->getDevices(), 'id'));
+    }
+
+    public function testPasswordAdministratorCanDeleteDeviceWithoutConfiguration(): void
+    {
+        $this->authenticate();
+        $this->createDeletionRelations();
+        $this->assertSame(['id' => 2, 'deleted' => true], $this->devices->deleteDevice(2));
+        $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM setup WHERE device_id = 1')->queryScalar());
+    }
+
+    public function testAnonymousCannotDeleteDeviceThroughControllerOrService(): void
+    {
+        $this->createDeletionRelations();
+        $_SERVER['REQUEST_METHOD'] = 'DELETE';
+        foreach ([function () { $this->controller()->runAction('delete-device', ['id' => 1]); }, function () { $this->devices->deleteDevice(1); }] as $delete) {
+            try { $delete(); $this->fail('Deletion requires an administrator Bearer token.'); }
+            catch (HttpException $e) { $this->assertSame(401, $e->statusCode); }
+        }
+        $this->assertSame(2, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM device')->queryScalar());
+    }
+
+    public function testWechatDeviceManagerCannotDeleteOwnedOrOtherDevice(): void
+    {
+        $this->createDeletionRelations();
+        $this->app->db->createCommand('CREATE TABLE user (id INTEGER PRIMARY KEY)')->execute();
+        $this->app->db->createCommand()->insert('user', ['id' => 42])->execute();
+        $login = $this->auth->loginWechat(42);
+        $this->app->request->headers->set('Authorization', 'Bearer ' . $login['token']['accessToken']);
+        $_SERVER['REQUEST_METHOD'] = 'DELETE';
+        foreach ([1, 2, 999] as $deviceId) {
+            try { $this->controller()->runAction('delete-device', ['id' => $deviceId]); $this->fail('A device manager cannot delete devices.'); }
+            catch (HttpException $e) { $this->assertSame(403, $e->statusCode); }
+        }
+        $this->assertSame(2, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM device')->queryScalar());
+        $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM setup')->queryScalar());
+        $this->assertSame(2, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM control')->queryScalar());
+    }
+
+    public function testDeletingUnknownDeviceReturns404(): void
+    {
+        $this->authenticate();
+        $this->createDeletionRelations();
+        try { $this->devices->deleteDevice(999); $this->fail('Unknown devices must return 404.'); }
+        catch (HttpException $e) { $this->assertSame(404, $e->statusCode); }
+    }
+
+    public function testDeviceDeletionFailureRollsBackConfigurationAndOwnership(): void
+    {
+        $this->authenticate();
+        $this->createDeletionRelations();
+        $transaction = $this->app->db->getTransaction();
+        $initialLevel = $transaction === null ? 0 : $transaction->level;
+        $this->app->db->pdo->exec("CREATE TRIGGER reject_device_delete AFTER DELETE ON device BEGIN SELECT RAISE(FAIL, 'private-delete-error'); END");
+        try { $this->devices->deleteDevice(1); $this->fail('Failed deletion must return an error.'); }
+        catch (HttpException $e) {
+            $this->assertSame(503, $e->statusCode);
+            $this->assertStringNotContainsString('private-delete-error', $e->getMessage());
+            $this->assertNull($e->getPrevious());
+        }
+        foreach (['device' => 'id', 'setup' => 'device_id', 'control' => 'device_id', 'manager' => 'device_id'] as $table => $column) {
+            $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $column . ' = 1')->queryScalar());
+        }
+        $this->assertSame(1, (int) $this->app->db->createCommand('SELECT device_id FROM record WHERE id = 1')->queryScalar());
+        $this->assertSame($transaction, $this->app->db->getTransaction());
+        $this->assertSame($initialLevel, $transaction === null ? 0 : $transaction->level);
+    }
+
+    public function testDeletingDeviceKeepsHistoricalRecordsAndOtherBusinessData(): void
+    {
+        $this->authenticate();
+        $this->createDeletionRelations();
+        $before = $this->app->db->createCommand('SELECT * FROM record ORDER BY id')->queryAll();
+        $businessData = $this->app->db->createCommand('SELECT * FROM gain')->queryAll();
+        $this->devices->deleteDevice(1);
+        $after = $this->app->db->createCommand('SELECT * FROM record ORDER BY id')->queryAll();
+        $before[0]['device_id'] = null;
+        $this->assertSame($before, $after);
+        $this->assertSame($businessData, $this->app->db->createCommand('SELECT * FROM gain')->queryAll());
+        $record = \app\modules\v1\models\Record::findOne(1);
+        $this->assertNull($record->device);
+        $record->status = 'finish';
+        $this->assertTrue($record->validate(['device_id']), json_encode($record->errors));
+        $this->assertTrue($record->save(false, ['status']));
+        $this->assertSame('finish', $this->app->db->createCommand('SELECT status FROM record WHERE id = 1')->queryScalar());
+        $newRecord = new \app\modules\v1\models\Record();
+        $this->assertFalse($newRecord->validate(['device_id']));
+        $this->assertTrue($newRecord->hasErrors('device_id'));
+    }
+
+    public function testLegacyNotNullRecordSchemaRejectsDeletionAndRollsBackEverything(): void
+    {
+        $this->authenticate();
+        $this->createDeletionRelations(false);
+        $before = $this->app->db->createCommand('SELECT * FROM record ORDER BY id')->queryAll();
+        try { $this->devices->deleteDevice(1); $this->fail('A device with historical records must not be deleted before migration.'); }
+        catch (HttpException $e) { $this->assertSame(503, $e->statusCode); }
+        $this->assertSame($before, $this->app->db->createCommand('SELECT * FROM record ORDER BY id')->queryAll());
+        foreach (['device' => 'id', 'setup' => 'device_id', 'control' => 'device_id', 'manager' => 'device_id'] as $table => $column) {
+            $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $column . ' = 1')->queryScalar());
+        }
+    }
+
+    public function testUnfinishedGamePreventsDeviceDeletionWithoutChangingAnyData(): void
+    {
+        $this->authenticate();
+        $this->createDeletionRelations();
+        $_SERVER['REQUEST_METHOD'] = 'DELETE';
+        foreach (['ready', 'running'] as $status) {
+            $this->app->db->createCommand()->update('record', ['status' => $status], ['id' => 1])->execute();
+            $before = [];
+            foreach (['device', 'setup', 'control', 'manager', 'record', 'gain'] as $table) {
+                $before[$table] = $this->app->db->createCommand('SELECT * FROM ' . $table . ' ORDER BY id')->queryAll();
+            }
+            try { $this->controller()->runAction('delete-device', ['id' => 1]); $this->fail('Unfinished games must prevent deletion.'); }
+            catch (HttpException $e) {
+                $this->assertSame(409, $e->statusCode);
+                $this->assertSame('设备仍有未结束的游戏，请先结束游戏后再删除', $e->getMessage());
+            }
+            foreach ($before as $table => $rows) {
+                $this->assertSame($rows, $this->app->db->createCommand('SELECT * FROM ' . $table . ' ORDER BY id')->queryAll(), $table);
+            }
+        }
+    }
+
+    public function testDeviceDeletionOnlyAcceptsDeleteMethod(): void
+    {
+        $this->authenticate();
+        foreach (['GET', 'POST', 'PUT'] as $method) {
+            $_SERVER['REQUEST_METHOD'] = $method;
+            try { $this->controller()->runAction('delete-device', ['id' => 1]); $this->fail('Deletion must require DELETE.'); }
+            catch (HttpException $e) { $this->assertSame(405, $e->statusCode); }
+        }
+        $this->assertSame(2, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM device')->queryScalar());
+    }
+
     public function testDeploymentRoutesResolveAllAdminEndpoints(): void
     {
         $configuration = require dirname(__DIR__, 4) . '/files/api/config/web.php';
@@ -1008,6 +1158,7 @@ class AdminApiTest extends TestCase
             ['POST', 'admin-api/refresh', 'admin/refresh', []],
             ['GET', 'admin-api/devices', 'admin/devices', []],
             ['GET', 'admin-api/games', 'admin/games', []],
+            ['DELETE', 'admin-api/devices/42', 'admin/delete-device', ['id' => '42']],
             ['PUT', 'admin-api/devices/42/game', 'admin/set-game', ['id' => '42']],
             ['PUT', 'admin-api/devices/42/configuration', 'admin/set-configuration', ['id' => '42']],
         ] as $route) {
@@ -1104,6 +1255,19 @@ class AdminApiTest extends TestCase
         $result = $this->auth->login('test-admin', 'test-only-password');
         $this->app->request->headers->set('Authorization', 'Bearer ' . $result['token']['accessToken']);
         return $result;
+    }
+
+    private function createDeletionRelations(bool $nullableRecordDevice = true): void
+    {
+        $this->app->db->createCommand('PRAGMA foreign_keys = ON')->execute();
+        $this->app->db->createCommand('CREATE TABLE control (id INTEGER PRIMARY KEY, user_id INTEGER, device_id INTEGER)')->execute();
+        $this->app->db->createCommand('CREATE TABLE manager (id INTEGER PRIMARY KEY, device_id INTEGER)')->execute();
+        $this->app->db->createCommand('CREATE TABLE record (id INTEGER PRIMARY KEY, device_id INTEGER ' . ($nullableRecordDevice ? '' : 'NOT NULL ') . 'REFERENCES device(id) ON DELETE CASCADE, player_id INTEGER, status TEXT, game JSON, created_at TEXT, updated_at TEXT)')->execute();
+        $this->app->db->createCommand('CREATE TABLE gain (id INTEGER PRIMARY KEY, points INTEGER)')->execute();
+        $this->app->db->createCommand()->batchInsert('control', ['id', 'user_id', 'device_id'], [[1, 42, 1], [2, 43, 2]])->execute();
+        $this->app->db->createCommand()->batchInsert('manager', ['id', 'device_id'], [[1, 1], [2, 2]])->execute();
+        $this->app->db->createCommand()->batchInsert('record', ['id', 'device_id', 'player_id', 'status', 'game'], [[1, 1, 11, 'finish', '{"points":30}'], [2, 2, 12, 'finish', '{"points":90}']])->execute();
+        $this->app->db->createCommand()->insert('gain', ['id' => 1, 'points' => 900])->execute();
     }
 
     private function controller(): AdminController

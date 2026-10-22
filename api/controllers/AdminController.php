@@ -38,6 +38,7 @@ class AdminController extends Controller
                 'actions' => [
                     'session' => ['GET'], 'login' => ['POST'], 'refresh' => ['POST'], 'logout' => ['POST'],
                     'devices' => ['GET'], 'games' => ['GET'], 'set-game' => ['PUT'], 'set-configuration' => ['PUT'],
+                    'delete-device' => ['DELETE'],
                     'scan-login-create' => ['POST'], 'scan-login-status' => ['GET'],
                     'scan-login-consume' => ['POST'], 'scan-login-cancel' => ['POST'],
                 ],
@@ -108,6 +109,11 @@ class AdminController extends Controller
     public function actionGames(): array
     {
         return $this->catalog->getGames();
+    }
+
+    public function actionDeleteDevice($id): array
+    {
+        return $this->devices->deleteDevice((int) $id);
     }
 
     public function actionSetGame($id): array
