@@ -2,6 +2,7 @@
 
 namespace app\modules\v2\models;
 
+use app\components\AdminGameCatalog;
 use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
@@ -108,33 +109,17 @@ class Setup extends \yii\db\ActiveRecord
     /**
      * 获取默认信息配置
      * 
-     * 从场景服务器获取场景数据，并使用第一个场景的 scene_id 作为默认值
+     * 未指定场景时，使用 Y1 checkin 目录中第一个有效场景的 verse_id。
+     * 目录为空时不分配场景；上游请求失败时沿用目录服务的错误。
      * 
      * @return array 默认信息配置数组
      */
-    public static function DefaultInfo(): array
+    public static function DefaultInfo(?int $sceneId = null): array
     {
-        // 默认的 scene_id
-        $defaultSceneId = 638;
-
-        /*
-        // 尝试从场景服务器获取场景数据
-        $scenesData = \app\modules\v2\helper\A1Server::forwardCheckinRequest();
-
-        // 检查返回的数据是否为数组且不为空
-        if (is_array($scenesData) && !empty($scenesData)) {
-            $data = [];
-            // 如果有 data 字段：若默认值存在于 data 中，则保持默认值；否则使用 data 的第一个元素
-            if (isset($scenesData['data']) && is_array($scenesData['data']) && !empty($scenesData['data'])) {
-                $data =    $scenesData['data'];
-           
-            }
-            // 如果直接是场景数组，使用第一个元素
-            elseif (isset($scenesData[0]) && is_array($scenesData[0]) && isset($scenesData[0]['verse_id'])) {
-                $defaultSceneId = (int)$scenesData[0]['verse_id'];
-            }
+        if ($sceneId === null) {
+            $games = Yii::createObject(AdminGameCatalog::class)->getGames();
+            $sceneId = $games[0]['id'] ?? null;
         }
-*/
 
         return [
             'title' => '未知',
@@ -144,7 +129,7 @@ class Setup extends \yii\db\ActiveRecord
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t3.png',
                 'https://game-1251022382.cos.ap-nanjing.myqcloud.com/picture/t4.png',
             ],
-            'scene_id' => $defaultSceneId,
+            'scene_id' => $sceneId,
             'updated_at' => date('Y-m-d H:i:s'),
         ];
     }

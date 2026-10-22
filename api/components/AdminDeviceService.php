@@ -58,7 +58,7 @@ class AdminDeviceService extends Component
                 $setup = Setup::findOne(['device_id' => $deviceId]);
                 if ($setup === null) {
                     $setup = new Setup();
-                    $defaults = array_merge(Setup::DefaultInfo(), Setup::DefaultData());
+                    $defaults = array_merge(Setup::DefaultInfo($gameId), Setup::DefaultData());
                     // Keep the existing device protocol defaults on first assignment.
                     // TimestampBehavior supplies the database update time.
                     unset($defaults['updated_at']);
