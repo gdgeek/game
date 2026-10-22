@@ -30,6 +30,7 @@ class AdminApiTest extends TestCase
     private $runtime;
     private $originalApp;
     private $originalAliases;
+    private $originalContainer;
     private $originalServer;
     private $originalSessionSettings;
     private $originalSessionId;
@@ -41,6 +42,8 @@ class AdminApiTest extends TestCase
     {
         $this->originalApp = Yii::$app;
         $this->originalAliases = Yii::$aliases;
+        $this->originalContainer = Yii::$container;
+        Yii::$container = new \yii\di\Container();
         $this->originalServer = $_SERVER;
         $this->originalSessionSettings = ini_get_all('session', false);
         $this->originalSessionId = session_id();
@@ -116,6 +119,7 @@ class AdminApiTest extends TestCase
             },
         ]);
         $this->devices = new AdminDeviceService(['catalog' => $this->catalog, 'auth' => $this->auth]);
+        Yii::$container->setSingleton(AdminGameCatalog::class, $this->catalog);
     }
 
     protected function tearDown(): void
@@ -126,6 +130,7 @@ class AdminApiTest extends TestCase
         $this->app->errorHandler->unregister();
         Yii::$app = $this->originalApp;
         Yii::$aliases = $this->originalAliases;
+        Yii::$container = $this->originalContainer;
         $_SERVER = $this->originalServer;
         // Yii Session setters alter process-wide INI values. Restore them before
         // removing the fixture path so later Codeception tests can open sessions.
@@ -367,6 +372,87 @@ class AdminApiTest extends TestCase
             $this->assertNull($e->getPrevious());
             throw $e;
         }
+    }
+
+    public function testDefaultSceneUsesFirstValidCheckinVerseInUpstreamOrder(): void
+    {
+        $this->catalog->loader = static function () {
+            return ['data' => ['items' => [
+                ['verse_id' => 0, 'name' => '无效编号'],
+                ['verse_id' => 900, 'name' => ''],
+                ['id' => 1, 'verse_id' => '912', 'name' => '第一个可用场景'],
+                ['id' => 2, 'verse_id' => 638, 'name' => '后面的场景'],
+            ]]];
+        };
+
+        $this->assertSame(912, Setup::DefaultInfo()['scene_id']);
+    }
+
+    public function testEmptyCheckinCatalogLeavesDefaultSceneUnassigned(): void
+    {
+        $this->catalog->loader = static function () { return []; };
+
+        $this->assertNull(Setup::DefaultInfo()['scene_id']);
+    }
+
+    public function testNewDevicePersistsTheFirstAvailableCheckinScene(): void
+    {
+        $this->catalog->loader = static function () {
+            return [['verse_id' => 912, 'name' => '默认场景'], ['verse_id' => 638, 'name' => '其他场景']];
+        };
+
+        $info = Server::getInfo('new-device');
+        $this->assertSame(912, $info['scene_id']);
+        $deviceId = $this->app->db->createCommand('SELECT id FROM device WHERE uuid = :uuid', [':uuid' => 'new-device'])->queryScalar();
+        $setup = Setup::findOne(['device_id' => $deviceId]);
+        $this->assertNotNull($setup);
+        $this->assertSame(912, (int) $setup->scene_id);
+        $this->assertSame('未知', $info['title']);
+        $this->assertCount(4, $info['pictures']);
+        $this->assertEquals(Setup::DefaultData(), $setup->getData());
+    }
+
+    public function testMissingSetupFallbackUsesTheFirstAvailableCheckinScene(): void
+    {
+        $this->catalog->loader = static function () {
+            return [['verse_id' => 912, 'name' => '默认场景']];
+        };
+
+        $this->assertSame(912, Server::getInfo('device-b')['scene_id']);
+    }
+
+    public function testExistingDeviceKeepsItsConfiguredSceneWithoutFetchingDefaults(): void
+    {
+        $this->catalog->loader = static function () { throw new \RuntimeException('Upstream unavailable.'); };
+
+        $this->assertSame(638, (int) Server::getInfo('device-a')['scene_id']);
+    }
+
+    public function testSceneServiceFailureDoesNotLeaveAPartiallyInitializedNewDevice(): void
+    {
+        $this->catalog->loader = static function () { throw new \RuntimeException('Upstream unavailable.'); };
+        try {
+            Server::getInfo('retryable-new-device');
+            $this->fail('A scene service failure must not initialize a device with a fixed scene.');
+        } catch (HttpException $e) {
+            $this->assertSame(503, $e->statusCode);
+        }
+        $this->assertSame(0, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM device WHERE uuid = :uuid', [':uuid' => 'retryable-new-device'])->queryScalar());
+
+        $this->catalog->loader = static function () { return [['verse_id' => 912, 'name' => '恢复后的场景']]; };
+        $this->assertSame(912, Server::getInfo('retryable-new-device')['scene_id']);
+        $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM setup WHERE scene_id = 912')->queryScalar());
+    }
+
+    public function testExplicitGameAssignmentDoesNotFetchAnUnneededDefaultScene(): void
+    {
+        Yii::$container->setSingleton(AdminGameCatalog::class, new AdminGameCatalog([
+            'cache' => new ArrayCache(),
+            'loader' => static function () { throw new \RuntimeException('Default scene should not be requested.'); },
+        ]));
+        $this->authenticate();
+
+        $this->assertSame(700, $this->devices->assignGame(2, 700)['gameId']);
     }
 
     public function testInvalidGameDoesNotChangeExistingSetup(): void

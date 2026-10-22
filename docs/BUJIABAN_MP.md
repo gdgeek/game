@@ -48,6 +48,11 @@ pnpm run dev:mp-weixin
 
 小程序设备管理和 Web 管理后台都涉及 v2 的 `device` / `setup` 数据。调整字段时同时核对 `bujiaban-mp/src/api/device.ts`、`api/modules/v2/models/` 和 `api/components/AdminDeviceService.php`。
 
+设备通过 `/v2/server/info?uuid=...` 首次建档时，默认 `setup.scene_id` 按 Y1
+`/v1/server/checkin` 目录的返回顺序，选择第一个有效场景的 `verse_id`，不使用固定编号。
+默认场景沿用目录的 30 秒缓存；目录为空时为 `null`，Y1 请求失败时返回 503，重试前不留下部分初始化的新设备。
+已有设备配置保持原值；后台明确选择游戏时使用已校验的选中编号。
+
 后端路由源文件为 `files/api/config/web.php`。各仓库独立提交与发布；建立协作结构和本次扫码登录实现均只修改本地代码，尚未发布扫码登录。
 
 ## 接入记录
