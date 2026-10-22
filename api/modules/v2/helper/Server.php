@@ -153,13 +153,15 @@ class Server
             // 如果设备不存在，创建新设备
             if (!$device) {
 
+                // 先获取可用默认场景，避免上游失败后留下未完成初始化的设备。
+                $info = Setup::DefaultInfo();
                 $device = new Device();
                 $device->uuid = $uuid;
 
                 // 为新设备创建默认的Setup配置
                 // Setup::Create() 会创建包含默认数据和信息的配置
                 $device->save();
-                $setup = Setup::Create($device, Setup::DefaultData(), Setup::DefaultInfo());
+                $setup = Setup::Create($device, Setup::DefaultData(), $info);
 
                 // 保存设备到数据库
 
