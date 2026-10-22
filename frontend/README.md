@@ -55,15 +55,22 @@ npm run dev:api
 
 ## 构建与部署
 
+GitHub Actions 使用 Node.js 24，在 `frontend/` 执行 `npm ci`、`npm test` 和 `npm run build -- --base=/`，再构建并发布 `hkccr.ccs.tencentyun.com/gdgeek/checkin-frontend`。`develop`、`main`、`publish` 分支分别发布同名标签，只有 `publish` 在测试和静态构建通过后发布 `publish` 与 `latest` 镜像。
+
+发布按 `develop → main → publish` 推进；当前阶段 CI 的测试、构建及前后端镜像推送全部成功后，再进入下一分支。后端继续独立发布到 `hkccr.ccs.tencentyun.com/gdgeek/wechat`，不与前端合并镜像。
+
+CI 在 `$RUNNER_TEMP` 创建白名单构建上下文，只复制 `frontend/dist/`、作为根目录 `Dockerfile` 的 `dockerfile/FrontendDockerfile`，以及保留 `dockerfile/` 路径的 `frontend-nginx.conf.template`、`40-configure-frontends.sh`、`50-configure-miniprogram.sh`。上下文不包含仓库根 `.dockerignore`、源码、`.env` 或 `node_modules`，避免根忽略规则排除预构建的 dist。
+
+默认部署使用 CCR 预构建镜像 `hkccr.ccs.tencentyun.com/gdgeek/checkin-frontend:latest`，在现有 Portainer Stack 中应用 [admin.compose.yaml](../dockerfile/admin.compose.yaml)，接入现有 `proxy` 网络及 Traefik `websecure` / `letsencrypt`。前端服务通过 `com.centurylinklabs.watchtower.enable=true` 标签加入现有 Watchtower 自动更新；不修改 Watchtower 的全局设置。保留 Stack 的 `APP_API_N_URL` 与 `APP_MP_API_*` 运行时配置。`/healthz` 检查前端存活；后端健康探针由代理配置提供。
+
+本地验证可执行：
+
 ```sh
 cd frontend
+npm ci
 npm test
 npm run build -- --base=/
 ```
-
-将 `frontend/dist/` 和 `dockerfile/FrontendDockerfile`、`dockerfile/frontend-nginx.conf.template`、`dockerfile/40-configure-frontends.sh`、`dockerfile/50-configure-miniprogram.sh` 打包为构建上下文，再使用 Portainer 构建 `checkin-frontend:20261016-auto-1`。根目录 `.dockerignore` 会排除 dist，因此上传包采用上述文件的白名单，不包含根 `.dockerignore`。
-
-部署模板为 [admin.compose.yaml](../dockerfile/admin.compose.yaml)，接入现有 `proxy` 网络及 Traefik `websecure` / `letsencrypt`。`/healthz` 检查前端存活；后端健康探针由代理配置提供。
 
 后端与前端独立发布。通用 PHP Dockerfile 仅构建原后端；管理账号散列可在后端用 `ADMIN_USERNAME`、`ADMIN_PASSWORD_HASH` 覆盖。不要把密码放入 `VITE_` 变量。
 
