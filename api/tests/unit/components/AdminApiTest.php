@@ -199,8 +199,20 @@ class AdminApiTest extends TestCase
             $this->authenticate();
         } catch (HttpException $e) {
             $this->assertSame(429, $e->statusCode);
+            $retryAfter = (int) $this->app->response->headers->get('Retry-After');
+            $this->assertGreaterThanOrEqual(1, $retryAfter);
+            $this->assertLessThanOrEqual(60, $retryAfter);
             throw $e;
         }
+    }
+
+    public function testLegacyFifteenMinuteLockDoesNotBlockTheOneMinutePolicy(): void
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->auth->tokens->store->reservePasswordAttempt($this->app->request->userIP, 5, 900, $this->auth->tokens->getIssuer());
+        }
+
+        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $this->authenticate()['user']);
     }
 
     public function testPasswordFailureLimitIsSharedAcrossAuthServiceInstancesAndSuccessClearsIt(): void
