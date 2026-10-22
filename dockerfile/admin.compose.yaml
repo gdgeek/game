@@ -1,6 +1,6 @@
 services:
   checkin:
-    image: checkin-frontend:20261016-auto-1
+    image: hkccr.ccs.tencentyun.com/gdgeek/checkin-frontend:latest
     restart: unless-stopped
     networks:
       - proxy
@@ -12,6 +12,7 @@ services:
       APP_MP_API_BACKUP_URL: https://x.b1.01xr.com
       APP_MP_API_UPSTREAM_HOST: x.b0.01xr.com
     labels:
+      - com.centurylinklabs.watchtower.enable=true
       - traefik.enable=true
       - traefik.docker.network=proxy
       - traefik.http.routers.checkin_voxel_cn.entrypoints=websecure
