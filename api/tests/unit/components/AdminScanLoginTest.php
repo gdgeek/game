@@ -72,7 +72,7 @@ class AdminScanLoginTest extends TestCase
         $this->app->db->schema->typeMap['json'] = 'json';
         $this->app->db->schema->columnSchemaClass = 'yii\\db\\mysql\\ColumnSchema';
         $this->app->db->queryBuilder->setExpressionBuilders(['yii\\db\\JsonExpression' => 'yii\\db\\mysql\\JsonExpressionBuilder']);
-        $this->app->db->createCommand('CREATE TABLE device (id INTEGER PRIMARY KEY, uuid TEXT, tag TEXT, ip TEXT, created_at TEXT, updated_at TEXT)')->execute();
+        $this->app->db->createCommand('CREATE TABLE device (id INTEGER PRIMARY KEY, uuid TEXT, tag TEXT, ip TEXT, created_at TEXT, updated_at TEXT, version INTEGER NOT NULL DEFAULT 0)')->execute();
         $this->app->db->createCommand('CREATE TABLE setup (id INTEGER PRIMARY KEY AUTOINCREMENT, device_id INTEGER, scene_id INTEGER, title TEXT, money REAL DEFAULT 0, slogans JSON, pictures JSON, thumbs JSON, shots JSON, updated_at TEXT)')->execute();
         $this->app->db->createCommand()->batchInsert('device', ['id', 'uuid', 'tag'], [[1, 'owned-device', '关联设备'], [2, 'other-device', '他人设备']])->execute();
         $this->app->db->createCommand()->batchInsert('control', ['id', 'user_id', 'device_id'], [[1, 42, 1], [2, 43, 2]])->execute();
