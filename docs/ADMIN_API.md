@@ -55,7 +55,7 @@ php -r 'echo password_hash(rtrim(fgets(STDIN), "\r\n"), PASSWORD_DEFAULT), PHP_E
 
 `expiresAt`、`expires` 和 `refreshExpires` 均为 ISO 8601 时间。票据状态为 `pending`、`approved`、`consumed`、`cancelled` 或 `expired`。消费期间阻止切换登录方式，令牌代际检查防止迟到的登录、刷新或错误响应覆盖新的认证状态。
 
-登录响应的 `user` 为 `{username, role}`：密码登录的 `role` 为 `admin`，扫码登录为 `device_manager`。权限由服务端有效登录记录和实时身份派生；设备范围在服务层按 `control.user_id` 执行，页面隐藏不能替代鉴权。
+登录响应的 `user` 为 `{username, role}`：密码登录的 `role` 为 `admin`，扫码登录为 `device_manager`。权限由服务端有效登录记录和实时身份派生；设备范围在服务层按 `control.user_id` 执行，页面隐藏不能替代鉴权。只有密码登录的全量管理员可以删除设备，扫码设备管理员对自己管理的设备也没有删除权限。
 
 本次同时修复 v1/v2 刷新 Token 和身份查询对签名、有效期的验证。两套身份共用签名密钥，现通过签名内的 `identityDomain` 区分 `v1-player` 与 `v2-user`，防止不同用户表中的同一数字 ID 相互冒用。**发布后，旧的无身份来源标记的 v1/v2 Token 将失效，用户需要重新登录**；刷新接口不能将旧 Token 或其他身份域转换成管理员凭据。v1 刷新接口同时停止记录包含 Token 的请求内容。微信登录没有 unionid 时仅允许按微信服务端返回的 openid 匹配已有用户，无法匹配时明确失败；不接受客户端自报微信身份。
 
@@ -73,6 +73,7 @@ php -r 'echo password_hash(rtrim(fgets(STDIN), "\r\n"), PASSWORD_DEFAULT), PHP_E
 | POST | `/admin-api/logout` | `{refreshToken: string}` | `{user: null, authMode:"jwt"}` |
 | GET | `/admin-api/devices` | 必须登录 | 设备数组 |
 | GET | `/admin-api/devices/<id>/image-previews` | 必须登录并有该设备管理权限 | `{previews:[{source,url,expiresAt}]}` |
+| DELETE | `/admin-api/devices/<id>` | 必须为密码登录的全量管理员，无请求体 | `{id: number, deleted: true}` |
 | GET | `/admin-api/games` | 必须登录 | 游戏数组 |
 | PUT | `/admin-api/devices/<id>/game` | `{gameId: number}`，必须登录 | 更新后的单个设备 |
 | PUT | `/admin-api/devices/<id>/configuration` | `{gameId?: number, title?: string, slogans?: string[], pictures?: string[], thumbs?: string[]}`，必须登录 | 更新后的单个设备 |
@@ -107,6 +108,10 @@ JSON 请求带 `Content-Type: application/json`，生产管理接口不发送 CS
 
 配置修改沿用现有管理 Bearer JWT 和设备归属校验，事务内锁定设备行并保存本次全部字段。金额、拍照次数及其他未提交的字段保留。首次保存缺少 `setup` 的设备时保留现有设备协议默认值；未提交 `gameId` 时使用当前动态默认场景，目录为空则保持未分配。响应为完整设备对象，包含从数据库回读的 `updatedAt`。现有 `/game` 接口继续可用。
 
+删除设备前，页面展示包含设备名称和标识的确认提示，确认后才发送 DELETE。服务端事务内锁定设备行及其游戏记录；存在任何状态不是 `finish` 的记录时返回 409：`设备仍有未结束的游戏，请先结束游戏后再删除`，保持全部数据不变，保护现有结算和退款流程。允许删除时解除已完成历史的 `record.device_id` 关联，再删除设备的 `setup`、微信 `control` 和旧版 `manager` 管理关联及设备记录；保留历史游戏记录、金额、积分和其他业务数据。删除成功后设备从列表移除，操作不能撤销。现有设备注册协议不变：设备再次请求配置或重新注册时，可能按 UUID 重新建档并使用默认配置；本操作不封禁物理设备。Redis 中已有的上报信息仍保留。
+
+启用删除功能前必须执行迁移 `m261023_130000_preserve_records_on_device_deletion`，将 `record.device_id` 改为可空并将其外键删除规则改为 `SET NULL`。共库节点只迁移一次，按既有备份和迁移流程执行；迁移不删除记录，也不改动其他业务字段。历史设备已删除后的记录可读取和继续修改，`device` 关联返回 `null`；新建游戏记录仍要求有效设备。该迁移不支持自动回退，避免恢复级联删除或强制丢弃已解除设备关联的历史。旧表结构尚未迁移时，删除接口返回通用 503 且不删除任何设备或历史数据。扫码身份返回 403，未登录返回 401，不存在的设备返回 404；数据库失败回滚整个操作并返回 503，不暴露 SQL。
+
 游戏格式示例：
 
 ```json
@@ -127,8 +132,10 @@ Y1 目录通过配置的服务地址及明确的 `page` / `pageSize=15` 参数�
 | --- | --- |
 | 400 | owner proof 或 JSON 格式错误 |
 | 401 | 未登录、登录已过期、用户名或密码错误 |
+| 403 | 当前身份无权删除设备 |
 | 404 | 设备不存在或路由不存在 |
 | 405 | 请求方法不允许 |
+| 409 | 设备仍有未结束的游戏，需要先结束游戏后再删除 |
 | 422 | 请求字段无效、游戏编号不属于场景列表、模型验证失败 |
 | 429 | 登录尝试过于频繁 |
 | 503 | 数据库、令牌存储或 Y1 场景源暂时不可用 |
@@ -138,10 +145,10 @@ Y1 目录通过配置的服务地址及明确的 `page` / `pageSize=15` 参数�
 无需部署专用的 `api/config`，使用独立 Yii Application 和 SQLite 内存库运行后台测试：
 
 ```sh
-php api/vendor/bin/phpunit --stderr --bootstrap api/tests/_bootstrap.php --filter 'AdminApiTest|AdminSceneFetcherTest|AdminScanLoginTest|AdminImagePreviewTest' api/tests/unit/components
+php api/vendor/bin/phpunit --stderr --bootstrap api/tests/_bootstrap.php --filter 'AdminApiTest|AdminSceneFetcherTest|AdminScanLoginTest|AdminImagePreviewTest|DeviceRecordMigrationTest' api/tests/unit/components
 ```
 
-测试覆盖 JWT 签名和时间、身份域隔离、密码与微信角色、跨节点令牌读取、原子刷新、八小时总期限、立即注销、用户及设备权限变化、Cookie/CSRF 移除、扫码 owner 与一次性消费，以及现有设备和场景读取/写入事务。同时覆盖设备名称与欢迎词/图片/缩略图的局部保存、清空、长度校验、物理标识保留、目录不可用时保存和事务回滚。测试只使用独立账号、测试密钥和随机 Redis 键前缀。
+测试覆盖 JWT 签名和时间、身份域隔离、密码与微信角色、跨节点令牌读取、原子刷新、八小时总期限、立即注销、用户及设备权限变化、Cookie/CSRF 移除、扫码 owner 与一次性消费，以及现有设备和场景读取/写入事务。同时覆盖设备名称与欢迎词/图片/缩略图的局部保存、清空、长度校验、物理标识保留、目录不可用时保存和事务回滚。设备删除测试覆盖管理员成功删除、匿名与扫码身份拒绝、缺少配置、404、HTTP 方法限制、管理关联清理、历史记录保留、旧结构拒绝和删除失败回滚。测试只使用独立账号、测试密钥和随机 Redis 键前缀。
 
 真实联调需要现有数据库、已执行的 v2 表迁移、两节点匹配的 JWT 签名验证材料、共同可达的专用令牌 Redis，以及可访问本机 Y1 的服务器网络。扫码还需票据表迁移、相同规范 origin、微信凭据及已发布的小程序。
 

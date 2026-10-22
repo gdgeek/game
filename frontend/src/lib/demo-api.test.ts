@@ -111,6 +111,85 @@ describe('demo API', () => {
     expect((await request('/devices/1/configuration', 'PUT', headers, { slogans: ['hello'] })).status).toBe(401)
   })
 
+  it('identifies the demo account as an administrator', async () => {
+    const headers = await login()
+    expect((await request<DemoSession>('/session', 'GET', headers)).body.user).toEqual({ username: 'dirui', role: 'admin' })
+  })
+
+  it('requires a logged in session and valid CSRF token to delete a device', async () => {
+    expect((await request('/devices/1', 'DELETE')).status).toBe(401)
+    const anonymous = await request<DemoSession>('/session', 'GET')
+    const anonymousHeaders = {
+      cookie: anonymous.headers['Set-Cookie']!.split(';')[0]!,
+      'x-csrf-token': anonymous.body.csrfToken,
+    }
+    expect((await request('/devices/1', 'DELETE', anonymousHeaders)).status).toBe(401)
+    const headers = await login()
+    expect((await request('/devices/1', 'DELETE', { ...headers, 'x-csrf-token': 'wrong-token' })).status).toBe(403)
+    expect((await request<Device[]>('/devices', 'GET', headers)).body).toHaveLength(12)
+  })
+
+  it('deletes a device permanently and returns 404 when it is deleted again', async () => {
+    const headers = await login()
+    const deleted = await request('/devices/1', 'DELETE', headers)
+    expect(deleted.status).toBe(200)
+    expect(deleted.body).toEqual({ id: 1, deleted: true })
+    expect((await request<Device[]>('/devices', 'GET', headers)).body.map((device) => device.id)).not.toContain(1)
+    expect((await request('/devices/1', 'DELETE', headers)).status).toBe(404)
+    expect((await request('/devices/999', 'DELETE', headers)).status).toBe(404)
+    const persisted = JSON.parse(await readFile(join(root, '.local/demo-state.json'), 'utf8'))
+    expect(persisted.version).toBe(2)
+    expect(persisted.devices).toHaveLength(11)
+    await startServer()
+    const reloaded = await request<Device[]>('/devices', 'GET', await login())
+    expect(reloaded.body).toHaveLength(11)
+    expect(reloaded.body.map((device) => device.id)).not.toContain(1)
+  })
+
+  it('keeps an empty device list empty after reloading', async () => {
+    const headers = await login()
+    const devices = (await request<Device[]>('/devices', 'GET', headers)).body
+    for (const device of devices) {
+      expect((await request(`/devices/${device.id}`, 'DELETE', headers)).status).toBe(200)
+    }
+    await startServer()
+    expect((await request<Device[]>('/devices', 'GET', await login())).body).toEqual([])
+  })
+
+  it('serializes concurrent deletions so a device is deleted only once', async () => {
+    const headers = await login()
+    const deleted = await Promise.all([
+      request('/devices/1', 'DELETE', headers),
+      request('/devices/1', 'DELETE', headers),
+    ])
+    expect(deleted.map((result) => result.status)).toEqual([200, 404])
+    expect((await request<Device[]>('/devices', 'GET', headers)).body).toHaveLength(11)
+  })
+
+  it('returns 404 when a configuration save is queued behind deletion of that device', async () => {
+    const headers = await login()
+    const [deleted, saved] = await Promise.all([
+      request('/devices/1', 'DELETE', headers),
+      request('/devices/1/configuration', 'PUT', headers, { title: '已删除设备' }),
+    ])
+    expect(deleted.status).toBe(200)
+    expect(saved.status).toBe(404)
+    expect((await request<Device[]>('/devices', 'GET', headers)).body.map((device) => device.id)).not.toContain(1)
+  })
+
+  it('keeps memory unchanged after deletion persistence fails and allows a later retry', async () => {
+    const headers = await login()
+    const before = await request<Device[]>('/devices', 'GET', headers)
+    const statePath = join(root, '.local/demo-state.json')
+    await mkdir(statePath, { recursive: true })
+    expect((await request('/devices/1', 'DELETE', headers)).status).toBe(500)
+    expect(logError).toHaveBeenCalledOnce()
+    expect((await request<Device[]>('/devices', 'GET', headers)).body).toEqual(before.body)
+    await rm(statePath, { recursive: true })
+    expect((await request('/devices/1', 'DELETE', headers)).status).toBe(200)
+    expect((await request<Device[]>('/devices', 'GET', headers)).body).toHaveLength(11)
+  })
+
   it('seeds device content and saves normalized configuration across server reloads', async () => {
     const headers = await login()
     const initial = await request<Device[]>('/devices', 'GET', headers)

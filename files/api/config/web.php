@@ -174,6 +174,7 @@ $config = [
                 'POST v2/web-login/tickets/<id:[a-f0-9]{32}>/approve' => 'v2/web-login/approve',
                 'GET admin-api/devices' => 'admin/devices',
                 'GET admin-api/devices/<id:\\d+>/image-previews' => 'admin/image-previews',
+                'DELETE admin-api/devices/<id:\\d+>' => 'admin/delete-device',
                 'GET admin-api/games' => 'admin/games',
                 'PUT admin-api/devices/<id:\\d+>/game' => 'admin/set-game',
                 'PUT admin-api/devices/<id:\\d+>/configuration' => 'admin/set-configuration',

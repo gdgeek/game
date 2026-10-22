@@ -166,14 +166,14 @@ async function loadDevices(stateFile: string): Promise<Device[]> {
   } catch (error) {
     throw new Error('演示设备配置文件不是有效的 JSON', { cause: error })
   }
-  if (!state || state.version !== 1 || !Array.isArray(state.devices)
-    || state.devices.length !== seed.length
+  if (!state || (state.version !== 1 && state.version !== 2) || !Array.isArray(state.devices)
+    || (state.version === 1 && state.devices.length !== seed.length)
     || !state.devices.every((device) => validSavedDevice(device, seed))
-    || new Set(state.devices.map((device) => device.id)).size !== seed.length) {
+    || new Set(state.devices.map((device) => device.id)).size !== state.devices.length) {
     throw new Error('演示设备配置文件格式不正确，请检查 frontend/.local/demo-state.json')
   }
   const saved = new Map<number, PersistedDevice>(state.devices.map((device) => [device.id, device]))
-  return seed.map((device) => {
+  return seed.filter((device) => saved.has(device.id)).map((device) => {
     const savedDevice = saved.get(device.id)!
     const title = savedDevice.title === undefined ? device.title ?? '' : savedDevice.title.trim()
     return { ...device, ...savedDevice, title, name: deviceDisplayName(title, device.name) }
@@ -184,7 +184,7 @@ async function saveDevices(stateFile: string, devices: Device[]): Promise<void> 
   await mkdir(dirname(stateFile), { recursive: true, mode: 0o700 })
   const temporaryFile = `${stateFile}.${randomBytes(8).toString('hex')}.tmp`
   const data = {
-    version: 1,
+    version: 2,
     devices: devices.map(({ id, gameId, updatedAt, title, slogans, pictures, thumbs }) => ({
       id, gameId, updatedAt,
       title: title ?? '',
@@ -257,7 +257,7 @@ export function demoApiPlugin(): Plugin {
           if (body.username !== 'dirui' || !passwordMatches) throw new HttpError(401, '用户名或密码不正确')
           const oldId = readSessionId(request)
           if (oldId) sessions.delete(oldId)
-          sendJson(response, 200, sessionData(createSession(response, { username: 'dirui' })))
+          sendJson(response, 200, sessionData(createSession(response, { username: 'dirui', role: 'admin' })))
           return
         }
 
@@ -288,6 +288,27 @@ export function demoApiPlugin(): Plugin {
           return
         }
 
+        const deletionMatch = path.match(/^\/devices\/(\d+)$/)
+        if (method === 'DELETE' && deletionMatch) {
+          if (session.user.role !== 'admin') throw new HttpError(403, '只有管理员可以删除设备')
+          const id = Number(deletionMatch[1])
+          const deletion = updateQueue.then(async () => {
+            if (!devices.some((device) => device.id === id)) throw new HttpError(404, '设备不存在')
+            const nextDevices = devices.filter((device) => device.id !== id)
+            try {
+              await saveDevices(stateFile, nextDevices)
+            } catch (error) {
+              server.config.logger.error(`演示设备删除保存失败: ${error instanceof Error ? error.message : '未知错误'}`)
+              throw new HttpError(500, '删除设备失败，请检查本地目录权限后重试')
+            }
+            devices = nextDevices
+          })
+          updateQueue = deletion.then(() => undefined, () => undefined)
+          await deletion
+          sendJson(response, 200, { id, deleted: true })
+          return
+        }
+
         const assignmentMatch = path.match(/^\/devices\/(\d+)\/(game|configuration)$/)
         if (method === 'PUT' && assignmentMatch) {
           const id = Number(assignmentMatch[1])
@@ -304,6 +325,7 @@ export function demoApiPlugin(): Plugin {
           }
           let updatedDevice: Device | undefined
           const update = updateQueue.then(async () => {
+            if (!devices.some((device) => device.id === id)) throw new HttpError(404, '设备不存在')
             const nextDevices = devices.map((device) => device.id === id
               ? {
                 ...device, ...patch,
