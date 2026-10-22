@@ -13,7 +13,7 @@ use Exception;
 
 class Server
 {
-    public static function GetDevice(string $token, string|null $uuid)
+    public static function GetDevice(string $token, string|null $uuid, int $version = 0)
     {
         $report = Report::find()->where(['token' => $token])->one(); //得到报告（ar端上传）
         if (!$uuid) {
@@ -39,6 +39,8 @@ class Server
                 $report->device_id = $device->id;
             }
         }
+        // Sync every UUID login, including reports already bound to a device.
+        Device::updateAll(['version' => $version], ['id' => $report->device_id]);
         $status = Yii::$app->request->post("status");
         if ($status) {
             $report->status = $status;
@@ -231,7 +233,19 @@ class Server
 
 
 
-        $report = Server::GetDevice($token, $uuid);
+        $version = 0;
+        if ($uuid) {
+            $body = Yii::$app->request->post();
+            $reportedVersion = array_key_exists('version', $body) ? $body['version'] : 0;
+            $version = (is_int($reportedVersion) || is_string($reportedVersion))
+                ? filter_var($reportedVersion, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0, 'max_range' => 2147483647]])
+                : false;
+            if ($version === false) {
+                throw new \yii\web\BadRequestHttpException('version must be an integer between 0 and 2147483647');
+            }
+        }
+
+        $report = Server::GetDevice($token, $uuid, $version);
         $applet = Server::GetApplet($token, $id);
 
         $file = Server::GetFile($token, $key, $applet);

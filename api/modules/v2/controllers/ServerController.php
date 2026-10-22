@@ -89,7 +89,8 @@ class ServerController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             @OA\Property(property="uuid", type="string", description="设备 UUID")
+     *             @OA\Property(property="uuid", type="string", description="设备 UUID"),
+     *             @OA\Property(property="version", type="integer", format="int32", minimum=0, maximum=2147483647, default=0, description="设备版本号；省略时更新为 0")
      *         )
      *     ),
      *     @OA\Response(response=200, description="成功")
@@ -114,6 +115,11 @@ class ServerController extends Controller
      *     path="/v2/server/refresh",
      *     tags={"服务器"},
      *     summary="触发刷新",
+     *     @OA\RequestBody(
+     *         @OA\JsonContent(
+     *             @OA\Property(property="version", type="integer", format="int32", minimum=0, maximum=2147483647, default=0, description="随设备 UUID 上报的版本号；省略时更新为 0")
+     *         )
+     *     ),
      *     @OA\Response(response=200, description="成功")
      * )
      */
