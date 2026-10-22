@@ -10,7 +10,7 @@ use yii\web\UnauthorizedHttpException;
 /** Administrator Bearer tokens preserve password and WeChat permission domains. */
 class AdminAuthService extends Component
 {
-    private const ATTEMPT_WINDOW = 900;
+    private const ATTEMPT_WINDOW = 60;
     private const MAX_ATTEMPTS = 5;
 
     public $username;
@@ -22,7 +22,7 @@ class AdminAuthService extends Component
     {
         parent::init();
         $this->username = $this->username ?? (getenv('ADMIN_USERNAME') ?: 'dirui');
-        $this->passwordHash = $this->passwordHash ?? (getenv('ADMIN_PASSWORD_HASH') ?: '$2y$12$C6bpwclb.JM.9bhsTvVYR..TbbTRDm2bbGraU/hdgXeRx0jOO5YQq');
+        $this->passwordHash = $this->passwordHash ?? (getenv('ADMIN_PASSWORD_HASH') ?: '$2y$12$3RAuTkI52n8qXYippmstTOyJbMslkfdtsRYghaxUSKlKP7g1u8c2.');
         $this->tokens = $this->tokens ?? new AdminTokenService();
         // This cache remains available for scan-login throttles; password limits use shared auth storage.
         $this->cache = $this->cache ?? new \yii\caching\FileCache(['cachePath' => '@runtime/admin-auth-cache']);
@@ -41,7 +41,9 @@ class AdminAuthService extends Component
         // Reserve before checking credentials so a saturated window still blocks
         // the next request, including a correct password, as before.
         $issuer = $this->tokens->getIssuer();
-        $attempt = $this->tokens->store->reservePasswordAttempt(Yii::$app->request->userIP ?? 'unknown', self::MAX_ATTEMPTS, self::ATTEMPT_WINDOW, $issuer);
+        // A new window policy must not inherit a cached fifteen-minute lock.
+        $attemptIp = (Yii::$app->request->userIP ?? 'unknown') . ':window:' . self::ATTEMPT_WINDOW;
+        $attempt = $this->tokens->store->reservePasswordAttempt($attemptIp, self::MAX_ATTEMPTS, self::ATTEMPT_WINDOW, $issuer);
         if (!$attempt['allowed']) {
             Yii::$app->response->headers->set('Retry-After', (string) max(1, $attempt['retryAfter']));
             throw new HttpException(429, '登录尝试过于频繁，请稍后重试');
@@ -52,7 +54,7 @@ class AdminAuthService extends Component
             throw new UnauthorizedHttpException('用户名或密码错误');
         }
 
-        $this->tokens->store->clearPasswordAttempts(Yii::$app->request->userIP ?? 'unknown', $issuer);
+        $this->tokens->store->clearPasswordAttempts($attemptIp, $issuer);
         $this->cancelBrowserTicket();
         return $this->issueIdentity(['source' => 'password', 'username' => $this->username, 'credentialFingerprint' => hash('sha256', $this->passwordHash)]);
     }
