@@ -85,6 +85,15 @@ describe('demo API', () => {
     }
   })
 
+  it('keeps image previews authenticated and empty without changing demo device content', async () => {
+    expect((await request('/devices/1/image-previews', 'GET')).status).toBe(401)
+    const headers = await login()
+    const before = (await request<Device[]>('/devices', 'GET', headers)).body
+    expect(await request('/devices/1/image-previews', 'GET', headers)).toMatchObject({ status: 200, body: { previews: [] } })
+    expect((await request('/devices/99999/image-previews', 'GET', headers)).status).toBe(404)
+    expect((await request<Device[]>('/devices', 'GET', headers)).body).toEqual(before)
+  })
+
   it('keeps a mismatching CSRF token as 403 while the session exists', async () => {
     const session = await request('/session', 'GET')
     const cookie = session.headers['Set-Cookie']!.split(';')[0]!

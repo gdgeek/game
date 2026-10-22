@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { X, Search, Check, ArrowRight, LoaderCircle, Info, AlertCircle } from 'lucide-vue-next'
 import type { Device, DeviceConfigurationPatch, Game } from '../types'
 import GameArtwork from './GameArtwork.vue'
 import ConfigurationList from './ConfigurationList.vue'
 import { configurationChanges, createConfigurationDraft } from '../lib/device-configuration'
 import { useModalFocus } from '../lib/useModalFocus'
+import { useDeviceImagePreviews } from '../lib/useDeviceImagePreviews'
 const props = defineProps<{ device: Device; games: Game[]; busy: boolean; error: string; gamesError?: string }>()
 const emit = defineEmits<{ close: []; save: [configuration: DeviceConfigurationPatch] }>()
 const draft = ref(createConfigurationDraft(props.device))
@@ -17,6 +18,12 @@ const selectedLabel = computed(() => selectedGame.value?.name || (draft.value.ga
 const changes = computed(() => configurationChanges(props.device, draft.value))
 const dirty = computed(() => Object.keys(changes.value).length > 0)
 const titleError = computed(() => Array.from(draft.value.title.trim()).length > 255 ? '设备名称最多 255 个字符' : '')
+const { urls: previewUrls, loading: previewsLoading, error: previewsError, reload: reloadPreviews } = useDeviceImagePreviews(() => props.device)
+const newImages = computed(() => {
+  const saved = new Set([...(props.device.pictures ?? []), ...(props.device.thumbs ?? [])].map(item => item.trim()))
+  return [...draft.value.pictures, ...draft.value.thumbs].some(item => item.trim() && !saved.has(item.trim()))
+})
+watch(() => props.device.id, () => { draft.value = createConfigurationDraft(props.device); search.value = '' })
 function save() { if (!props.busy && dirty.value && !titleError.value) emit('save', changes.value) }
 useModalFocus(dialog, () => emit('close'), () => props.busy)
 </script>
@@ -42,8 +49,10 @@ useModalFocus(dialog, () => emit('close'), () => props.busy)
         <p v-if="gamesError || !games.length" class="configuration-catalog-note">{{ gamesError || '暂无可用游戏。' }} 仍可修改设备名称、下方欢迎词和图片。</p>
         <p v-else-if="!filtered.length" class="picker-empty">没有匹配的游戏，试试其他关键词。</p>
         <ConfigurationList v-model="draft.slogans" field="slogans" title="欢迎词（口号）" description="填写设备使用的欢迎词或打卡标语，可添加多条。" :disabled="busy" />
-        <ConfigurationList v-model="draft.pictures" field="pictures" title="图片" description="填写完整图片地址，按列表顺序保存。" images :disabled="busy" />
-        <ConfigurationList v-model="draft.thumbs" field="thumbs" title="缩略图" description="用于选择封面，请与图片保持相同的顺序。" images :disabled="busy" />
+        <ConfigurationList v-model="draft.pictures" field="pictures" title="图片" description="填写完整图片地址，按列表顺序保存。" images :resolved-urls="previewUrls" :disabled="busy" />
+        <ConfigurationList v-model="draft.thumbs" field="thumbs" title="缩略图" description="用于选择封面，请与图片保持相同的顺序。" images :resolved-urls="previewUrls" :disabled="busy" />
+        <p v-if="newImages" class="configuration-catalog-note">保存配置后可预览新图片。</p>
+        <p v-if="previewsError" class="configuration-catalog-note" role="status">{{ previewsError }} <button type="button" class="stat-link" :disabled="previewsLoading" @click="reloadPreviews">{{ previewsLoading ? '正在加载…' : '重试预览' }}</button></p>
         <p class="picker-info"><Info :size="16" />{{ device.status === 'offline' ? '设备当前离线，设备下次读取时获取新配置。' : '保存后，设备下次读取时获取新的游戏、欢迎词和图片配置。' }}</p>
       </div>
       <p v-if="error" class="form-error configuration-error" role="alert"><AlertCircle :size="16" />{{ error }}</p>
