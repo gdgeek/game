@@ -92,7 +92,7 @@ class AdminApiTest extends TestCase
         $db->schema->columnSchemaClass = 'yii\\db\\mysql\\ColumnSchema';
         $db->queryBuilder->setExpressionBuilders(['yii\\db\\JsonExpression' => 'yii\\db\\mysql\\JsonExpressionBuilder']);
         $db->pdo->sqliteCreateFunction('NOW', static function () { return '2026-10-11 15:00:00'; });
-        $db->createCommand('CREATE TABLE device (id INTEGER PRIMARY KEY, uuid TEXT, tag TEXT, ip TEXT, created_at TEXT, updated_at TEXT)')->execute();
+        $db->createCommand('CREATE TABLE device (id INTEGER PRIMARY KEY, uuid TEXT, tag TEXT, ip TEXT, created_at TEXT, updated_at TEXT, version INTEGER NOT NULL DEFAULT 0)')->execute();
         $db->createCommand('CREATE TABLE setup (id INTEGER PRIMARY KEY AUTOINCREMENT, device_id INTEGER, scene_id INTEGER, title TEXT, money REAL DEFAULT 0, slogans JSON, pictures JSON, thumbs JSON, shots JSON, updated_at TEXT)')->execute();
         $db->createCommand()->batchInsert('device', ['id', 'uuid', 'tag', 'ip', 'created_at', 'updated_at'], [
             [1, 'device-a', '大厅一号', '192.168.1.10', '2026-10-10 12:00:00', '2026-10-11 12:00:00'],
@@ -199,8 +199,20 @@ class AdminApiTest extends TestCase
             $this->authenticate();
         } catch (HttpException $e) {
             $this->assertSame(429, $e->statusCode);
+            $retryAfter = (int) $this->app->response->headers->get('Retry-After');
+            $this->assertGreaterThanOrEqual(1, $retryAfter);
+            $this->assertLessThanOrEqual(60, $retryAfter);
             throw $e;
         }
+    }
+
+    public function testLegacyFifteenMinuteLockDoesNotBlockTheOneMinutePolicy(): void
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->auth->tokens->store->reservePasswordAttempt($this->app->request->userIP, 5, 900, $this->auth->tokens->getIssuer());
+        }
+
+        $this->assertSame(['username' => 'test-admin', 'role' => 'admin'], $this->authenticate()['user']);
     }
 
     public function testPasswordFailureLimitIsSharedAcrossAuthServiceInstancesAndSuccessClearsIt(): void

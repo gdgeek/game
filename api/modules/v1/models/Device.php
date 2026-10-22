@@ -2,6 +2,7 @@
 
 namespace app\modules\v1\models;
 
+use yii\behaviors\AttributeBehavior;
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
 use Yii;
@@ -10,6 +11,7 @@ use Yii;
  * This is the model class for table "device".
  *
  * @property int $id
+ * @property int $version
  * @property int|null $shop_id
  * @property string|null $uuid
  * @property string|null $tag
@@ -24,6 +26,11 @@ class Device extends \yii\db\ActiveRecord
     public function behaviors()
     {
         return [
+            [
+                'class' => AttributeBehavior::class,
+                'attributes' => [self::EVENT_BEFORE_INSERT => 'version'],
+                'value' => 1,
+            ],
             [
                 'class' => TimestampBehavior::class,
                 'attributes' => [
@@ -84,6 +91,7 @@ class Device extends \yii\db\ActiveRecord
     {
         return [
             'id' => 'ID',
+            'version' => '版本号',
             'shop_id' => 'Shop ID',
             'uuid' => 'Uuid',
             'tag' => 'Tag',

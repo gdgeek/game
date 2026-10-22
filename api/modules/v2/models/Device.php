@@ -3,6 +3,7 @@
 namespace app\modules\v2\models;
 
 use Yii;
+use yii\behaviors\AttributeBehavior;
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
 use yii\db\ActiveRecord;
@@ -13,6 +14,7 @@ use OpenApi\Annotations as OA;
  * This is the model class for table "device".
  *
  * @property int $id
+ * @property int $version
  * @property string|null $uuid
  * @property string|null $tag
  * @property string $created_at
@@ -31,6 +33,11 @@ class Device extends ActiveRecord
     public function behaviors()
     {
         return [
+            [
+                'class' => AttributeBehavior::class,
+                'attributes' => [self::EVENT_BEFORE_INSERT => 'version'],
+                'value' => 1,
+            ],
             [
                 'class' => TimestampBehavior::class,
                 'attributes' => [
@@ -102,6 +109,7 @@ class Device extends ActiveRecord
     {
         return [
             'id' => 'ID',
+            'version' => '版本号',
             'uuid' => 'Uuid',
             'tag' => 'Tag',
             'created_at' => 'Created At',
