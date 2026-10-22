@@ -173,6 +173,7 @@ $config = [
                 'POST admin-api/scan-login/tickets/<id:[a-f0-9]{32}>/cancel' => 'admin/scan-login-cancel',
                 'POST v2/web-login/tickets/<id:[a-f0-9]{32}>/approve' => 'v2/web-login/approve',
                 'GET admin-api/devices' => 'admin/devices',
+                'DELETE admin-api/devices/<id:\\d+>' => 'admin/delete-device',
                 'GET admin-api/games' => 'admin/games',
                 'PUT admin-api/devices/<id:\\d+>/game' => 'admin/set-game',
                 'PUT admin-api/devices/<id:\\d+>/configuration' => 'admin/set-configuration',

@@ -6,6 +6,8 @@ use app\modules\v2\models\Device;
 use app\modules\v2\models\Setup;
 use yii\base\Component;
 use yii\web\NotFoundHttpException;
+use yii\web\ForbiddenHttpException;
+use yii\web\ConflictHttpException;
 use yii\web\HttpException;
 use yii\web\UnprocessableEntityHttpException;
 use yii\db\Query;
@@ -37,6 +39,58 @@ class AdminDeviceService extends Component
     public function assignGame(int $deviceId, int $gameId): array
     {
         return $this->updateConfiguration($deviceId, ['gameId' => $gameId]);
+    }
+
+    public function deleteDevice(int $deviceId): array
+    {
+        if ($this->auth->requireDeviceUserId() !== null) {
+            throw new ForbiddenHttpException('仅管理员可以删除设备');
+        }
+
+        $db = Device::getDb();
+        try {
+            return $db->transaction(function () use ($db, $deviceId) {
+                $query = Device::find()->where(['id' => $deviceId]);
+                $device = $db->driverName === 'mysql'
+                    ? Device::findBySql($query->createCommand()->rawSql . ' FOR UPDATE')->one()
+                    : $query->one();
+                if ($device === null) {
+                    throw new NotFoundHttpException('设备不存在');
+                }
+                // Older deployments cascade device deletion into historical game
+                // records. Require the preservation migration before any deletion.
+                $recordSchema = $db->getTableSchema('record');
+                if ($recordSchema === null || !isset($recordSchema->columns['device_id']) || !$recordSchema->columns['device_id']->allowNull) {
+                    throw new \RuntimeException('Record preservation migration is required.');
+                }
+                // A game still in progress needs its device/shop relationship
+                // for settlement. Lock records before checking their status.
+                $records = (new Query())->select(['id', 'status'])->from('record')->where(['device_id' => $deviceId]);
+                $related = $db->driverName === 'mysql'
+                    ? $db->createCommand($records->createCommand($db)->rawSql . ' FOR UPDATE')->queryAll()
+                    : $records->all($db);
+                foreach ($related as $record) {
+                    if ($record['status'] !== 'finish') {
+                        throw new ConflictHttpException('设备仍有未结束的游戏，请先结束游戏后再删除');
+                    }
+                }
+                // Detach history explicitly so even an old CASCADE foreign key
+                // cannot remove records. No timestamps or business fields change.
+                $db->createCommand()->update('record', ['device_id' => null], ['device_id' => $deviceId])->execute();
+                Setup::deleteAll(['device_id' => $deviceId]);
+                $db->createCommand()->delete('control', ['device_id' => $deviceId])->execute();
+                $db->createCommand()->delete('manager', ['device_id' => $deviceId])->execute();
+                if ($device->delete() !== 1) {
+                    throw new \RuntimeException('Device deletion did not remove its record.');
+                }
+                return ['id' => $deviceId, 'deleted' => true];
+            });
+        } catch (\yii\web\HttpException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            \Yii::warning('Administrator device deletion failed.', __METHOD__);
+            throw new HttpException(503, '设备暂时无法删除，请稍后重试');
+        }
     }
 
     public function updateConfiguration(int $deviceId, array $patch): array

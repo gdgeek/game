@@ -47,4 +47,22 @@ describe('JWT admin API', () => {
     expect(fetchMock.mock.calls.map(call => call[0])).toEqual(['/runtime-config.json', '/api/admin-api/refresh', '/api/admin-api/devices/2/game'])
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
+
+  it('deletes a device using the admin Bearer without cookies or CSRF', async () => {
+    local.getItem.mockReturnValue(JSON.stringify(token))
+    fetchMock.mockResolvedValueOnce(response({ id: 7, deleted: true }))
+    const api = await import('./api'); await api.initializeApi()
+    await api.deleteDevice(7)
+    const [url, init] = fetchMock.mock.calls[1]!
+    expect(url).toBe('/api/admin-api/devices/7')
+    expect(init).toMatchObject({ method: 'DELETE', credentials: 'omit' })
+    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer access-one')
+    expect(new Headers(init?.headers).has('X-CSRF-Token')).toBe(false)
+  })
+
+  it.each([{ id: 8, deleted: true }, { id: 7, deleted: false }, null])('rejects invalid deletion acknowledgement %j', async body => {
+    fetchMock.mockResolvedValueOnce(response(body))
+    const api = await import('./api'); await api.initializeApi()
+    await expect(api.deleteDevice(7)).rejects.toMatchObject({ status: 502 })
+  })
 })

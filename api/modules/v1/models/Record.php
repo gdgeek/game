@@ -17,7 +17,7 @@ use yii\db\Expression;
  * @property string|null $startTime
  * @property string|null $endTime
  * @property int $player_id
- * @property int $device_id
+ * @property int|null $device_id
  * @property string $status
  * @property string|null $game
  *
@@ -54,7 +54,10 @@ class Record extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['player_id', 'device_id'], 'required'],
+            [['player_id'], 'required'],
+            [['device_id'], 'required', 'when' => static function ($model) {
+                return $model->getIsNewRecord() || $model->getOldAttribute('device_id') !== null;
+            }],
             [['created_at', 'updated_at', 'startTime', 'endTime', 'game'], 'safe'],
             [['player_id', 'device_id'], 'integer'],
             [['status'], 'string'],
