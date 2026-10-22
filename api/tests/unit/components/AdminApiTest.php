@@ -1060,6 +1060,8 @@ class AdminApiTest extends TestCase
     {
         $this->authenticate();
         $this->createDeletionRelations();
+        $transaction = $this->app->db->getTransaction();
+        $initialLevel = $transaction === null ? 0 : $transaction->level;
         $this->app->db->pdo->exec("CREATE TRIGGER reject_device_delete AFTER DELETE ON device BEGIN SELECT RAISE(FAIL, 'private-delete-error'); END");
         try { $this->devices->deleteDevice(1); $this->fail('Failed deletion must return an error.'); }
         catch (HttpException $e) {
@@ -1071,7 +1073,8 @@ class AdminApiTest extends TestCase
             $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $column . ' = 1')->queryScalar());
         }
         $this->assertSame(1, (int) $this->app->db->createCommand('SELECT device_id FROM record WHERE id = 1')->queryScalar());
-        $this->assertNull($this->app->db->getTransaction());
+        $this->assertSame($transaction, $this->app->db->getTransaction());
+        $this->assertSame($initialLevel, $transaction === null ? 0 : $transaction->level);
     }
 
     public function testDeletingDeviceKeepsHistoricalRecordsAndOtherBusinessData(): void
