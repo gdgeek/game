@@ -346,6 +346,7 @@ class MiniProgramFileAccessTest extends TestCase
         return new \EasyWeChat\Pay\Server($merchant, $request);
     }
 
+    /** @dataProvider invalidOrders */
     #[\PHPUnit\Framework\Attributes\DataProvider('invalidOrders')]
     public function testPaymentMustMatchFileOwnerAmountAndMerchant(array $changes): void
     {
