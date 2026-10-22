@@ -4,7 +4,7 @@ Vue 3 管理端部署在 `checkin.voxel.cn`，浏览器统一通过同源 `/api/
 
 ## 登录与配置
 
-默认管理员用户名为 `dirui`。初始密码采用用户提供的密码，代码只保存其 `password_hash` 散列。可通过服务器环境变量覆盖：
+默认管理员用户名为 `dirui`。初始密码采用用户提供的密码，末尾为半角波浪号 `~`，代码只保存其 `password_hash` 散列。可通过服务器环境变量覆盖：
 
 - `ADMIN_USERNAME`：管理员用户名。
 - `ADMIN_PASSWORD_HASH`：PHP `password_hash()` 生成的密码散列，不能设置成明文密码。
@@ -23,7 +23,7 @@ php -r 'echo password_hash(rtrim(fgets(STDIN), "\r\n"), PASSWORD_DEFAULT), PHP_E
 
 参考主后端 `api.7dgame.com` 的 `IdentityService` / `SessionService` 和前端 `authClient`，登录返回 Access Token 与 Refresh Token，前端持久化并在到期前刷新。game 保留立即退出失效语义：Redis 只保存刷新令牌散列和随机登录 ID，刷新通过 Lua 原子轮换，退出删除登录记录，已签发的该次访问令牌也立即失效。每次授权核对签名、时间、issuer、audience、身份域及有效登录记录，并实时核对微信用户是否仍存在。
 
-同一客户端 IP 在共享 Redis 的 15 分钟窗口内最多允许五次密码登录尝试，成功登录会清除计数；超过额度时返回 HTTP 429 和 `Retry-After`。密码登录计数由 Redis 原子更新，场景短缓存与原扫码节流继续使用 `api/runtime` 文件缓存。令牌存储使用独立 `adminAuthRedis` 组件；`ADMIN_AUTH_REDIS_HOST`、`ADMIN_AUTH_REDIS_PORT`、`ADMIN_AUTH_REDIS_DB`、`ADMIN_AUTH_REDIS_PASSWORD` 指定双节点共同可达的 Redis，未覆盖的项回退对应 `REDIS_*`。不能让一个节点指向仅本机可见的 `redis` 别名。本部署与同机主后端一样，认证 Redis 指向 `10.206.16.15:6379` 的 DB 0，使用独立 `game:admin:auth:` 与 issuer 命名空间；业务 `REDIS_DB=3` 等配置保持不变。令牌记录为短期状态，Redis 重启或清理后需要重新登录。存储故障返回通用 503，不降级为其他身份。
+同一客户端 IP 在共享 Redis 的 1 分钟窗口内最多允许五次密码登录尝试，成功登录会清除计数；超过额度时返回 HTTP 429 和 `Retry-After`。限流桶包含窗口长度，旧 15 分钟策略的计数不会延续到新窗口。密码登录计数由 Redis 原子更新，场景短缓存与原扫码节流继续使用 `api/runtime` 文件缓存。令牌存储使用独立 `adminAuthRedis` 组件；`ADMIN_AUTH_REDIS_HOST`、`ADMIN_AUTH_REDIS_PORT`、`ADMIN_AUTH_REDIS_DB`、`ADMIN_AUTH_REDIS_PASSWORD` 指定双节点共同可达的 Redis，未覆盖的项回退对应 `REDIS_*`。不能让一个节点指向仅本机可见的 `redis` 别名。本部署与同机主后端一样，认证 Redis 指向 `10.206.16.15:6379` 的 DB 0，使用独立 `game:admin:auth:` 与 issuer 命名空间；业务 `REDIS_DB=3` 等配置保持不变。令牌记录为短期状态，Redis 重启或清理后需要重新登录。存储故障返回通用 503，不降级为其他身份。
 
 ## 微信小程序扫码登录
 

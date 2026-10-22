@@ -8,7 +8,7 @@ import type { Device, DeviceConfigurationPatch, Game, Session } from '../src/typ
 const COOKIE_NAME = 'dirui_demo_session'
 const SESSION_TTL = 8 * 60 * 60 * 1_000
 const PASSWORD_SALT = 'orbit-console-demo-admin-v1'
-const PASSWORD_HASH = Buffer.from('5bef5fd9af8bf6ce871e66fb9e9eb820c257cb2f1b5d9acc71535a51437db56b', 'hex')
+const PASSWORD_HASH = Buffer.from('a72780a89463fa90af8e296f491b57233e390c8c8533defa30d737fbd540ec2a', 'hex')
 const CONTENT_FIELDS = ['slogans', 'pictures', 'thumbs'] as const
 
 const games: Game[] = [
