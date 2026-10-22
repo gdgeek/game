@@ -100,7 +100,7 @@ class Server
             // $rf->created_at = strval(time());
             $rf->key = $key;
 
-            $file = File::Create($key, $applet->id);
+            $file = File::Create($key, $applet->id, $token);
             $file->user_id = $applet->user_id;
             $file->save();
             //'Y-m-d H:i:s'转时间戳 类似 strval(time()) 这种结果
