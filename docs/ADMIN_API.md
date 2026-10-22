@@ -148,7 +148,9 @@ php api/vendor/bin/phpunit --stderr --bootstrap api/tests/_bootstrap.php --filte
 
 `checkin.voxel.cn` 只运行静态 Vue 页面和 Nginx，不运行 PHP、不连接数据库。`dockerfile/FrontendDockerfile` 使用官方 Nginx Alpine 镜像，复制预构建的 `frontend/dist`、代理模板和启动脚本。`dockerfile/admin.compose.yaml` 仅连接现有 `proxy` 网络，通过 Traefik 的 `websecure` / `letsencrypt` 提供 HTTPS，不发布宿主机端口，不配置数据库凭据、Cookie key 或持久化卷。
 
-前端以根路径构建：`npm run build -- --base=/`。Portainer 的最小构建 tar 应包含以下路径，将 `dockerfile/FrontendDockerfile` 在 tar 根目录命名为 `Dockerfile`，其余路径保持不变：
+GitHub Actions 使用 Node.js 24，在 `frontend/` 执行 `npm ci`、`npm test`、`npm run build -- --base=/`，测试和静态构建通过后发布前端镜像 `hkccr.ccs.tencentyun.com/gdgeek/checkin-frontend`。`develop`、`main`、`publish` 分支分别使用同名标签，只有 `publish` 发布 `latest`。按 `develop → main → publish` 逐阶段推进，每阶段测试、构建及前后端镜像推送全部成功后再提升下一分支。后端继续独立使用 `hkccr.ccs.tencentyun.com/gdgeek/wechat` 镜像。
+
+CI 在 `$RUNNER_TEMP` 创建独立白名单构建上下文，只包含以下路径；`dockerfile/FrontendDockerfile` 复制为上下文根目录的 `Dockerfile`，其余文件保留原相对目录：
 
 - `frontend/dist/`
 - `Dockerfile`（源文件为 `dockerfile/FrontendDockerfile`）
@@ -156,7 +158,9 @@ php api/vendor/bin/phpunit --stderr --bootstrap api/tests/_bootstrap.php --filte
 - `dockerfile/40-configure-frontends.sh`
 - `dockerfile/50-configure-miniprogram.sh`
 
-构建包不能携带仓库根 `.dockerignore`，因为通用构建忽略规则会排除这次预构建的 `frontend/dist`。镜像不包含后端源码、Composer vendor 或数据库配置。
+上下文不携带仓库根 `.dockerignore`、源码、`.env` 或 `node_modules`；根忽略规则会排除预构建的 `frontend/dist`。镜像不包含后端源码、Composer vendor 或数据库配置。
+
+默认在现有 Portainer Stack 中使用 CCR 预构建镜像 `hkccr.ccs.tencentyun.com/gdgeek/checkin-frontend:latest`，部署模板见 `dockerfile/admin.compose.yaml`。仅前端服务添加 `com.centurylinklabs.watchtower.enable=true` 标签，加入现有 Watchtower 的自动更新；沿用其既有轮询及仓库凭据设置。Stack 的 `APP_API_N_URL` 与 `APP_MP_API_*` 运行时配置保持不变，无需在 Portainer 手工打包或构建镜像。
 
 运行时扫描 `APP_API_N_URL` 全部数字编号配置，按数字排序，允许编号缺口；编号 N 对应 b(N−1)。镜像没有内置后端默认值，必须显式配置至少一个 HTTPS origin。可选 `APP_API_N_WEIGHT` 为 1–1000000 的正整数，默认等权；每个节点的计算占比至少为 0.01%。脚本校验 URL、编号、权重和 Host，拒绝路径、查询、用户凭据及配置注入字符；生成 `split_clients "$request_id"`、实际路由 `map` 和带共享 zone 的动态 DNS upstream。每个分流桶以所选节点为主，其他节点为备用，失败节点短时隔离后被动恢复。增减节点只需更新部署变量和容器；DNS 由 Docker resolver 每 30 秒刷新。
 
