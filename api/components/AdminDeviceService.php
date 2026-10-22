@@ -34,6 +34,28 @@ class AdminDeviceService extends Component
         }
     }
 
+    /** Read stored image sources without Device::toArray(), which can create setup. */
+    public function getImageSources(int $deviceId): array
+    {
+        $userId = $this->auth->requireDeviceUserId();
+        try {
+            $device = $this->scopedDevices($userId)->andWhere(['device.id' => $deviceId])->with('setup')->one();
+            if ($device === null) {
+                throw new NotFoundHttpException('设备不存在');
+            }
+            $setup = $device->setup;
+            return $setup === null ? [] : array_values(array_unique(array_merge(
+                $this->normalizeContent($setup->pictures),
+                $this->normalizeContent($setup->thumbs)
+            )));
+        } catch (\yii\web\HttpException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            \Yii::warning('Administrator device images are unavailable.', __METHOD__);
+            throw new HttpException(503, '设备数据暂时不可用，请稍后重试');
+        }
+    }
+
     public function assignGame(int $deviceId, int $gameId): array
     {
         return $this->updateConfiguration($deviceId, ['gameId' => $gameId]);

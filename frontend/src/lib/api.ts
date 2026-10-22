@@ -1,4 +1,4 @@
-import type { Device, DeviceConfigurationPatch, Game, ScanLoginTicket, ScanLoginTicketStatus, Session } from '../types'
+import type { Device, DeviceConfigurationPatch, DeviceImagePreview, Game, ScanLoginTicket, ScanLoginTicketStatus, Session } from '../types'
 
 export const isDemoMode = import.meta.env.MODE === 'demo'
 interface ApiConfiguration { readonly apiBase: '/api/admin-api' | '/admin-api'; readonly automatic: boolean; readonly auth: 'jwt' | 'session' }
@@ -522,6 +522,28 @@ export async function getDevices(): Promise<Device[]> {
 
 export async function getGames(): Promise<Game[]> {
   return decode(await request('/games'), isGameList)
+}
+
+function isImagePreview(value: unknown): value is DeviceImagePreview {
+  if (!isRecord(value) || typeof value.source !== 'string' || typeof value.url !== 'string'
+    || !Number.isSafeInteger(value.expiresAt) || (value.expiresAt as number) <= 0) return false
+  try {
+    const source = new URL(value.source), url = new URL(value.url)
+    return source.protocol === 'https:' && url.protocol === 'https:'
+      && !source.username && !source.password && !url.username && !url.password
+      && !url.hash && source.origin === url.origin
+      && decodeURIComponent(source.pathname) === decodeURIComponent(url.pathname)
+  } catch { return false }
+}
+
+export async function getDeviceImagePreviews(deviceId: number, signal?: AbortSignal): Promise<DeviceImagePreview[]> {
+  if (!Number.isSafeInteger(deviceId) || deviceId < 1) throw invalidResponse()
+  const result = decode(await request(`/devices/${deviceId}/image-previews`, {
+    cache: 'no-store', headers: { 'X-Admin-Scan-Owner': 'required' },
+    ...(signal ? { signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]) } : {}),
+  }), (value): value is { previews: DeviceImagePreview[] } => isRecord(value)
+    && Array.isArray(value.previews) && value.previews.every(isImagePreview))
+  return result.previews
 }
 
 export async function assignGame(deviceId: number, gameId: number): Promise<Device> {

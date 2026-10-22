@@ -24,6 +24,12 @@ export interface DeviceConfiguration {
 
 export type DeviceConfigurationPatch = Partial<Omit<DeviceConfiguration, 'gameId'>> & { gameId?: number }
 
+export interface DeviceImagePreview {
+  source: string
+  url: string
+  expiresAt: number
+}
+
 export interface Game {
   id: number
   name: string

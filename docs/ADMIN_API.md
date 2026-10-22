@@ -72,6 +72,7 @@ php -r 'echo password_hash(rtrim(fgets(STDIN), "\r\n"), PASSWORD_DEFAULT), PHP_E
 | POST | `/admin-api/refresh` | `{refreshToken: string}` | `{user, token, authMode:"jwt"}` |
 | POST | `/admin-api/logout` | `{refreshToken: string}` | `{user: null, authMode:"jwt"}` |
 | GET | `/admin-api/devices` | 必须登录 | 设备数组 |
+| GET | `/admin-api/devices/<id>/image-previews` | 必须登录并有该设备管理权限 | `{previews:[{source,url,expiresAt}]}` |
 | GET | `/admin-api/games` | 必须登录 | 游戏数组 |
 | PUT | `/admin-api/devices/<id>/game` | `{gameId: number}`，必须登录 | 更新后的单个设备 |
 | PUT | `/admin-api/devices/<id>/configuration` | `{gameId?: number, title?: string, slogans?: string[], pictures?: string[], thumbs?: string[]}`，必须登录 | 更新后的单个设备 |
@@ -137,12 +138,20 @@ Y1 目录通过配置的服务地址及明确的 `page` / `pageSize=15` 参数�
 无需部署专用的 `api/config`，使用独立 Yii Application 和 SQLite 内存库运行后台测试：
 
 ```sh
-php api/vendor/bin/phpunit --stderr --bootstrap api/tests/_bootstrap.php --filter 'AdminApiTest|AdminSceneFetcherTest|AdminScanLoginTest' api/tests/unit/components
+php api/vendor/bin/phpunit --stderr --bootstrap api/tests/_bootstrap.php --filter 'AdminApiTest|AdminSceneFetcherTest|AdminScanLoginTest|AdminImagePreviewTest' api/tests/unit/components
 ```
 
 测试覆盖 JWT 签名和时间、身份域隔离、密码与微信角色、跨节点令牌读取、原子刷新、八小时总期限、立即注销、用户及设备权限变化、Cookie/CSRF 移除、扫码 owner 与一次性消费，以及现有设备和场景读取/写入事务。同时覆盖设备名称与欢迎词/图片/缩略图的局部保存、清空、长度校验、物理标识保留、目录不可用时保存和事务回滚。测试只使用独立账号、测试密钥和随机 Redis 键前缀。
 
 真实联调需要现有数据库、已执行的 v2 表迁移、两节点匹配的 JWT 签名验证材料、共同可达的专用令牌 Redis，以及可访问本机 Y1 的服务器网络。扫码还需票据表迁移、相同规范 origin、微信凭据及已发布的小程序。
+
+## COS 图片预览
+
+管理端通过 `GET /admin-api/devices/<id>/image-previews` 获取设备已保存 `pictures`、`thumbs` 的预览映射。接口沿用管理 JWT 与实时设备 `control` 范围；设备不存在或无权限返回 404，未登录返回 401。只读取现有 setup，不创建或修改配置。
+
+服务端仅为自身 COS 配置中 bucket、region 对应的 HTTPS 对象地址生成 300 秒有效的 GET 签名，返回 `{previews:[{source,url,expiresAt}]}`。`source` 为原始配置地址，`url` 为显示用的临时签名链接，**此接口的 `expiresAt` 是 Unix 秒数**。外部公开地址与不合规地址不签名；没有需签名图片时返回空列表。签名配置不可用时返回不含云端凭据的通用 503，响应禁止缓存。
+
+浏览器只在编辑器内存中保存映射，到期前刷新、过期时清除；关闭编辑器或登录身份变化后丢弃映射和迟到响应。缩略图及悬停大图使用临时链接，输入框与配置保存始终保留原地址。新填私有图片须先保存配置，再重新打开获取预览；外部公开 HTTP(S) 图片继续直接加载。签名 URL、COS 密钥和临时凭据不写入 localStorage、设备配置或应用日志。
 
 ## 前端与正式后端部署
 

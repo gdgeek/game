@@ -281,6 +281,13 @@ export function demoApiPlugin(): Plugin {
           return
         }
 
+        const previewMatch = path.match(/^\/devices\/(\d+)\/image-previews$/)
+        if (method === 'GET' && previewMatch) {
+          if (!devices.some(device => device.id === Number(previewMatch[1]))) throw new HttpError(404, '设备不存在')
+          sendJson(response, 200, { previews: [] })
+          return
+        }
+
         const assignmentMatch = path.match(/^\/devices\/(\d+)\/(game|configuration)$/)
         if (method === 'PUT' && assignmentMatch) {
           const id = Number(assignmentMatch[1])
