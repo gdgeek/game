@@ -85,6 +85,7 @@ JSON 请求带 `Content-Type: application/json`，生产管理接口不发送 CS
 {
   "id": 1,
   "uuid": "device-a",
+  "version": 0,
   "name": "大厅一号",
   "title": "大厅一号",
   "ip": "192.168.1.10",
@@ -98,6 +99,8 @@ JSON 请求带 `Content-Type: application/json`，生产管理接口不发送 CS
 ```
 
 `title` 返回 `setup.title` 原值，无配置或空值时为 `""`，与小程序的设备名称对应。`name` 优先使用去掉首尾空白的 `title`；名称为空或仍为协议默认值 `未知` 时，沿用设备 `tag`，其次为 `uuid`。设备 `tag` 和 `uuid` 是物理标识，编辑名称不会修改它们。没有 `setup` 或未配置 `scene_id` 时 `gameId` 为 `null`。现有模型没有可信的在线心跳字段，因此 `status` 始终为 `unknown`。`updatedAt` 优先取配置更新时间，其次为设备更新时间，并沿用数据库的时间格式。设备总数是返回数组长度。读取设备列表不会创建缺失的 `setup`。
+
+`version` 返回数据库中设备版本号的整数值，`0` 是有效版本。列表和配置保存响应使用相同格式；管理前端在设备 UUID 下显示版本号，兼容旧接口未返回此字段时显示“未知”。该字段只读，不能通过 `/configuration` 修改。
 
 `slogans` 为欢迎词/口号，`pictures` 为图片地址，`thumbs` 为缩略图地址，直接对应现有设备 `setup` 的同名字段。返回值始终为字符串列表；缺少配置或字段为空时返回 `[]`。读取时过滤历史数据中的非字符串和空项，并去掉字符串首尾空白，不修改数据库。
 
