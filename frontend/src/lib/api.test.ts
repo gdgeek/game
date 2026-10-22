@@ -17,6 +17,35 @@ describe('admin API client', () => {
 
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
+  it('saves welcome words and image lists through the session-protected partial configuration endpoint', async () => {
+    const device = { id: 1, uuid: 'device-a', name: '大厅', ip: '', status: 'unknown', updatedAt: '', gameId: 638,
+      slogans: ['欢迎'], pictures: [], thumbs: ['cover.webp'] }
+    fetchMock.mockResolvedValueOnce(response({ user: { username: 'dirui' }, csrfToken: 'content-token' }))
+      .mockResolvedValueOnce(response(device))
+    const api = await import('./api')
+    const patch = { title: '新设备名称', slogans: ['欢迎'], pictures: [] }
+    expect(await api.updateDeviceConfiguration(1, patch)).toEqual(device)
+    const [url, init] = fetchMock.mock.calls[1]!
+    expect(url).toBe('/admin-api/devices/1/configuration')
+    expect(init?.method).toBe('PUT')
+    expect(init?.credentials).toBe('same-origin')
+    expect(new Headers(init?.headers).get('X-CSRF-Token')).toBe('content-token')
+    expect(JSON.parse(String(init?.body))).toEqual(patch)
+  })
+
+  it('rejects malformed device names returned by the server', async () => {
+    fetchMock.mockResolvedValueOnce(response([{ id: 1, uuid: '', name: '', ip: '', status: 'unknown', updatedAt: '', gameId: null, title: 123 }]))
+    const api = await import('./api')
+    await expect(api.getDevices()).rejects.toMatchObject({ status: 502 })
+  })
+
+  it.each(['slogans', 'pictures', 'thumbs'])('rejects malformed %s lists before the editor can overwrite stored content', async field => {
+    fetchMock.mockResolvedValueOnce(response([{ id: 1, uuid: '', name: '', ip: '', status: 'unknown', updatedAt: '', gameId: 638,
+      [field]: [42] }]))
+    const api = await import('./api')
+    await expect(api.getDevices()).rejects.toMatchObject({ status: 502 })
+  })
+
   it('sends session cookies and the session CSRF token when assigning a game', async () => {
     const device = { id: 1, uuid: 'VR-A01', name: '一号设备', ip: '192.168.1.101', status: 'online', updatedAt: '', gameId: 639 }
     fetchMock
