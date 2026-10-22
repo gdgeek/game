@@ -9,6 +9,8 @@ use yii\web\Response;
 use bizley\jwt\JwtHttpBearerAuth;
 use yii\filters\auth\CompositeAuth;
 use OpenApi\Annotations as OA;
+use app\components\MiniProgramFileService;
+use yii\web\HttpException;
 
 /**
  * @OA\Tag(
@@ -27,7 +29,7 @@ class WechatPayController extends Controller
       'authMethods' => [
         JwtHttpBearerAuth::class,
       ],
-      'except' => ['options'],
+      'except' => ['options', 'notify', 'refund-notify'],
     ];
 
     return $behaviors;
@@ -43,6 +45,8 @@ class WechatPayController extends Controller
    *     @OA\RequestBody(
    *         required=true,
    *         @OA\JsonContent(
+     *             required={"file_id", "out_trade_no"},
+     *             @OA\Property(property="file_id", type="integer", description="当前账号的文件ID"),
    *             @OA\Property(property="openid", type="string", description="用户 OpenID"),
    *             @OA\Property(property="out_trade_no", type="string", description="商户订单号"),
    *             @OA\Property(property="amount", type="integer", description="金额(分)"),
@@ -57,27 +61,17 @@ class WechatPayController extends Controller
     Yii::$app->response->format = Response::FORMAT_JSON;
 
     $request = Yii::$app->request;
-    $openid = $request->post('openid');
     $orderNo = $request->post('out_trade_no');
-    $amount = $request->post('amount');
-    $description = $request->post('description', '商品支付');
-
-    if (empty($openid)) {
-      return ['code' => 400, 'message' => '缺少openid参数'];
+    if (!is_string($orderNo) || !preg_match('/^[A-Za-z0-9_-]{6,32}$/', $orderNo)) {
+      throw new HttpException(400, '商户订单号格式不正确');
     }
-
-
-    if (empty($orderNo)) {
-      return ['code' => 400, 'message' => '缺少商户订单号参数'];
-    }
-
-    if (empty($amount) || !is_numeric($amount)) {
-      return ['code' => 400, 'message' => '金额参数不正确'];
-    }
-
-    if (!preg_match('/^[A-Za-z0-9_-]{6,32}$/', $orderNo)) {
-      return ['code' => 400, 'message' => '商户订单号格式不正确，要求6-32位字母数字或下划线'];
-    }
+    $user = $this->currentUser();
+    $service = new MiniProgramFileService();
+    $file = $service->findOwned($request->post('file_id'), $user);
+    $order = $service->reserveOrder($orderNo, $file, $user, $request->post('amount'), $request->post('openid'));
+    $openid = $order['openid'];
+    $amount = $order['amount'];
+    $description = mb_strcut('AR打卡服务:' . basename($file->key), 0, 120, 'UTF-8');
 
     try {
       $wechat = Yii::$app->wechat;
@@ -90,7 +84,8 @@ class WechatPayController extends Controller
           'mchid' => $app->getConfig()['mch_id'],
           'description' => $description,
           'out_trade_no' => $orderNo,
-          'notify_url' => Yii::$app->urlManager->createAbsoluteUrl(['v1/wechat-pay/notify']),
+          'notify_url' => Yii::$app->urlManager->createAbsoluteUrl(['v2/wechat-pay/notify']),
+          'attach' => $order['attach'],
           'amount' => [
             'total' => (int) $amount,
             'currency' => 'CNY',
@@ -150,19 +145,32 @@ class WechatPayController extends Controller
 
     try {
       $server = $app->getServer();
-      $response = $server->handlePaid(function ($message, $fail) {
-        // 实现订单查询和状态更新逻辑
-        /*$order = YourOrderModel::findOne(['out_trade_no' => $message['out_trade_no']]);
-              if (!$order) {
-                return $fail('订单不存在');
-              }
-              // 更新订单状态逻辑
-              $order->status = 'paid';
-              $order->save();*/
-        return true;
+      $server->handlePaid(function ($message, $next) use ($app) {
+        // Query WeChat again: never unlock from untrusted callback body alone.
+        $orderNo = $message->out_trade_no;
+        if (!is_string($orderNo) || !preg_match('/^[A-Za-z0-9_-]{6,32}$/', $orderNo)) {
+          throw new HttpException(400, '订单编号无效');
+        }
+        $service = new MiniProgramFileService();
+        $user = $service->findOrderUser($orderNo);
+        $order = $app->getClient()->get('v3/pay/transactions/out-trade-no/' . rawurlencode($orderNo), [
+          'query' => ['mchid' => $app->getConfig()['mch_id']],
+        ])->toArray(false);
+        if (($order['out_trade_no'] ?? null) !== $orderNo) {
+          throw new HttpException(403, '查询订单编号不一致');
+        }
+        if (!$service->confirmPayment($order, $user, $app->getConfig()['app_id'], $app->getConfig()['mch_id'])) {
+          throw new HttpException(409, '支付结果尚未确认，请重试通知');
+        }
+        return $next($message);
       });
-
-      return $response;
+      $response = $server->serve();
+      Yii::$app->response->format = Response::FORMAT_RAW;
+      Yii::$app->response->statusCode = $response->getStatusCode();
+      foreach ($response->getHeaders() as $name => $values) {
+        Yii::$app->response->headers->set($name, implode(', ', $values));
+      }
+      return (string) $response->getBody();
     } catch (\Exception $e) {
       Yii::error('支付通知处理异常: ' . $e->getMessage(), 'wechat-pay');
       throw new \yii\web\HttpException(500, '支付通知处理异常: ' . $e->getMessage());
@@ -192,11 +200,14 @@ class WechatPayController extends Controller
     $request = Yii::$app->request;
     $outTradeNo = $request->get('out_trade_no'); // 商户订单号
 
-    if (empty($outTradeNo)) {
-      return ['code' => 400, 'message' => '缺少商户订单号参数'];
+    if (!is_string($outTradeNo) || !preg_match('/^[A-Za-z0-9_-]{6,32}$/', $outTradeNo)) {
+      throw new HttpException(400, '订单编号无效');
     }
 
     try {
+      $user = $this->currentUser();
+      $service = new MiniProgramFileService();
+      $service->assertOrderOwner($outTradeNo, $user);
       $wechat = Yii::$app->wechat;
       $app = $wechat->payApp();
 
@@ -204,13 +215,17 @@ class WechatPayController extends Controller
       Yii::info('查询订单请求参数: mchid=' . $app->getConfig()['mch_id'] . ', outTradeNo=' . $outTradeNo, 'wechat-pay');
 
       // 查询订单API
-      $response = $app->getClient()->get('v3/pay/transactions/out-trade-no/' . $outTradeNo, [
+      $response = $app->getClient()->get('v3/pay/transactions/out-trade-no/' . rawurlencode($outTradeNo), [
         'query' => [
           'mchid' => $app->getConfig()['mch_id'],
         ],
       ]);
 
       $result = $response->toArray(false);
+      if (($result['out_trade_no'] ?? null) !== $outTradeNo) {
+        throw new HttpException(403, '查询订单编号不一致');
+      }
+      $unlocked = $service->confirmPayment($result, $user, $app->getConfig()['app_id'], $app->getConfig()['mch_id']);
       //$result = json_decode($response->getBody()->getContents(), true);
 
       // 处理查询结果
@@ -221,8 +236,11 @@ class WechatPayController extends Controller
           'order_info' => $result,
           'trade_state' => $result['trade_state'] ?? '',
           'trade_state_desc' => $result['trade_state_desc'] ?? '',
+          'unlocked' => $unlocked,
         ]
       ];
+    } catch (HttpException $e) {
+      throw $e;
     } catch (\Exception $e) {
       Yii::error('查询订单失败: ' . $e->getMessage() . ', 订单号: ' . $outTradeNo, 'wechat-pay');
       return [
@@ -230,6 +248,15 @@ class WechatPayController extends Controller
         'message' => '查询订单失败: ' . $e->getMessage(),
       ];
     }
+  }
+
+  private function currentUser(): User
+  {
+    $user = Yii::$app->user->identity;
+    if (!$user instanceof User) {
+      throw new \yii\web\UnauthorizedHttpException('请重新登录');
+    }
+    return $user;
   }
 
   /**

@@ -15,6 +15,7 @@ use Yii;
  * @property int|null $size
  * @property string|null $bucket
  * @property string $created_at
+ * @property int|null $price Download price in cents; null means the historical amount is unknown.
  */
 
 // 引入 COS SDK (需: composer require qcloud/cos-sdk-v5:^2.0)
@@ -136,7 +137,7 @@ class File extends \yii\db\ActiveRecord
         return self::getObjectUrl($key, $client);
     }
 
-    public static function Create(string $key, string|null $unionid = null)
+    public static function Create(string $key, string|null $unionid = null, ?string $recordingToken = null)
     {
 
         $file = File::find()->where(['key' => $key])->one();
@@ -145,6 +146,11 @@ class File extends \yii\db\ActiveRecord
         }
 
         $file = new self();
+        if ($recordingToken !== null) {
+            $report = Report::findOne(['token' => $recordingToken]);
+            $setup = $report && $report->device_id ? Setup::findOne(['device_id' => $report->device_id]) : null;
+            $file->price = \app\components\MiniProgramFileService::recordingPriceInCents($setup ? $setup->money : Setup::DefaultData()['money']);
+        }
         $client = self::GetClient($key);
 
         $cloud = Yii::$app->secret->cloud ?? [];
@@ -192,7 +198,8 @@ class File extends \yii\db\ActiveRecord
     {
         return [
             [['key'], 'required'],
-            [['size', 'unlocked', 'user_id'], 'integer'],
+            [['size', 'unlocked', 'user_id', 'price'], 'integer'],
+            ['price', 'integer', 'min' => 0],
             [['created_at'], 'safe'],
             [['unionid', 'key', 'type', 'md5', 'bucket', 'title'], 'string', 'max' => 255],
             [['key'], 'unique'],
