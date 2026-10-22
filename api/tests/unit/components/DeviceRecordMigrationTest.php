@@ -29,7 +29,14 @@ class DeviceRecordMigrationTest extends TestCase
         ]);
         $this->db = $this->app->db;
         $this->db->open();
+        // Codeception starts a transaction on every new connection. This
+        // disposable database needs foreign keys enabled before any transaction.
+        $transaction = $this->db->getTransaction();
+        if ($transaction !== null) {
+            $transaction->rollBack();
+        }
         $this->db->createCommand('PRAGMA foreign_keys = ON')->execute();
+        $this->assertSame(1, (int) $this->db->createCommand('PRAGMA foreign_keys')->queryScalar());
         $this->db->createCommand('CREATE TABLE device (id INTEGER PRIMARY KEY)')->execute();
         $this->db->createCommand('CREATE TABLE player (id INTEGER PRIMARY KEY)')->execute();
         $this->db->createCommand('CREATE TABLE record (
