@@ -3,12 +3,13 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import type { Plugin } from 'vite'
-import type { Device, Game, Session } from '../src/types'
+import type { Device, DeviceConfigurationPatch, Game, Session } from '../src/types'
 
 const COOKIE_NAME = 'dirui_demo_session'
 const SESSION_TTL = 8 * 60 * 60 * 1_000
 const PASSWORD_SALT = 'orbit-console-demo-admin-v1'
 const PASSWORD_HASH = Buffer.from('5bef5fd9af8bf6ce871e66fb9e9eb820c257cb2f1b5d9acc71535a51437db56b', 'hex')
+const CONTENT_FIELDS = ['slogans', 'pictures', 'thumbs'] as const
 
 const games: Game[] = [
   { id: 638, name: '星际穿越', description: '驾驶飞船穿越星际，探索未知宇宙。', category: '科幻' },
@@ -29,6 +30,10 @@ interface PersistedDevice {
   id: number
   gameId: number | null
   updatedAt: string
+  title?: string
+  slogans?: string[]
+  pictures?: string[]
+  thumbs?: string[]
 }
 
 class HttpError extends Error {
@@ -44,10 +49,14 @@ function seedDevices(): Device[] {
     id: index + 1,
     uuid: `b6dc4e1a-7a30-4f80-a642-${String(index + 1).padStart(12, '0')}`,
     name: `${locations[index]} · ${String(index + 1).padStart(2, '0')}`,
+    title: `${locations[index]} · ${String(index + 1).padStart(2, '0')}`,
     ip: `192.168.1.${101 + index}`,
     status: index < 9 ? 'online' : 'offline',
     updatedAt: new Date(Date.now() - (index < 9 ? (index % 3 + 1) * 60_000 : (index - 8) * 35 * 60_000)).toISOString(),
     gameId,
+    slogans: ['欢迎体验'],
+    pictures: [],
+    thumbs: [],
   }))
 }
 
@@ -95,6 +104,41 @@ function validPassword(password: string): boolean {
   return timingSafeEqual(candidate, PASSWORD_HASH)
 }
 
+function isStringList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+}
+
+function configurationPatch(body: Record<string, unknown>): DeviceConfigurationPatch {
+  const keys = Object.keys(body)
+  if (keys.length === 0 || keys.some((key) => key !== 'gameId' && key !== 'title' && !CONTENT_FIELDS.some((field) => field === key))) {
+    throw new HttpError(422, '请提交有效的设备配置字段')
+  }
+  const patch: DeviceConfigurationPatch = {}
+  if ('title' in body) {
+    if (typeof body.title !== 'string' || Array.from(body.title.trim()).length > 255) {
+      throw new HttpError(422, '设备名称必须为不超过 255 个字符的字符串')
+    }
+    patch.title = body.title.trim()
+  }
+  if ('gameId' in body) {
+    if (!Number.isInteger(body.gameId) || !games.some((game) => game.id === body.gameId)) {
+      throw new HttpError(422, '请选择有效的游戏')
+    }
+    patch.gameId = body.gameId as number
+  }
+  for (const field of CONTENT_FIELDS) {
+    if (!(field in body)) continue
+    const value = body[field]
+    if (!isStringList(value)) throw new HttpError(422, '设备内容必须为字符串列表')
+    patch[field] = value.map((entry) => entry.trim()).filter(Boolean)
+  }
+  return patch
+}
+
+function deviceDisplayName(title: string, originalName: string): string {
+  return title && title !== '未知' ? title : originalName
+}
+
 function validSavedDevice(value: unknown, seed: Device[]): value is PersistedDevice {
   if (!value || typeof value !== 'object') return false
   const candidate = value as PersistedDevice
@@ -103,6 +147,8 @@ function validSavedDevice(value: unknown, seed: Device[]): value is PersistedDev
     && (candidate.gameId === null || games.some((game) => game.id === candidate.gameId))
     && typeof candidate.updatedAt === 'string'
     && Number.isFinite(Date.parse(candidate.updatedAt))
+    && (candidate.title === undefined || (typeof candidate.title === 'string' && Array.from(candidate.title.trim()).length <= 255))
+    && CONTENT_FIELDS.every((field) => candidate[field] === undefined || isStringList(candidate[field]))
 }
 
 async function loadDevices(stateFile: string): Promise<Device[]> {
@@ -127,7 +173,11 @@ async function loadDevices(stateFile: string): Promise<Device[]> {
     throw new Error('演示设备配置文件格式不正确，请检查 frontend/.local/demo-state.json')
   }
   const saved = new Map<number, PersistedDevice>(state.devices.map((device) => [device.id, device]))
-  return seed.map((device) => ({ ...device, ...saved.get(device.id)! }))
+  return seed.map((device) => {
+    const savedDevice = saved.get(device.id)!
+    const title = savedDevice.title === undefined ? device.title ?? '' : savedDevice.title.trim()
+    return { ...device, ...savedDevice, title, name: deviceDisplayName(title, device.name) }
+  })
 }
 
 async function saveDevices(stateFile: string, devices: Device[]): Promise<void> {
@@ -135,7 +185,13 @@ async function saveDevices(stateFile: string, devices: Device[]): Promise<void> 
   const temporaryFile = `${stateFile}.${randomBytes(8).toString('hex')}.tmp`
   const data = {
     version: 1,
-    devices: devices.map(({ id, gameId, updatedAt }) => ({ id, gameId, updatedAt })),
+    devices: devices.map(({ id, gameId, updatedAt, title, slogans, pictures, thumbs }) => ({
+      id, gameId, updatedAt,
+      title: title ?? '',
+      slogans: slogans ?? [],
+      pictures: pictures ?? [],
+      thumbs: thumbs ?? [],
+    })),
   }
   await writeFile(temporaryFile, JSON.stringify(data, null, 2), { mode: 0o600 })
   await rename(temporaryFile, stateFile)
@@ -148,6 +204,7 @@ export function demoApiPlugin(): Plugin {
     apply: 'serve',
     async configureServer(server) {
       const stateFile = resolve(server.config.root, '.local/demo-state.json')
+      const originalDeviceNames = new Map(seedDevices().map((device) => [device.id, device.name]))
       let devices = await loadDevices(stateFile)
       let updateQueue: Promise<void> = Promise.resolve()
       const sessions = new Map<string, DemoSession>()
@@ -224,19 +281,28 @@ export function demoApiPlugin(): Plugin {
           return
         }
 
-        const assignmentMatch = path.match(/^\/devices\/(\d+)\/game$/)
+        const assignmentMatch = path.match(/^\/devices\/(\d+)\/(game|configuration)$/)
         if (method === 'PUT' && assignmentMatch) {
           const id = Number(assignmentMatch[1])
           const body = await readJson(request)
           if (!devices.some((device) => device.id === id)) throw new HttpError(404, '设备不存在')
-          if (!Number.isInteger(body.gameId) || !games.some((game) => game.id === body.gameId)) {
-            throw new HttpError(422, '请选择有效的游戏')
+          let patch: DeviceConfigurationPatch
+          if (assignmentMatch[2] === 'configuration') {
+            patch = configurationPatch(body)
+          } else {
+            if (!Number.isInteger(body.gameId) || !games.some((game) => game.id === body.gameId)) {
+              throw new HttpError(422, '请选择有效的游戏')
+            }
+            patch = { gameId: body.gameId as number }
           }
-          const gameId = body.gameId as number
           let updatedDevice: Device | undefined
           const update = updateQueue.then(async () => {
             const nextDevices = devices.map((device) => device.id === id
-              ? { ...device, gameId, updatedAt: new Date().toISOString() }
+              ? {
+                ...device, ...patch,
+                name: patch.title === undefined ? device.name : deviceDisplayName(patch.title, originalDeviceNames.get(id)!),
+                updatedAt: new Date().toISOString(),
+              }
               : device)
             try {
               await saveDevices(stateFile, nextDevices)

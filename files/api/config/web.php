@@ -175,6 +175,7 @@ $config = [
                 'GET admin-api/devices' => 'admin/devices',
                 'GET admin-api/games' => 'admin/games',
                 'PUT admin-api/devices/<id:\\d+>/game' => 'admin/set-game',
+                'PUT admin-api/devices/<id:\\d+>/configuration' => 'admin/set-configuration',
 
                 // Swagger API 文档路由
                 'GET swagger' => 'swagger/index',

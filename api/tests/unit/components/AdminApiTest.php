@@ -69,6 +69,7 @@ class AdminApiTest extends TestCase
                 'request' => [
                     'cookieValidationKey' => 'isolated-test-cookie-key',
                     'enableCsrfCookie' => false,
+                    'parsers' => ['application/json' => 'yii\web\JsonParser'],
                     'scriptFile' => dirname(__DIR__, 3) . '/web/index.php',
                     'scriptUrl' => '/index.php',
                 ],
@@ -333,12 +334,389 @@ class AdminApiTest extends TestCase
         $result = $this->controller()->runAction('devices');
         $this->assertCount(2, $result);
         $this->assertSame(1, $result[0]['id']);
-        $this->assertSame('大厅一号', $result[0]['name']);
+        $this->assertSame('保留标题', $result[0]['name']);
         $this->assertSame('unknown', $result[0]['status']);
         $this->assertSame(638, $result[0]['gameId']);
         $this->assertSame('device-b', $result[1]['name']);
         $this->assertNull($result[1]['gameId']);
         $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM setup')->queryScalar());
+    }
+
+    public function testReadingDevicesIncludesContentAndEmptyListsWithoutCreatingSetup(): void
+    {
+        $this->authenticate();
+        $devices = $this->devices->getDevices();
+        $this->assertSame(['保留口号'], $devices[0]['slogans']);
+        $this->assertSame(['keep.png'], $devices[0]['pictures']);
+        $this->assertSame(['keep.webp'], $devices[0]['thumbs']);
+        foreach (['slogans', 'pictures', 'thumbs'] as $field) {
+            $this->assertSame([], $devices[1][$field]);
+        }
+        $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM setup')->queryScalar());
+    }
+
+    public function testDeviceNamePrefersConfiguredTitleAndFallsBackForDefaultOrBlankTitle(): void
+    {
+        $this->authenticate();
+        foreach ([['  新设备名称  ', '新设备名称'], ['未知', '大厅一号'], [' 未知 ', '大厅一号'], ['', '大厅一号'], ['  ', '大厅一号'], [null, '大厅一号']] as [$title, $name]) {
+            $this->app->db->createCommand()->update('setup', ['title' => $title], ['device_id' => 1])->execute();
+            $device = $this->devices->getDevices()[0];
+            $this->assertSame((string) $title, $device['title']);
+            $this->assertSame($name, $device['name']);
+        }
+        $missingSetup = $this->devices->getDevices()[1];
+        $this->assertSame('', $missingSetup['title']);
+        $this->assertSame('device-b', $missingSetup['name']);
+    }
+
+    public function testConfigurationTitleOnlySavePreservesSceneContentAndPhysicalDevice(): void
+    {
+        $this->authenticate();
+        $this->catalog->loader = static function () { throw new \RuntimeException('Catalog must not be requested.'); };
+        $beforeDevice = $this->app->db->createCommand('SELECT * FROM device WHERE id = 1')->queryOne();
+        $beforeSetup = $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne();
+        $result = $this->devices->updateConfiguration(1, ['title' => '  新设备名称  ']);
+        $this->assertSame('新设备名称', $result['title']);
+        $this->assertSame('新设备名称', $result['name']);
+        $afterSetup = $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne();
+        foreach (['scene_id', 'money', 'slogans', 'pictures', 'thumbs', 'shots', 'device_id', 'id'] as $field) {
+            $this->assertSame($beforeSetup[$field], $afterSetup[$field], $field . ' must be preserved');
+        }
+        $this->assertSame($beforeDevice, $this->app->db->createCommand('SELECT * FROM device WHERE id = 1')->queryOne());
+        $this->assertSame($result, $this->devices->getDevices()[0]);
+    }
+
+    public function testConfigurationClearingTitleRestoresPhysicalLabelFallback(): void
+    {
+        $this->authenticate();
+        $result = $this->devices->updateConfiguration(1, ['title' => '  ']);
+        $this->assertSame('', $result['title']);
+        $this->assertSame('大厅一号', $result['name']);
+        $this->assertSame('', Setup::findOne(['device_id' => 1])->title);
+    }
+
+    public function testConfigurationTitleSupports255UnicodeCharacters(): void
+    {
+        $this->authenticate();
+        $title = str_repeat('名', 255);
+        $result = $this->devices->updateConfiguration(1, ['title' => ' ' . $title . ' ']);
+        $this->assertSame($title, $result['title']);
+        $this->assertSame($title, $result['name']);
+        $this->assertSame($title, Setup::findOne(['device_id' => 1])->title);
+    }
+
+    public function testConfigurationRejectsInvalidTitleWithoutChangingAnyFields(): void
+    {
+        $this->authenticate();
+        $before = $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne();
+        foreach ([null, 42, false, [], ['name'], str_repeat('名', 256), str_repeat('a', 256)] as $title) {
+            try {
+                $this->devices->updateConfiguration(1, ['title' => $title, 'slogans' => []]);
+                $this->fail('Invalid title must not save any fields.');
+            } catch (HttpException $e) {
+                $this->assertSame(422, $e->statusCode);
+            }
+            $this->assertSame($before, $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne());
+        }
+    }
+
+    public function testConfigurationTitleOnlyCreationPreservesDynamicDefaults(): void
+    {
+        $this->authenticate();
+        $result = $this->devices->updateConfiguration(2, ['title' => '新设备']);
+        $this->assertSame('新设备', $result['title']);
+        $this->assertSame('新设备', $result['name']);
+        $this->assertSame(638, $result['gameId']);
+        $this->assertSame(Setup::DefaultData()['slogans'], $result['slogans']);
+        $this->assertSame(Setup::DefaultInfo()['pictures'], $result['pictures']);
+    }
+
+    public function testConfigurationRejectsFourByteTitlesOnMysqlUtf8BeforeConnecting(): void
+    {
+        $this->authenticate();
+        $fixtureDb = $this->app->db;
+        try {
+            foreach (['utf8', 'utf8mb3'] as $charset) {
+                // A missing local socket prevents any network access if validation regresses.
+                $mysql = new \yii\db\Connection([
+                    'dsn' => 'mysql:unix_socket=' . $this->runtime . '/missing-mysql.sock;dbname=unused',
+                    'charset' => $charset,
+                ]);
+                $this->app->set('db', $mysql);
+                try {
+                    $this->devices->updateConfiguration(1, ['title' => '大厅😀']);
+                    $this->fail('Four-byte names must be rejected before a utf8 MySQL write.');
+                } catch (HttpException $e) {
+                    $this->assertSame(422, $e->statusCode);
+                    $this->assertSame('设备名称暂不支持表情符号，请使用文字或数字', $e->getMessage());
+                }
+                $this->assertFalse($mysql->isActive);
+            }
+        } finally {
+            $this->app->set('db', $fixtureDb);
+        }
+        $this->assertSame('大厅😀', $this->devices->updateConfiguration(1, ['title' => '大厅😀'])['title']);
+    }
+
+    public function testReadingLegacyContentNormalizesNullAndMalformedLists(): void
+    {
+        $this->authenticate();
+        $this->app->db->createCommand()->update('setup', [
+            'slogans' => null, 'pictures' => [' https://example.com/a.png ', '', null, 7],
+            'thumbs' => ['legacy-key' => 'https://example.com/a.webp'],
+        ], ['device_id' => 1])->execute();
+        $device = $this->devices->getDevices()[0];
+        $this->assertSame([], $device['slogans']);
+        $this->assertSame(['https://example.com/a.png'], $device['pictures']);
+        $this->assertSame(['https://example.com/a.webp'], $device['thumbs']);
+    }
+
+    public function testConfigurationSavesContentAndPreservesUneditedFieldsWithoutCatalog(): void
+    {
+        $this->authenticate();
+        $this->catalog->loader = static function () { throw new \RuntimeException('Catalog must not be requested.'); };
+        $before = $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne();
+        $result = $this->devices->updateConfiguration(1, [
+            'slogans' => ['  欢迎来到这里  ', '', '   ', '第二行'],
+            'pictures' => [' https://example.com/a.png ', ''],
+        ]);
+        $this->assertSame(['欢迎来到这里', '第二行'], $result['slogans']);
+        $this->assertSame(['https://example.com/a.png'], $result['pictures']);
+        $this->assertSame(['keep.webp'], $result['thumbs']);
+        $after = $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne();
+        foreach (['scene_id', 'title', 'money', 'thumbs', 'shots', 'device_id', 'id'] as $field) {
+            $this->assertSame($before[$field], $after[$field], $field . ' must be preserved');
+        }
+        $this->assertSame('2026-10-11 15:00:00', $result['updatedAt']);
+        $this->assertSame($result, $this->devices->getDevices()[0]);
+    }
+
+    public function testConfigurationContentSavePreservesUnknownAndNullScenes(): void
+    {
+        $this->authenticate();
+        $this->catalog->loader = static function () { throw new \RuntimeException('Catalog must not be requested.'); };
+        foreach ([999, null] as $scene) {
+            $this->app->db->createCommand()->update('setup', ['scene_id' => $scene], ['device_id' => 1])->execute();
+            $result = $this->devices->updateConfiguration(1, ['slogans' => ['欢迎']]);
+            $this->assertSame($scene, $result['gameId']);
+        }
+    }
+
+    public function testConfigurationExplicitEmptyListsClearContent(): void
+    {
+        $this->authenticate();
+        $result = $this->devices->updateConfiguration(1, ['slogans' => [], 'pictures' => [], 'thumbs' => []]);
+        foreach (['slogans', 'pictures', 'thumbs'] as $field) {
+            $this->assertSame([], $result[$field]);
+            $this->assertSame([], Setup::findOne(['device_id' => 1])->$field);
+        }
+        $this->assertSame(638, $result['gameId']);
+    }
+
+    public function testConfigurationCreatesMissingSetupWithDynamicProtocolDefaults(): void
+    {
+        $this->authenticate();
+        $result = $this->devices->updateConfiguration(2, ['slogans' => ['新欢迎词']]);
+        $setup = Setup::findOne(['device_id' => 2]);
+        $this->assertSame(638, $result['gameId']);
+        $this->assertSame(['新欢迎词'], $result['slogans']);
+        $this->assertSame('未知', $setup->title);
+        $this->assertSame(Setup::DefaultInfo()['pictures'], $result['pictures']);
+        $this->assertSame(Setup::DefaultData()['thumbs'], $result['thumbs']);
+        $this->assertEquals(0, $setup->money);
+        $this->assertSame(Setup::DefaultData()['shots'], $setup->shots);
+    }
+
+    public function testConfigurationExplicitGameAndContentSaveTogether(): void
+    {
+        $this->authenticate();
+        $result = $this->devices->updateConfiguration(1, ['gameId' => 700, 'thumbs' => [' new.webp ']]);
+        $this->assertSame(700, $result['gameId']);
+        $this->assertSame(['new.webp'], $result['thumbs']);
+        $this->assertSame(['保留口号'], $result['slogans']);
+        $this->assertSame(['keep.png'], $result['pictures']);
+    }
+
+    public function testConfigurationExplicitGameDoesNotFetchAnUnneededDefault(): void
+    {
+        Yii::$container->setSingleton(AdminGameCatalog::class, new AdminGameCatalog([
+            'cache' => new ArrayCache(),
+            'loader' => static function () { throw new \RuntimeException('Default scene should not be requested.'); },
+        ]));
+        $this->authenticate();
+        $this->assertSame(700, $this->devices->updateConfiguration(2, ['gameId' => 700, 'slogans' => []])['gameId']);
+    }
+
+    public function testConfigurationRejectsInvalidPatchWithoutChangingSetup(): void
+    {
+        $this->authenticate();
+        $before = $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne();
+        foreach ([
+            [], ['tag' => '禁止修改物理标签'], ['slogans' => [], 'money' => 0],
+            ['gameId' => '700'], ['gameId' => 0], ['gameId' => -1], ['gameId' => null], ['gameId' => 999],
+            ['slogans' => '欢迎'], ['pictures' => null], ['thumbs' => [1]],
+            ['slogans' => ['ok', false]], ['pictures' => [['nested']]],
+            ['thumbs' => ['key' => 'a.webp']], ['slogans' => [1 => 'not a list']],
+        ] as $patch) {
+            try {
+                $this->devices->updateConfiguration(1, $patch);
+                $this->fail('Malformed patches must be rejected: ' . json_encode($patch));
+            } catch (HttpException $e) {
+                $this->assertSame(422, $e->statusCode);
+            }
+            $this->assertSame($before, $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne());
+        }
+    }
+
+    public function testConfigurationExplicitUnchangedGameStillValidatesCatalog(): void
+    {
+        $this->authenticate();
+        $this->catalog->loader = static function () { return []; };
+        try {
+            $this->devices->updateConfiguration(1, ['gameId' => 638, 'slogans' => ['不保存']]);
+            $this->fail('An explicitly supplied game must be in the current catalog.');
+        } catch (HttpException $e) {
+            $this->assertSame(422, $e->statusCode);
+        }
+        $this->assertSame(['保留口号'], Setup::findOne(['device_id' => 1])->slogans);
+    }
+
+    public function testConfigurationDatabaseFailureRollsBackAllContent(): void
+    {
+        $this->authenticate();
+        $before = $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne();
+        $this->app->db->pdo->exec("CREATE TRIGGER reject_content AFTER UPDATE ON setup BEGIN SELECT RAISE(FAIL, 'private-content-error'); END");
+        try {
+            $this->devices->updateConfiguration(1, ['gameId' => 700, 'title' => '回滚名称', 'slogans' => ['回滚'], 'pictures' => [], 'thumbs' => []]);
+            $this->fail('Failed writes must roll back.');
+        } catch (HttpException $e) {
+            $this->assertSame(503, $e->statusCode);
+            $this->assertStringNotContainsString('private-content-error', $e->getMessage());
+        }
+        $this->assertSame($before, $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne());
+    }
+
+    public function testConfigurationDeviceManagerCannotUpdateUnownedOrRevokedDevices(): void
+    {
+        $this->app->db->createCommand('CREATE TABLE user (id INTEGER PRIMARY KEY)')->execute();
+        $this->app->db->createCommand('CREATE TABLE control (id INTEGER PRIMARY KEY, user_id INTEGER, device_id INTEGER)')->execute();
+        $this->app->db->createCommand()->insert('user', ['id' => 42])->execute();
+        $this->app->db->createCommand()->insert('control', ['id' => 1, 'user_id' => 42, 'device_id' => 1])->execute();
+        $login = $this->auth->loginWechat(42);
+        $this->app->request->headers->set('Authorization', 'Bearer ' . $login['token']['accessToken']);
+        $this->assertSame(['自己的欢迎词'], $this->devices->updateConfiguration(1, ['slogans' => ['自己的欢迎词']])['slogans']);
+        foreach ([2, 999] as $deviceId) {
+            try {
+                $this->devices->updateConfiguration($deviceId, ['slogans' => []]);
+                $this->fail('Unowned devices must not be editable.');
+            } catch (HttpException $e) {
+                $this->assertSame(404, $e->statusCode);
+            }
+        }
+        $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM setup')->queryScalar());
+        $this->app->db->createCommand()->delete('control', ['user_id' => 42])->execute();
+        try {
+            $this->devices->updateConfiguration(1, ['slogans' => []]);
+            $this->fail('Revoked control must take effect immediately.');
+        } catch (HttpException $e) {
+            $this->assertSame(404, $e->statusCode);
+        }
+        $this->assertSame(['自己的欢迎词'], Setup::findOne(['device_id' => 1])->slogans);
+    }
+
+    public function testConfigurationCookieOrCsrfWithoutBearerCannotModifyDevice(): void
+    {
+        $this->app->session->set('game.admin.identity', ['username' => 'test-admin', 'expiresAt' => time() + 28800]);
+        $this->app->request->headers->set('X-CSRF-Token', 'unrelated-cookie-token');
+        $_SERVER['REQUEST_METHOD'] = 'PUT';
+        $this->app->request->setBodyParams(['slogans' => []]);
+        try {
+            $this->controller()->runAction('set-configuration', ['id' => 1]);
+            $this->fail('Configuration writes must require an administrator Bearer token.');
+        } catch (HttpException $e) {
+            $this->assertSame(401, $e->statusCode);
+        }
+        $this->assertSame(['保留口号'], Setup::findOne(['device_id' => 1])->slogans);
+    }
+
+    public function testAuthenticatedConfigurationPutReturnsUpdatedDevice(): void
+    {
+        $this->authenticate();
+        $_SERVER['REQUEST_METHOD'] = 'PUT';
+        $this->app->request->setBodyParams(['slogans' => ['保存欢迎词'], 'pictures' => []]);
+        $result = $this->controller()->runAction('set-configuration', ['id' => 1]);
+        $this->assertSame(['保存欢迎词'], $result['slogans']);
+        $this->assertSame([], $result['pictures']);
+    }
+
+    public function testConfigurationRejectsJsonObjectsInPlaceOfLists(): void
+    {
+        $this->authenticate();
+        $_SERVER['REQUEST_METHOD'] = 'PUT';
+        $this->app->request->headers->set('Content-Type', 'application/json');
+        foreach (['{"slogans":{}}', '{"pictures":{"0":"a.png"}}', '[]', 'null'] as $json) {
+            $this->app->request->setRawBody($json);
+            $this->app->request->setBodyParams(null);
+            try {
+                $this->controller()->runAction('set-configuration', ['id' => 1]);
+                $this->fail('JSON objects must not be accepted as lists: ' . $json);
+            } catch (HttpException $e) {
+                $this->assertSame(422, $e->statusCode);
+            }
+        }
+        $this->assertSame(['保留口号'], Setup::findOne(['device_id' => 1])->slogans);
+        $this->assertSame(['keep.png'], Setup::findOne(['device_id' => 1])->pictures);
+    }
+
+    public function testConfigurationJsonWithCharsetStillRejectsObjectLists(): void
+    {
+        $this->authenticate();
+        $_SERVER['REQUEST_METHOD'] = 'PUT';
+        $this->app->request->headers->set('Content-Type', 'application/json; charset=utf-8');
+        $this->app->request->setRawBody('{"slogans":{}}');
+        try {
+            $this->controller()->runAction('set-configuration', ['id' => 1]);
+            $this->fail('A content-type charset must not allow an object to clear a list.');
+        } catch (HttpException $e) {
+            $this->assertSame(422, $e->statusCode);
+        }
+        $this->assertSame(['保留口号'], Setup::findOne(['device_id' => 1])->slogans);
+    }
+
+    public function testConfigurationAcceptsRawJsonListsAndNormalizesContent(): void
+    {
+        $this->authenticate();
+        $_SERVER['REQUEST_METHOD'] = 'PUT';
+        $this->app->request->headers->set('Content-Type', 'application/json; charset=utf-8');
+        $this->app->request->setRawBody('{"gameId":700,"title":" new name ","slogans":[" welcome ",""],"pictures":[],"thumbs":["a.webp"]}');
+        $result = $this->controller()->runAction('set-configuration', ['id' => 1]);
+        $this->assertSame('new name', $result['title']);
+        $this->assertSame('new name', $result['name']);
+        $this->assertSame(700, $result['gameId']);
+        $this->assertSame(['welcome'], $result['slogans']);
+        $this->assertSame([], $result['pictures']);
+        $this->assertSame(['a.webp'], $result['thumbs']);
+    }
+
+    public function testConfigurationRequiresAuthenticationAndPut(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'PUT';
+        $this->app->request->setBodyParams(['slogans' => []]);
+        try {
+            $this->controller()->runAction('set-configuration', ['id' => 1]);
+            $this->fail('Configuration writes must require an administrator Bearer token.');
+        } catch (HttpException $e) {
+            $this->assertSame(401, $e->statusCode);
+        }
+        $this->authenticate();
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        try {
+            $this->controller()->runAction('set-configuration', ['id' => 1]);
+            $this->fail('Configuration writes must use PUT.');
+        } catch (HttpException $e) {
+            $this->assertSame(405, $e->statusCode);
+        }
+        $this->assertSame(['保留口号'], Setup::findOne(['device_id' => 1])->slogans);
     }
 
     public function testGameCatalogNormalizesWrappedVerseIdsAndNames(): void
@@ -619,6 +997,7 @@ class AdminApiTest extends TestCase
             ['GET', 'admin-api/devices', 'admin/devices', []],
             ['GET', 'admin-api/games', 'admin/games', []],
             ['PUT', 'admin-api/devices/42/game', 'admin/set-game', ['id' => '42']],
+            ['PUT', 'admin-api/devices/42/configuration', 'admin/set-configuration', ['id' => '42']],
         ] as $route) {
             $_SERVER['REQUEST_METHOD'] = $route[0];
             $this->app->request->setPathInfo($route[1]);
@@ -631,7 +1010,7 @@ class AdminApiTest extends TestCase
         $configuration = require dirname(__DIR__, 4) . '/files/api/config/web.php';
         $cache = new AdminUnavailableCache();
         $this->app->set('cache', $cache);
-        foreach (['admin-api', 'admin-api/session', 'admin-api/login', 'admin-api/logout', 'admin-api/devices', 'admin-api/games', 'admin-api/devices/1/game'] as $path) {
+        foreach (['admin-api', 'admin-api/session', 'admin-api/login', 'admin-api/logout', 'admin-api/devices', 'admin-api/games', 'admin-api/devices/1/game', 'admin-api/devices/1/configuration'] as $path) {
             $this->app->request->setPathInfo($path);
             $manager = Yii::createObject($configuration['components']['urlManager']);
             $this->assertFalse($manager->cache, $path);

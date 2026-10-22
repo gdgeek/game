@@ -36,15 +36,24 @@ class AdminDeviceService extends Component
 
     public function assignGame(int $deviceId, int $gameId): array
     {
+        return $this->updateConfiguration($deviceId, ['gameId' => $gameId]);
+    }
+
+    public function updateConfiguration(int $deviceId, array $patch): array
+    {
         $userId = $this->auth->requireDeviceUserId();
-        $knownIds = array_column($this->catalog->getGames(), 'id');
-        if (!in_array($gameId, $knownIds, true)) {
-            throw new UnprocessableEntityHttpException('请选择游戏列表中的游戏');
+        $patch = $this->validateConfiguration($patch);
+        // Content-only edits must also work for unassigned or retired scenes.
+        if (array_key_exists('gameId', $patch)) {
+            $knownIds = array_column($this->catalog->getGames(), 'id');
+            if (!in_array($patch['gameId'], $knownIds, true)) {
+                throw new UnprocessableEntityHttpException('请选择游戏列表中的游戏');
+            }
         }
 
         $db = Device::getDb();
         try {
-            return $db->transaction(function () use ($db, $deviceId, $gameId, $userId) {
+            return $db->transaction(function () use ($db, $deviceId, $patch, $userId) {
                 // Lock the device row while creating/updating its setup to serialize administrators.
                 $query = $this->scopedDevices($userId)->andWhere(['device.id' => $deviceId]);
                 if ($db->driverName === 'mysql') {
@@ -58,16 +67,23 @@ class AdminDeviceService extends Component
                 $setup = Setup::findOne(['device_id' => $deviceId]);
                 if ($setup === null) {
                     $setup = new Setup();
-                    $defaults = array_merge(Setup::DefaultInfo($gameId), Setup::DefaultData());
-                    // Keep the existing device protocol defaults on first assignment.
-                    // TimestampBehavior supplies the database update time.
-                    unset($defaults['updated_at']);
-                    $setup->setAttributes($defaults);
+                    $defaults = array_merge(Setup::DefaultInfo($patch['gameId'] ?? null), Setup::DefaultData());
+                    // Preserve protocol defaults; TimestampBehavior supplies updated_at.
+                    foreach (['title', 'pictures', 'scene_id', 'money', 'slogans', 'thumbs', 'shots'] as $field) {
+                        $setup->$field = $defaults[$field];
+                    }
                     $setup->device_id = $deviceId;
                 }
-                $setup->scene_id = $gameId;
+                if (array_key_exists('gameId', $patch)) {
+                    $setup->scene_id = $patch['gameId'];
+                }
+                foreach (['title', 'slogans', 'pictures', 'thumbs'] as $field) {
+                    if (array_key_exists($field, $patch)) {
+                        $setup->$field = $patch[$field];
+                    }
+                }
                 if (!$setup->save()) {
-                    throw new UnprocessableEntityHttpException('设备游戏设置保存失败');
+                    throw new UnprocessableEntityHttpException('设备配置保存失败');
                 }
                 // TimestampBehavior leaves a NOW() Expression on the saved model.
                 // Reload the persisted row before returning configuration metadata.
@@ -80,9 +96,63 @@ class AdminDeviceService extends Component
         } catch (\yii\web\HttpException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            \Yii::warning('Administrator device game update failed.', __METHOD__);
-            throw new HttpException(503, '设备游戏设置暂时无法保存，请稍后重试');
+            \Yii::warning('Administrator device configuration update failed.', __METHOD__);
+            throw new HttpException(503, '设备配置暂时无法保存，请稍后重试');
         }
+    }
+
+    private function validateConfiguration(array $patch): array
+    {
+        if ($patch === [] || array_diff(array_keys($patch), ['gameId', 'title', 'slogans', 'pictures', 'thumbs']) !== []) {
+            throw new UnprocessableEntityHttpException('请仅提交需要修改的设备名称、游戏、口号、图片或缩略图');
+        }
+        if (array_key_exists('gameId', $patch) && (!is_int($patch['gameId']) || $patch['gameId'] <= 0)) {
+            throw new UnprocessableEntityHttpException('gameId 必须为有效的游戏编号');
+        }
+        if (array_key_exists('title', $patch)) {
+            if (!is_string($patch['title'])) {
+                throw new UnprocessableEntityHttpException('title 必须为不超过 255 个字符的设备名称');
+            }
+            $patch['title'] = trim($patch['title']);
+            if (mb_strlen($patch['title'], \Yii::$app->charset) > 255) {
+                throw new UnprocessableEntityHttpException('title 必须为不超过 255 个字符的设备名称');
+            }
+            $db = Device::getDb();
+            if ($db->driverName === 'mysql' && in_array(strtolower((string) $db->charset), ['utf8', 'utf8mb3'], true)
+                && preg_match('/[\x{10000}-\x{10FFFF}]/u', $patch['title']) === 1) {
+                throw new UnprocessableEntityHttpException('设备名称暂不支持表情符号，请使用文字或数字');
+            }
+        }
+        foreach (['slogans', 'pictures', 'thumbs'] as $field) {
+            if (!array_key_exists($field, $patch)) {
+                continue;
+            }
+            $values = $patch[$field];
+            if (!is_array($values) || array_values($values) !== $values) {
+                throw new UnprocessableEntityHttpException($field . ' 必须为字符串列表');
+            }
+            foreach ($values as $value) {
+                if (!is_string($value)) {
+                    throw new UnprocessableEntityHttpException($field . ' 必须为字符串列表');
+                }
+            }
+            $patch[$field] = $this->normalizeContent($values);
+        }
+        return $patch;
+    }
+
+    private function normalizeContent($values): array
+    {
+        if (!is_array($values)) {
+            return [];
+        }
+        $result = [];
+        foreach ($values as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                $result[] = trim($value);
+            }
+        }
+        return $result;
     }
 
     private function scopedDevices(?int $userId): \yii\db\ActiveQuery
@@ -98,14 +168,21 @@ class AdminDeviceService extends Component
     public function normalize(Device $device): array
     {
         $setup = $device->setup;
+        $title = $setup !== null ? (string) $setup->title : '';
+        $displayTitle = trim($title);
         return [
             'id' => (int) $device->id,
             'uuid' => (string) $device->uuid,
-            'name' => (string) ($device->tag ?: ($device->uuid ?: '设备 ' . $device->id)),
+            'name' => $displayTitle !== '' && $displayTitle !== '未知'
+                ? $displayTitle : (string) ($device->tag ?: ($device->uuid ?: '设备 ' . $device->id)),
+            'title' => $title,
             'ip' => (string) $device->ip,
             'status' => 'unknown',
             'updatedAt' => (string) (($setup !== null && $setup->updated_at) ? $setup->updated_at : $device->updated_at),
             'gameId' => $setup !== null && $setup->scene_id !== null ? (int) $setup->scene_id : null,
+            'slogans' => $this->normalizeContent($setup !== null ? $setup->slogans : null),
+            'pictures' => $this->normalizeContent($setup !== null ? $setup->pictures : null),
+            'thumbs' => $this->normalizeContent($setup !== null ? $setup->thumbs : null),
         ];
     }
 }

@@ -8,7 +8,21 @@ export interface Device {
   status: DeviceStatus
   updatedAt: string
   gameId: number | null
+  title?: string
+  slogans?: string[]
+  pictures?: string[]
+  thumbs?: string[]
 }
+
+export interface DeviceConfiguration {
+  gameId: number | null
+  title: string
+  slogans: string[]
+  pictures: string[]
+  thumbs: string[]
+}
+
+export type DeviceConfigurationPatch = Partial<Omit<DeviceConfiguration, 'gameId'>> & { gameId?: number }
 
 export interface Game {
   id: number

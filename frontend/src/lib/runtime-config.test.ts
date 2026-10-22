@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSSRApp, type ComponentOptions } from 'vue'
 import { renderToString } from '@vue/server-renderer'
+import type { DeviceConfigurationPatch } from '../types'
 
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
 const configuration = { apiBase: '/api/admin-api', automatic: true, auth: 'jwt' }
@@ -60,7 +61,7 @@ describe('automatic API runtime configuration', () => {
 
   it('blocks all real operations before valid initialization', async () => {
     const api = await import('./api')
-    for (const operation of [() => api.getSession(), () => api.login('admin', 'password'), () => api.logout(), () => api.getDevices(), () => api.getGames(), () => api.assignGame(1, 638), () => api.createScanLoginTicket()]) {
+    for (const operation of [() => api.getSession(), () => api.login('admin', 'password'), () => api.logout(), () => api.getDevices(), () => api.getGames(), () => api.assignGame(1, 638), () => api.updateDeviceConfiguration(1, { slogans: ['欢迎'] }), () => api.createScanLoginTicket()]) {
       await expect(operation()).rejects.toThrow(/配置/)
     }
     expect(fetchMock).not.toHaveBeenCalled()
@@ -92,7 +93,7 @@ describe('application automatic startup', () => {
     return { render, initialize: () => (state.initializeWorkspace as () => Promise<void>)(),
       submitLogin: (username: string, password: string) => (state.submitLogin as (u: string, p: string) => Promise<void>)(username, password),
       openPicker: (device: unknown) => (state.openPicker as (device: unknown) => void)(device),
-      saveGame: (id: number) => (state.saveGame as (id: number) => Promise<void>)(id) }
+      saveConfiguration: (patch: DeviceConfigurationPatch) => (state.saveConfiguration as (patch: DeviceConfigurationPatch) => Promise<void>)(patch) }
   }
 
   it('connects the automatic route without rendering backend selection on login or workspace', async () => {
@@ -128,8 +129,33 @@ describe('application automatic startup', () => {
     fetchMock.mockResolvedValueOnce(response(configuration)); fetchMock.mockResolvedValueOnce(response({ user: { username: 'admin' }, token: { accessToken: 'access', refreshToken: 'refresh', expires: '2099-01-01T00:00:00Z', refreshExpires: '2099-01-01T08:00:00Z' }, authMode: 'jwt' }))
     fetchMock.mockResolvedValueOnce(response([device])); fetchMock.mockResolvedValueOnce(response([{ id: 638, name: '游戏', description: '', category: '' }]))
     const app = await application(); await app.initialize(); app.openPicker(device)
-    fetchMock.mockResolvedValueOnce(response({ message: '保存失败' }, 503)); await app.saveGame(638)
-    expect(fetchMock).toHaveBeenCalledTimes(5); expect(fetchMock.mock.calls[4]?.[0]).toBe('/api/admin-api/devices/1/game')
+    fetchMock.mockResolvedValueOnce(response({ message: '保存失败' }, 503)); await app.saveConfiguration({ gameId: 638 })
+    expect(fetchMock).toHaveBeenCalledTimes(5); expect(fetchMock.mock.calls[4]?.[0]).toBe('/api/admin-api/devices/1/configuration')
     expect(await app.render()).toContain('保存失败')
   })
+
+  it('opens and saves content when the game catalog is unavailable and the device has no game', async () => {
+    const device = { id: 1, uuid: 'device-1', name: '设备一', ip: '', status: 'unknown', updatedAt: '', gameId: null,
+      slogans: [], pictures: ['keep.png'], thumbs: ['keep.webp'] }
+    fetchMock.mockResolvedValueOnce(response(configuration))
+      .mockResolvedValueOnce(response({ user: { username: 'admin' }, token: { accessToken: 'access', refreshToken: 'refresh', expires: '2099-01-01T00:00:00Z', refreshExpires: '2099-01-01T08:00:00Z' }, authMode: 'jwt' }))
+      .mockResolvedValueOnce(response([device]))
+      .mockResolvedValueOnce(response({ message: '目录无法加载' }, 503))
+    const app = await application()
+    await app.initialize()
+    app.openPicker(device)
+    const html = await app.render()
+    expect(html).toContain('欢迎词（口号）')
+    expect(html).toContain('仍可修改设备名称、下方欢迎词和图片')
+    fetchMock.mockResolvedValueOnce(response({ ...device, slogans: ['欢迎'] }))
+    await app.saveConfiguration({ slogans: ['欢迎'] })
+    expect(fetchMock.mock.calls[4]?.[0]).toBe('/api/admin-api/devices/1/configuration')
+    expect(JSON.parse(String(fetchMock.mock.calls[4]?.[1]?.body))).toEqual({ slogans: ['欢迎'] })
+    const headers = new Headers(fetchMock.mock.calls[4]?.[1]?.headers)
+    expect(headers.get('Authorization')).toBe('Bearer access')
+    expect(headers.has('X-CSRF-Token')).toBe(false)
+    expect(fetchMock.mock.calls[4]?.[1]?.credentials).toBe('omit')
+    expect(await app.render()).toContain('已保存「设备一」的设备配置')
+  })
+
 })
