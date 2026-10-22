@@ -47,6 +47,7 @@ function seedDevices(): Device[] {
   const locations = ['体验区 A', '体验区 A', '体验区 A', '体验区 A', '体验区 B', '体验区 B', '体验区 B', '体验区 B', 'VIP 区', 'VIP 区', '备用区', '备用区']
   return assignments.map((gameId, index) => ({
     id: index + 1,
+    version: index % 3,
     uuid: `b6dc4e1a-7a30-4f80-a642-${String(index + 1).padStart(12, '0')}`,
     name: `${locations[index]} · ${String(index + 1).padStart(2, '0')}`,
     title: `${locations[index]} · ${String(index + 1).padStart(2, '0')}`,

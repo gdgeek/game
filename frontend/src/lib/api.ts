@@ -246,6 +246,8 @@ function isDevice(value: unknown): value is Device {
   return isRecord(value)
     && Number.isSafeInteger(value.id)
     && typeof value.uuid === 'string'
+    && (value.version === undefined || (typeof value.version === 'number'
+      && Number.isInteger(value.version) && value.version >= 0 && value.version <= 2147483647))
     && typeof value.name === 'string'
     && (value.title === undefined || typeof value.title === 'string')
     && typeof value.ip === 'string'

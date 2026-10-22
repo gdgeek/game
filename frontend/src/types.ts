@@ -3,6 +3,7 @@ export type DeviceStatus = 'online' | 'offline' | 'unknown'
 export interface Device {
   id: number
   uuid: string
+  version?: number
   name: string
   ip: string
   status: DeviceStatus

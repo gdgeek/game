@@ -354,6 +354,16 @@ class AdminApiTest extends TestCase
         $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM setup')->queryScalar());
     }
 
+    public function testReadingDevicesReturnsStoredIntegerVersions(): void
+    {
+        $this->authenticate();
+        $this->app->db->createCommand()->update('device', ['version' => 4], ['id' => 2])->execute();
+
+        $result = $this->controller()->runAction('devices');
+
+        $this->assertSame([0, 4], array_column($result, 'version'));
+    }
+
     public function testReadingDevicesIncludesContentAndEmptyListsWithoutCreatingSetup(): void
     {
         $this->authenticate();
@@ -396,6 +406,23 @@ class AdminApiTest extends TestCase
         }
         $this->assertSame($beforeDevice, $this->app->db->createCommand('SELECT * FROM device WHERE id = 1')->queryOne());
         $this->assertSame($result, $this->devices->getDevices()[0]);
+    }
+
+    public function testConfigurationSavePreservesAndReturnsStoredDeviceVersion(): void
+    {
+        $this->authenticate();
+        $_SERVER['REQUEST_METHOD'] = 'PUT';
+        foreach ([0, 7] as $version) {
+            $this->app->db->createCommand()->update('device', ['version' => $version], ['id' => 1])->execute();
+            $before = $this->app->db->createCommand('SELECT * FROM device WHERE id = 1')->queryOne();
+            $this->app->request->setBodyParams(['slogans' => ['版本展示不修改设备']]);
+
+            $result = $this->controller()->runAction('set-configuration', ['id' => 1]);
+
+            $this->assertSame($before, $this->app->db->createCommand('SELECT * FROM device WHERE id = 1')->queryOne());
+            $this->assertArrayHasKey('version', $result);
+            $this->assertSame($version, $result['version']);
+        }
     }
 
     public function testConfigurationClearingTitleRestoresPhysicalLabelFallback(): void
@@ -564,7 +591,7 @@ class AdminApiTest extends TestCase
         $this->authenticate();
         $before = $this->app->db->createCommand('SELECT * FROM setup WHERE device_id = 1')->queryOne();
         foreach ([
-            [], ['tag' => '禁止修改物理标签'], ['slogans' => [], 'money' => 0],
+            [], ['tag' => '禁止修改物理标签'], ['version' => 3], ['slogans' => [], 'money' => 0],
             ['gameId' => '700'], ['gameId' => 0], ['gameId' => -1], ['gameId' => null], ['gameId' => 999],
             ['slogans' => '欢迎'], ['pictures' => null], ['thumbs' => [1]],
             ['slogans' => ['ok', false]], ['pictures' => [['nested']]],

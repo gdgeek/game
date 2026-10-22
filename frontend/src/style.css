@@ -213,3 +213,5 @@ td{border-color:#ececec}tbody tr:hover{background:#fafcfb}
 .device-delete-content .form-error{margin:16px 0 0;overflow-wrap:anywhere}
 .device-delete-dialog .modal-footer{justify-content:flex-end}
 @media(max-width:760px){.device-actions{flex-direction:column;align-items:flex-end;gap:3px}.delete-device-button{min-height:36px}.device-delete-content{padding:20px 22px}.device-delete-target{padding:13px}}
+
+.device-name-cell .device-version{margin-top:4px;font-size:11px;line-height:1.4;color:#777;letter-spacing:0}
