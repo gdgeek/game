@@ -62,7 +62,7 @@ export interface ScanLoginTicketStatus {
 }
 
 export type DeviceFilterStatus = 'all' | DeviceStatus | 'configured' | 'unconfigured'
-export type DeviceSortKey = 'default' | 'version' | 'name' | 'updatedAt' | 'id'
+export type DeviceSortKey = 'version' | 'name' | 'status' | 'game' | 'ip' | 'createdAt' | 'updatedAt' | 'id'
 export type DeviceSortDirection = 'asc' | 'desc'
 
 export interface DeviceFilters {
