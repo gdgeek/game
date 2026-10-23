@@ -225,6 +225,11 @@ td{border-color:#ececec}tbody tr:hover{background:#fafcfb}
 .sort-direction:hover:not(:disabled){background:#f3f6f2;color:#278144}
 .sort-direction:focus-visible{outline:2px solid #5b9b72;outline-offset:2px}
 .sort-direction:disabled{opacity:.45;cursor:default}
+.column-sort{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:0;color:inherit;font:inherit;white-space:nowrap}
+.column-sort>svg{color:#a4aaa6}
+.column-sort.active,.column-sort:hover{color:#07813f}
+.column-sort.active>svg,.column-sort:hover>svg{color:currentColor}
+.column-sort:focus-visible{outline:2px solid #5b9b72;outline-offset:3px;border-radius:3px}
 @media(max-width:760px){.table-toolbar .device-search{max-width:none}.sort-direction{font-size:11px}.sort-controls{gap:5px}}
 @media(max-width:420px){.toolbar-actions>.select-wrap{flex-basis:100%;max-width:none}.sort-controls{flex:1}.sort-controls .select-wrap{flex:1}.sort-controls select{min-width:0}.sort-direction{padding:0 8px}}
 

@@ -32,8 +32,16 @@ const activeView = ref<'devices' | 'games'>('devices')
 const search = ref('')
 const status = ref<'all' | 'online' | 'offline' | 'unknown' | 'configured' | 'unconfigured'>('all')
 const gameFilter = ref<number | null>(null)
-const sortKey = ref<DeviceSortKey>('default')
+const sortKey = ref<DeviceSortKey>('createdAt')
 const sortDirection = ref<DeviceSortDirection>('desc')
+const deviceColumns: { key: DeviceSortKey; label: string; class?: string }[] = [
+  { key: 'name', label: '设备名称', class: 'device-col' },
+  { key: 'status', label: '状态' },
+  { key: 'game', label: '当前游戏', class: 'game-col' },
+  { key: 'ip', label: 'IP 地址' },
+  { key: 'createdAt', label: '添加时间' },
+  { key: 'updatedAt', label: '更新时间' },
+]
 const gameSearch = ref('')
 const page = ref(1)
 const pageSize = ref(8)
@@ -57,7 +65,7 @@ const summary = computed(() => summarizeDevices(devices.value))
 const usedGameCount = computed(() => new Set(devices.value.map(device => device.gameId).filter(id => id !== null)).size)
 const filteredDevices = computed(() => sortDevices(
   filterDevices(devices.value, { search: search.value, status: status.value, gameId: gameFilter.value }),
-  sortKey.value, sortDirection.value,
+  sortKey.value, sortDirection.value, games.value,
 ))
 const pageCount = computed(() => Math.max(1, Math.ceil(filteredDevices.value.length / pageSize.value)))
 const pageDevices = computed(() => filteredDevices.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
@@ -69,7 +77,8 @@ const deviceManager = computed(() => user.value?.role === 'device_manager')
 const canDeleteDevices = computed(() => user.value?.role === 'admin')
 const identityLabel = computed(() => deviceManager.value ? '关联设备管理' : '管理员')
 
-watch(sortKey, key => { sortDirection.value = key === 'name' ? 'asc' : 'desc' })
+// Selector defaults run before a column click applies its explicit direction.
+watch(sortKey, key => { sortDirection.value = ['name', 'status', 'game', 'ip'].includes(key) ? 'asc' : 'desc' }, { flush: 'sync' })
 watch([search, status, gameFilter, pageSize, sortKey, sortDirection], () => { page.value = 1 })
 watch(pageCount, count => { if (page.value > count) page.value = count })
 watch(activeView, () => { sidebarOpen.value = false })
@@ -86,6 +95,12 @@ function sidebarKeydown(event: KeyboardEvent) {
   const first = controls[0], last = controls.at(-1)
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+}
+
+function sortByColumn(key: DeviceSortKey) {
+  const direction = sortKey.value === key && sortDirection.value === 'asc' ? 'desc' : 'asc'
+  sortKey.value = key
+  sortDirection.value = direction
 }
 
 function showToast(text: string, error = false) {
@@ -115,7 +130,7 @@ function resetWorkspace() {
   search.value = ''
   status.value = 'all'
   gameFilter.value = null
-  sortKey.value = 'default'
+  sortKey.value = 'createdAt'
   sortDirection.value = 'desc'
   gameSearch.value = ''
   page.value = 1
@@ -345,8 +360,8 @@ onBeforeUnmount(() => { unsubscribeAuthChanges?.(); clearTimeout(toastTimeout) }
               <div class="toolbar-actions">
                 <label class="select-wrap"><SlidersHorizontal :size="15" /><select v-model="gameFilter" aria-label="按游戏筛选"><option :value="null">全部游戏</option><option v-for="game in games" :key="game.id" :value="game.id">{{ game.name }}</option></select><ChevronDown :size="14" /></label>
                 <div class="sort-controls" role="group" aria-label="设备排序">
-                  <label class="select-wrap"><ArrowUpDown :size="15" /><select v-model="sortKey" aria-label="设备排序字段"><option value="default">默认顺序</option><option value="version">版本号</option><option value="name">设备名称</option><option value="updatedAt">更新时间</option><option value="id">设备 ID</option></select><ChevronDown :size="14" /></label>
-                  <button class="sort-direction" type="button" aria-label="切换排序方向" :disabled="sortKey === 'default'" :title="sortKey === 'default' ? '请先选择排序字段' : sortDirection === 'asc' ? '当前升序，点击切换为降序' : '当前降序，点击切换为升序'" @click="sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'"><component :is="sortDirection === 'asc' ? ArrowUp : ArrowDown" :size="15" />{{ sortDirection === 'asc' ? '升序' : '降序' }}</button>
+                  <label class="select-wrap"><ArrowUpDown :size="15" /><select v-model="sortKey" aria-label="设备排序字段"><option v-for="column in deviceColumns" :key="column.key" :value="column.key">{{ column.label }}</option><option value="version">版本号</option><option value="id">设备 ID</option></select><ChevronDown :size="14" /></label>
+                  <button class="sort-direction" type="button" aria-label="切换排序方向" :title="sortDirection === 'asc' ? '当前升序，点击切换为降序' : '当前降序，点击切换为升序'" @click="sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'"><component :is="sortDirection === 'asc' ? ArrowUp : ArrowDown" :size="15" />{{ sortDirection === 'asc' ? '升序' : '降序' }}</button>
                 </div>
                 <button class="button export-button" :disabled="loading || !!devicesError || !filteredDevices.length" @click="exportDevices"><ArrowDownToLine :size="16" /><span>导出</span></button>
               </div>
@@ -354,7 +369,14 @@ onBeforeUnmount(() => { unsubscribeAuthChanges?.(); clearTimeout(toastTimeout) }
             <div v-if="devicesError" class="data-error" role="alert"><CircleX :size="21" /><div><strong>无法同步设备</strong><p>{{ devicesError }}</p></div><button class="button secondary" :disabled="loading" @click="loadData">重试</button></div>
             <div v-if="gamesError" class="inline-warning" role="alert"><CircleHelp :size="16" /><span>游戏目录未能加载，仍可编辑欢迎词和图片。{{ gamesError }}</span><button :disabled="loading" @click="loadData">重试</button></div>
             <div class="table-scroll" :class="{ 'table-loading': loading }" :aria-busy="loading">
-              <table><thead><tr><th class="device-col">设备名称</th><th>状态</th><th class="game-col">当前游戏</th><th>IP 地址</th><th>添加时间</th><th>更新时间</th><th class="action-col">操作</th></tr></thead><tbody><tr v-for="device in pageDevices" :key="device.id"><td><div class="device-name-cell"><span class="device-icon" :class="{ muted: device.status === 'offline' }"><Monitor :size="20" :stroke-width="1.6" /></span><span><strong :title="device.name || `设备 #${device.id}`">{{ device.name || `设备 #${device.id}` }}</strong><small class="mono" :title="device.uuid">{{ device.uuid || `DEVICE-${String(device.id).padStart(4, '0')}` }}</small><small class="device-version">版本号 <span class="mono">{{ device.version ?? '未知' }}</span></small></span></div></td><td><span class="status-badge" :class="device.status"><span class="status-dot" :class="device.status"></span>{{ statusLabels[device.status] }}</span></td><td><div v-if="device.gameId !== null" class="current-game"><GameArtwork :id="device.gameId" /><span><strong>{{ gameById(device.gameId)?.name || `场景 ${device.gameId}` }}</strong><small>SCENE {{ device.gameId }}</small></span></div><button v-else class="unconfigured-label" :disabled="loading || !!devicesError" @click="openPicker(device)"><span class="unconfigured-dash">—</span>尚未配置游戏</button></td><td class="mono ip-cell">{{ device.ip || '—' }}</td><td class="date-cell">{{ formatTime(device.createdAt) }}</td><td class="date-cell">{{ formatTime(device.updatedAt) }}</td><td><div class="device-actions"><button class="configure-button" :disabled="loading || !!devicesError || deleting" :aria-label="`为${device.name || `设备 ${device.id}`}配置设备`" @click="openPicker(device)"><Settings2 :size="15" />配置设备<ChevronRight :size="14" /></button><button v-if="canDeleteDevices" class="delete-device-button" :disabled="loading || !!devicesError || deleting" :aria-label="`删除${device.name || `设备 ${device.id}`}`" @click="openDeletion(device)"><Trash2 :size="15" />删除</button></div></td></tr></tbody></table>
+              <table><thead><tr>
+                <th v-for="column in deviceColumns" :key="column.key" :class="column.class" scope="col" :aria-sort="sortKey === column.key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'">
+                  <button class="column-sort" :class="{ active: sortKey === column.key }" type="button" :aria-label="`按${column.label}排序`" :title="`点击按${column.label}${sortKey === column.key && sortDirection === 'asc' ? '降序' : '升序'}排序`" @click="sortByColumn(column.key)">
+                    {{ column.label }}<component :is="sortKey === column.key ? (sortDirection === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown" :size="13" aria-hidden="true" />
+                  </button>
+                </th>
+                <th class="action-col" scope="col">操作</th>
+              </tr></thead><tbody><tr v-for="device in pageDevices" :key="device.id"><td><div class="device-name-cell"><span class="device-icon" :class="{ muted: device.status === 'offline' }"><Monitor :size="20" :stroke-width="1.6" /></span><span><strong :title="device.name || `设备 #${device.id}`">{{ device.name || `设备 #${device.id}` }}</strong><small class="mono" :title="device.uuid">{{ device.uuid || `DEVICE-${String(device.id).padStart(4, '0')}` }}</small><small class="device-version">版本号 <span class="mono">{{ device.version ?? '未知' }}</span></small></span></div></td><td><span class="status-badge" :class="device.status"><span class="status-dot" :class="device.status"></span>{{ statusLabels[device.status] }}</span></td><td><div v-if="device.gameId !== null" class="current-game"><GameArtwork :id="device.gameId" /><span><strong>{{ gameById(device.gameId)?.name || `场景 ${device.gameId}` }}</strong><small>SCENE {{ device.gameId }}</small></span></div><button v-else class="unconfigured-label" :disabled="loading || !!devicesError" @click="openPicker(device)"><span class="unconfigured-dash">—</span>尚未配置游戏</button></td><td class="mono ip-cell">{{ device.ip || '—' }}</td><td class="date-cell">{{ formatTime(device.createdAt) }}</td><td class="date-cell">{{ formatTime(device.updatedAt) }}</td><td><div class="device-actions"><button class="configure-button" :disabled="loading || !!devicesError || deleting" :aria-label="`为${device.name || `设备 ${device.id}`}配置设备`" @click="openPicker(device)"><Settings2 :size="15" />配置设备<ChevronRight :size="14" /></button><button v-if="canDeleteDevices" class="delete-device-button" :disabled="loading || !!devicesError || deleting" :aria-label="`删除${device.name || `设备 ${device.id}`}`" @click="openDeletion(device)"><Trash2 :size="15" />删除</button></div></td></tr></tbody></table>
               <div v-if="loading && !devices.length" class="empty-state" role="status"><LoaderCircle :size="28" class="spin" /><strong>正在获取设备…</strong></div>
               <div v-else-if="!pageDevices.length && !devicesError" class="empty-state"><span class="empty-icon"><component :is="devices.length ? Search : Unplug" :size="29" :stroke-width="1.5" /></span><strong>{{ devices.length ? '没有找到匹配的设备' : (deviceManager ? '还没有关联设备' : '还没有接入设备') }}</strong><p>{{ devices.length ? '试试其他关键词，或清除筛选条件。' : (deviceManager ? '请先在「不加班」小程序中关联设备，再刷新此列表。' : '设备接入后会显示在这里，点击刷新获取最新列表。') }}</p><button v-if="devices.length" class="button secondary" @click="resetFilters">清除筛选</button></div>
             </div>

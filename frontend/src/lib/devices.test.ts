@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Device } from '../types'
+import type { Device, Game } from '../types'
 import { filterDevices, sortDevices, summarizeDevices } from './devices'
 
 const devices: Device[] = [
@@ -44,13 +44,55 @@ describe('sortDevices', () => {
   const device = (id: number, fields: Partial<Device> = {}): Device => ({ ...devices[0]!, id, ...fields })
   const ids = (items: Device[]) => items.map(item => item.id)
 
-  it('keeps the original order for default sorting without returning the source array', () => {
-    const source = [device(10), device(2), device(1)]
-    for (const direction of ['asc', 'desc'] as const) {
-      const sorted = sortDevices(source, 'default', direction)
-      expect(ids(sorted)).toEqual([10, 2, 1])
-      expect(sorted).not.toBe(source)
-    }
+  it('orders creation times independently of device IDs and update times and keeps missing or invalid times last', () => {
+    const source = [
+      device(8, { createdAt: '2026-10-21 12:00:00', updatedAt: '2026-10-23 12:00:00' }),
+      device(2, { createdAt: '2026-10-23 12:00:00', updatedAt: '2026-10-21 12:00:00' }),
+      device(9, { createdAt: '2026-10-22 12:00:00', updatedAt: '2026-10-22 12:00:00' }),
+      device(1, { updatedAt: '2026-10-24 12:00:00' }),
+      device(3, { createdAt: '' }),
+      device(4, { createdAt: 'invalid-date' }),
+    ]
+    expect(ids(sortDevices(source, 'createdAt', 'asc'))).toEqual([8, 9, 2, 1, 3, 4])
+    expect(ids(sortDevices(source, 'createdAt', 'desc'))).toEqual([2, 9, 8, 1, 3, 4])
+  })
+
+  it('compares creation timestamps by instant when their time zones differ', () => {
+    const source = [device(1, { createdAt: '2026-10-23T08:30:00+08:00' }), device(2, { createdAt: '2026-10-23T01:00:00Z' }), device(3, { createdAt: '2026-10-23T00:00:00Z' })]
+    expect(ids(sortDevices(source, 'createdAt', 'asc'))).toEqual([3, 1, 2])
+    expect(ids(sortDevices(source, 'createdAt', 'desc'))).toEqual([2, 1, 3])
+  })
+
+  it('orders statuses online, offline and unknown in ascending order and reverses that order for descending', () => {
+    const source = [device(1, { status: 'offline' }), device(2, { status: 'online' }), device(3, { status: 'unknown' })]
+    expect(ids(sortDevices(source, 'status', 'asc'))).toEqual([2, 1, 3])
+    expect(ids(sortDevices(source, 'status', 'desc'))).toEqual([3, 1, 2])
+  })
+
+  it('orders current games by their displayed catalog names and keeps unconfigured devices last', () => {
+    const games: Game[] = [
+      { id: 100, name: '游戏 10', description: '', category: '' },
+      { id: 2, name: '游戏 2', description: '', category: '' },
+      { id: 3, name: '游戏 1', description: '', category: '' },
+    ]
+    const source = [device(1, { gameId: 100 }), device(2, { gameId: 2 }), device(3, { gameId: 3 }), device(4, { gameId: null }), device(5, { gameId: null })]
+    expect(ids(sortDevices(source, 'game', 'asc', games))).toEqual([3, 2, 1, 4, 5])
+    expect(ids(sortDevices(source, 'game', 'desc', games))).toEqual([1, 2, 3, 4, 5])
+  })
+
+  it('uses the displayed scene fallback when a game is absent from the catalog or no catalog is provided', () => {
+    const games: Game[] = [{ id: 100, name: '场景 5', description: '', category: '' }]
+    const source = [device(1, { gameId: 10 }), device(2, { gameId: 2 }), device(3, { gameId: 100 }), device(4, { gameId: null })]
+    expect(ids(sortDevices(source, 'game', 'asc', games))).toEqual([2, 3, 1, 4])
+    expect(ids(sortDevices(source, 'game', 'desc', games))).toEqual([1, 3, 2, 4])
+    expect(ids(sortDevices(source, 'game', 'asc'))).toEqual([2, 1, 3, 4])
+    expect(ids(sortDevices(source, 'game', 'desc'))).toEqual([3, 1, 2, 4])
+  })
+
+  it('orders IP addresses naturally by their numeric parts and keeps blank addresses last in either direction', () => {
+    const source = [device(1, { ip: '192.168.1.10' }), device(2, { ip: '' }), device(3, { ip: '192.168.1.2' }), device(4, { ip: '10.0.0.1' }), device(5, { ip: '   ' })]
+    expect(ids(sortDevices(source, 'ip', 'asc'))).toEqual([4, 3, 1, 2, 5])
+    expect(ids(sortDevices(source, 'ip', 'desc'))).toEqual([1, 3, 4, 2, 5])
   })
 
   it('orders numeric versions including zero and keeps unknown versions last in either direction', () => {
@@ -83,8 +125,8 @@ describe('sortDevices', () => {
   })
 
   it.each(['asc', 'desc'] as const)('preserves source order for equal values when sorting %s', direction => {
-    const source = [device(3, { version: 2, name: 'VR 2', updatedAt: '2026-10-23T08:00:00+08:00' }), device(1, { version: 2, name: 'vr 2', updatedAt: '2026-10-23T00:00:00Z' })]
-    for (const key of ['version', 'name', 'updatedAt'] as const) {
+    const source = [device(3, { version: 2, name: 'VR 2', createdAt: '2026-10-23T08:00:00+08:00', updatedAt: '2026-10-23T08:00:00+08:00' }), device(1, { version: 2, name: 'vr 2', createdAt: '2026-10-23T00:00:00Z', updatedAt: '2026-10-23T00:00:00Z' })]
+    for (const key of ['version', 'name', 'status', 'game', 'ip', 'createdAt', 'updatedAt'] as const) {
       expect(ids(sortDevices(source, key, direction))).toEqual([3, 1])
     }
   })
