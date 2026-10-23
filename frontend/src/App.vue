@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowDownToLine, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, CircleX, Gamepad2, LayoutGrid, LoaderCircle, LogOut, Menu, Monitor, MonitorCheck, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Unplug, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowDownToLine, ArrowRight, ArrowUp, ArrowUpDown, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, CircleX, Gamepad2, LayoutGrid, LoaderCircle, LogOut, Menu, Monitor, MonitorCheck, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Unplug, X } from 'lucide-vue-next'
 import LoginView from './components/LoginView.vue'
 import GamePicker from './components/GamePicker.vue'
 import GameArtwork from './components/GameArtwork.vue'
 import HelpDialog from './components/HelpDialog.vue'
 import DeviceDeleteDialog from './components/DeviceDeleteDialog.vue'
-import type { Device, DeviceConfigurationPatch, Game, Session } from './types'
+import type { Device, DeviceConfigurationPatch, DeviceSortDirection, DeviceSortKey, Game, Session } from './types'
 import { ApiError, deleteDevice, updateDeviceConfiguration, getDevices, getGames, getSession, initializeApi, isDemoMode, login, logout, onAuthIdentityChange } from './lib/api'
-import { filterDevices, summarizeDevices } from './lib/devices'
+import { filterDevices, sortDevices, summarizeDevices } from './lib/devices'
 
 const ready = ref(false)
 const user = ref<Session['user']>(null)
@@ -32,6 +32,8 @@ const activeView = ref<'devices' | 'games'>('devices')
 const search = ref('')
 const status = ref<'all' | 'online' | 'offline' | 'unknown' | 'configured' | 'unconfigured'>('all')
 const gameFilter = ref<number | null>(null)
+const sortKey = ref<DeviceSortKey>('default')
+const sortDirection = ref<DeviceSortDirection>('desc')
 const gameSearch = ref('')
 const page = ref(1)
 const pageSize = ref(8)
@@ -53,7 +55,10 @@ const baseUrl = import.meta.env.BASE_URL
 
 const summary = computed(() => summarizeDevices(devices.value))
 const usedGameCount = computed(() => new Set(devices.value.map(device => device.gameId).filter(id => id !== null)).size)
-const filteredDevices = computed(() => filterDevices(devices.value, { search: search.value, status: status.value, gameId: gameFilter.value }))
+const filteredDevices = computed(() => sortDevices(
+  filterDevices(devices.value, { search: search.value, status: status.value, gameId: gameFilter.value }),
+  sortKey.value, sortDirection.value,
+))
 const pageCount = computed(() => Math.max(1, Math.ceil(filteredDevices.value.length / pageSize.value)))
 const pageDevices = computed(() => filteredDevices.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
 const filteredGames = computed(() => games.value.filter(game => `${game.name} ${game.id} ${game.category}`.toLowerCase().includes(gameSearch.value.toLowerCase())))
@@ -64,7 +69,8 @@ const deviceManager = computed(() => user.value?.role === 'device_manager')
 const canDeleteDevices = computed(() => user.value?.role === 'admin')
 const identityLabel = computed(() => deviceManager.value ? '关联设备管理' : '管理员')
 
-watch([search, status, gameFilter, pageSize], () => { page.value = 1 })
+watch(sortKey, key => { sortDirection.value = key === 'name' ? 'asc' : 'desc' })
+watch([search, status, gameFilter, pageSize, sortKey, sortDirection], () => { page.value = 1 })
 watch(pageCount, count => { if (page.value > count) page.value = count })
 watch(activeView, () => { sidebarOpen.value = false })
 watch(sidebarOpen, async open => {
@@ -109,6 +115,8 @@ function resetWorkspace() {
   search.value = ''
   status.value = 'all'
   gameFilter.value = null
+  sortKey.value = 'default'
+  sortDirection.value = 'desc'
   gameSearch.value = ''
   page.value = 1
   loginError.value = ''
@@ -332,7 +340,17 @@ onBeforeUnmount(() => { unsubscribeAuthChanges?.(); clearTimeout(toastTimeout) }
           <div class="section-heading"><div><h2>设备列表 <span>{{ filteredDevices.length }}</span></h2><p>{{ deviceManager ? '仅可查看和配置当前微信账号关联的设备' : '管理设备的游戏、欢迎词与图片配置' }}</p></div><div class="sync-label"><span class="status-dot" :class="devicesError ? 'offline' : 'online'"></span>{{ devicesError ? '同步失败' : `上次同步 ${syncingTime}` }}</div></div>
           <section class="device-panel">
             <div class="device-tabs" role="group" aria-label="筛选设备状态"><button :class="{ active: status === 'all' }" @click="status = 'all'">{{ deviceManager ? '我的设备' : '全部设备' }}<span>{{ summary.total }}</span></button><template v-if="demo"><button :class="{ active: status === 'online' }" @click="status = 'online'"><span class="status-dot online"></span>在线<span>{{ summary.online }}</span></button><button :class="{ active: status === 'offline' }" @click="status = 'offline'"><span class="status-dot offline"></span>离线<span>{{ summary.offline }}</span></button></template><button v-else :class="{ active: status === 'configured' }" @click="status = 'configured'">已配置<span>{{ summary.configured }}</span></button><button :class="{ active: status === 'unconfigured' }" @click="status = 'unconfigured'">待配置<span>{{ summary.unconfigured }}</span></button></div>
-            <div class="table-toolbar"><label class="search-input device-search"><Search :size="17" /><input v-model="search" placeholder="搜索设备名称、ID 或 IP 地址" aria-label="搜索设备" /><button v-if="search" class="icon-button" aria-label="清除搜索" @click="search = ''"><X :size="15" /></button></label><div class="toolbar-actions"><label class="select-wrap"><SlidersHorizontal :size="15" /><select v-model="gameFilter" aria-label="按游戏筛选"><option :value="null">全部游戏</option><option v-for="game in games" :key="game.id" :value="game.id">{{ game.name }}</option></select><ChevronDown :size="14" /></label><button class="button export-button" :disabled="loading || !!devicesError || !filteredDevices.length" @click="exportDevices"><ArrowDownToLine :size="16" /><span>导出</span></button></div></div>
+            <div class="table-toolbar">
+              <label class="search-input device-search"><Search :size="17" /><input v-model="search" placeholder="搜索设备名称、ID 或 IP 地址" aria-label="搜索设备" /><button v-if="search" class="icon-button" aria-label="清除搜索" @click="search = ''"><X :size="15" /></button></label>
+              <div class="toolbar-actions">
+                <label class="select-wrap"><SlidersHorizontal :size="15" /><select v-model="gameFilter" aria-label="按游戏筛选"><option :value="null">全部游戏</option><option v-for="game in games" :key="game.id" :value="game.id">{{ game.name }}</option></select><ChevronDown :size="14" /></label>
+                <div class="sort-controls" role="group" aria-label="设备排序">
+                  <label class="select-wrap"><ArrowUpDown :size="15" /><select v-model="sortKey" aria-label="设备排序字段"><option value="default">默认顺序</option><option value="version">版本号</option><option value="name">设备名称</option><option value="updatedAt">更新时间</option><option value="id">设备 ID</option></select><ChevronDown :size="14" /></label>
+                  <button class="sort-direction" type="button" aria-label="切换排序方向" :disabled="sortKey === 'default'" :title="sortKey === 'default' ? '请先选择排序字段' : sortDirection === 'asc' ? '当前升序，点击切换为降序' : '当前降序，点击切换为升序'" @click="sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'"><component :is="sortDirection === 'asc' ? ArrowUp : ArrowDown" :size="15" />{{ sortDirection === 'asc' ? '升序' : '降序' }}</button>
+                </div>
+                <button class="button export-button" :disabled="loading || !!devicesError || !filteredDevices.length" @click="exportDevices"><ArrowDownToLine :size="16" /><span>导出</span></button>
+              </div>
+            </div>
             <div v-if="devicesError" class="data-error" role="alert"><CircleX :size="21" /><div><strong>无法同步设备</strong><p>{{ devicesError }}</p></div><button class="button secondary" :disabled="loading" @click="loadData">重试</button></div>
             <div v-if="gamesError" class="inline-warning" role="alert"><CircleHelp :size="16" /><span>游戏目录未能加载，仍可编辑欢迎词和图片。{{ gamesError }}</span><button :disabled="loading" @click="loadData">重试</button></div>
             <div class="table-scroll" :class="{ 'table-loading': loading }" :aria-busy="loading">
