@@ -252,6 +252,7 @@ function isDevice(value: unknown): value is Device {
     && (value.title === undefined || typeof value.title === 'string')
     && typeof value.ip === 'string'
     && typeof value.status === 'string' && ['online', 'offline', 'unknown'].includes(value.status)
+    && (value.createdAt === undefined || typeof value.createdAt === 'string')
     && typeof value.updatedAt === 'string'
     && (value.gameId === null || Number.isSafeInteger(value.gameId))
     && ['slogans', 'pictures', 'thumbs'].every(field => value[field] === undefined

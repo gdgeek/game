@@ -7,6 +7,7 @@ export interface Device {
   name: string
   ip: string
   status: DeviceStatus
+  createdAt?: string
   updatedAt: string
   gameId: number | null
   title?: string

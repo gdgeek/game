@@ -91,6 +91,7 @@ JSON 请求带 `Content-Type: application/json`，生产管理接口不发送 CS
   "title": "大厅一号",
   "ip": "192.168.1.10",
   "status": "unknown",
+  "createdAt": "2026-10-10 12:00:00",
   "updatedAt": "2026-10-11 12:30:00",
   "gameId": 638,
   "slogans": ["欢迎来到这里"],
@@ -99,7 +100,7 @@ JSON 请求带 `Content-Type: application/json`，生产管理接口不发送 CS
 }
 ```
 
-`title` 返回 `setup.title` 原值，无配置或空值时为 `""`，与小程序的设备名称对应。`name` 优先使用去掉首尾空白的 `title`；名称为空或仍为协议默认值 `未知` 时，沿用设备 `tag`，其次为 `uuid`。设备 `tag` 和 `uuid` 是物理标识，编辑名称不会修改它们。没有 `setup` 或未配置 `scene_id` 时 `gameId` 为 `null`。现有模型没有可信的在线心跳字段，因此 `status` 始终为 `unknown`。`updatedAt` 优先取配置更新时间，其次为设备更新时间，并沿用数据库的时间格式。设备总数是返回数组长度。读取设备列表不会创建缺失的 `setup`。
+`title` 返回 `setup.title` 原值，无配置或空值时为 `""`，与小程序的设备名称对应。`name` 优先使用去掉首尾空白的 `title`；名称为空或仍为协议默认值 `未知` 时，沿用设备 `tag`，其次为 `uuid`。设备 `tag` 和 `uuid` 是物理标识，编辑名称不会修改它们。没有 `setup` 或未配置 `scene_id` 时 `gameId` 为 `null`。现有模型没有可信的在线心跳字段，因此 `status` 始终为 `unknown`。`createdAt` 取设备原始 `created_at`，编辑配置不会改变添加时间。管理列表的添加时间、更新时间均显示年份。`updatedAt` 优先取配置更新时间，其次为设备更新时间，并沿用数据库的时间格式。设备总数是返回数组长度。读取设备列表不会创建缺失的 `setup`。
 
 `version` 返回数据库中设备版本号的整数值，`0` 是有效版本。列表和配置保存响应使用相同格式；管理前端在设备 UUID 下显示版本号，兼容旧接口未返回此字段时显示“未知”。该字段只读，不能通过 `/configuration` 修改。
 

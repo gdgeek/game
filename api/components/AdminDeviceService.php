@@ -255,6 +255,7 @@ class AdminDeviceService extends Component
             'title' => $title,
             'ip' => (string) $device->ip,
             'status' => 'unknown',
+            'createdAt' => (string) $device->created_at,
             'updatedAt' => (string) (($setup !== null && $setup->updated_at) ? $setup->updated_at : $device->updated_at),
             'gameId' => $setup !== null && $setup->scene_id !== null ? (int) $setup->scene_id : null,
             'slogans' => $this->normalizeContent($setup !== null ? $setup->slogans : null),
