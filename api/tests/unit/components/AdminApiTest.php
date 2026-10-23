@@ -354,6 +354,34 @@ class AdminApiTest extends TestCase
         $this->assertSame(1, (int) $this->app->db->createCommand('SELECT COUNT(*) FROM setup')->queryScalar());
     }
 
+    public function testReadingDevicesReturnsCreationAndUpdateTimesWithOrWithoutSetup(): void
+    {
+        $this->authenticate();
+        $this->app->db->createCommand()->update('device', ['created_at' => '2025-12-31 23:00:00'], ['id' => 2])->execute();
+
+        $result = $this->controller()->runAction('devices');
+
+        $this->assertSame(['2026-10-10 12:00:00', '2025-12-31 23:00:00'], array_column($result, 'createdAt'));
+        $this->assertSame(['2026-10-11 12:30:00', '2026-10-11 13:00:00'], array_column($result, 'updatedAt'));
+    }
+
+    public function testUpdatingConfigurationPreservesDeviceCreationTime(): void
+    {
+        $this->authenticate();
+        foreach ([1, 2] as $deviceId) {
+            $createdAt = $this->app->db->createCommand('SELECT created_at FROM device WHERE id = :id', [':id' => $deviceId])->queryScalar();
+
+            $result = $this->devices->updateConfiguration($deviceId, ['title' => '新设备名称']);
+
+            $this->assertArrayHasKey('createdAt', $result);
+            $this->assertSame($createdAt, $result['createdAt']);
+            $this->assertSame('2026-10-11 15:00:00', $result['updatedAt']);
+            $this->assertSame($createdAt, $this->app->db->createCommand('SELECT created_at FROM device WHERE id = :id', [':id' => $deviceId])->queryScalar());
+            $subsequent = array_column($this->devices->getDevices(), null, 'id');
+            $this->assertSame($createdAt, $subsequent[$deviceId]['createdAt']);
+        }
+    }
+
     public function testReadingDevicesReturnsStoredIntegerVersions(): void
     {
         $this->authenticate();

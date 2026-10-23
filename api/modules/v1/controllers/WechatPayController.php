@@ -120,7 +120,7 @@ class WechatPayController extends Controller
 
         try {
             $server = $app->getServer();
-            $response = $server->handlePaid(function ($message, $fail) {
+            $server->handlePaid(function ($message, $fail) {
               // 实现订单查询和状态更新逻辑
               /*$order = YourOrderModel::findOne(['out_trade_no' => $message['out_trade_no']]);
               if (!$order) {
@@ -132,7 +132,14 @@ class WechatPayController extends Controller
                 return true;
             });
 
-            return $response;
+            $response = $server->serve();
+            Yii::$app->response->format = Response::FORMAT_RAW;
+            Yii::$app->response->statusCode = $response->getStatusCode();
+            foreach ($response->getHeaders() as $name => $values) {
+                Yii::$app->response->headers->set($name, implode(', ', $values));
+            }
+            Yii::$app->response->headers->set('Content-Type', 'application/json; charset=UTF-8');
+            return (string) $response->getBody();
         } catch (\Exception $e) {
             Yii::error('支付通知处理异常: ' . $e->getMessage(), 'wechat-pay');
             throw new \yii\web\HttpException(500, '支付通知处理异常: ' . $e->getMessage());
@@ -332,7 +339,7 @@ class WechatPayController extends Controller
 
         try {
             $server = $app->getServer();
-            $response = $server->handleRefunded(function ($message, $fail) {
+            $server->handleRefunded(function ($message, $fail) {
               // 退款通知处理逻辑
                 Yii::info('收到退款回调: ' . json_encode($message), 'wechat-pay');
 
@@ -347,7 +354,14 @@ class WechatPayController extends Controller
                 return true; // 告知微信服务器已成功处理
             });
 
-            return $response;
+            $response = $server->serve();
+            Yii::$app->response->format = Response::FORMAT_RAW;
+            Yii::$app->response->statusCode = $response->getStatusCode();
+            foreach ($response->getHeaders() as $name => $values) {
+                Yii::$app->response->headers->set($name, implode(', ', $values));
+            }
+            Yii::$app->response->headers->set('Content-Type', 'application/json; charset=UTF-8');
+            return (string) $response->getBody();
         } catch (\Exception $e) {
             Yii::error('退款通知处理异常: ' . $e->getMessage(), 'wechat-pay');
             throw new \yii\web\HttpException(500, '退款通知处理异常: ' . $e->getMessage());

@@ -53,6 +53,7 @@ function seedDevices(): Device[] {
     title: `${locations[index]} · ${String(index + 1).padStart(2, '0')}`,
     ip: `192.168.1.${101 + index}`,
     status: index < 9 ? 'online' : 'offline',
+    createdAt: new Date(Date.now() - (index + 1) * 24 * 60 * 60_000).toISOString(),
     updatedAt: new Date(Date.now() - (index < 9 ? (index % 3 + 1) * 60_000 : (index - 8) * 35 * 60_000)).toISOString(),
     gameId,
     slogans: ['欢迎体验'],
