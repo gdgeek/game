@@ -140,12 +140,27 @@ class ServerController extends Controller
      *         description="设备 UUID",
      *         @OA\Schema(type="string")
      *     ),
+     *     @OA\Parameter(
+     *         name="version",
+     *         in="query",
+     *         required=false,
+     *         description="设备版本号；省略时按 0 处理，与数据库版本不同时更新",
+     *         @OA\Schema(type="integer", format="int32", minimum=0, maximum=2147483647, default=0)
+     *     ),
+     *     @OA\Response(response=400, description="设备版本号无效"),
      *     @OA\Response(response=200, description="成功")
      * )
      */
-    public function actionInfo($uuid)
+    public function actionInfo($uuid, $version = 0)
     {
-        $info = Server::getInfo($uuid);
+        $version = (is_int($version) || is_string($version))
+            ? filter_var($version, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0, 'max_range' => 2147483647]])
+            : false;
+        if ($version === false) {
+            throw new \yii\web\BadRequestHttpException('version must be an integer between 0 and 2147483647');
+        }
+
+        $info = Server::getInfo($uuid, $version);
         return [
             'success' => true,
             'message' => 'success',

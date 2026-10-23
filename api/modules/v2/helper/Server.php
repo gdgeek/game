@@ -133,6 +133,7 @@ class Server
      * 此方法用于获取指定设备的信息配置。如果设备不存在，会自动创建新设备并初始化默认配置。
      * 
      * @param string|null $uuid 设备的唯一标识符UUID，可以为null
+     * @param int|null $version 已校验的设备版本号；null 表示仅读取配置，不同步版本
      * @return array 返回设备的信息配置数组，如果获取失败则返回默认信息配置
      * 
      * 处理流程：
@@ -144,7 +145,7 @@ class Server
      * 6. 如果setup存在，返回其信息配置
      * 7. 如果UUID为空或获取失败，返回默认信息配置
      */
-    public static function getInfo(string|null $uuid)
+    public static function getInfo(string|null $uuid, ?int $version = null)
     {
         // 检查UUID是否提供
         if ($uuid) {
@@ -167,6 +168,11 @@ class Server
 
                 // 保存设备到数据库
 
+            }
+
+            // 建档时模型默认写入 1；仅明确上报且版本不同时同步。
+            if ($version !== null && (int) $device->version !== $version) {
+                $device->updateAttributes(['version' => $version]);
             }
 
             // 获取设备关联的setup配置
