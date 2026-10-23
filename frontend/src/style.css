@@ -215,3 +215,15 @@ td{border-color:#ececec}tbody tr:hover{background:#fafcfb}
 @media(max-width:760px){.device-actions{flex-direction:column;align-items:flex-end;gap:3px}.delete-device-button{min-height:36px}.device-delete-content{padding:20px 22px}.device-delete-target{padding:13px}}
 
 .device-name-cell .device-version{margin-top:4px;font-size:11px;line-height:1.4;color:#777;letter-spacing:0}
+
+/* Sorting shares the filters' compact controls and wraps on narrow screens. */
+.table-toolbar{flex-wrap:wrap}
+.toolbar-actions{flex-wrap:wrap;justify-content:flex-end}
+.sort-controls{display:flex;align-items:center;gap:6px}
+.sort-controls .select-wrap{flex:none;max-width:none}
+.sort-direction{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:35px;padding:0 9px;border:1px solid #e4e8e4;border-radius:6px;color:#777;font-size:12px;white-space:nowrap}
+.sort-direction:hover:not(:disabled){background:#f3f6f2;color:#278144}
+.sort-direction:focus-visible{outline:2px solid #5b9b72;outline-offset:2px}
+.sort-direction:disabled{opacity:.45;cursor:default}
+@media(max-width:760px){.table-toolbar .device-search{max-width:none}.sort-direction{font-size:11px}.sort-controls{gap:5px}}
+@media(max-width:420px){.toolbar-actions>.select-wrap{flex-basis:100%;max-width:none}.sort-controls{flex:1}.sort-controls .select-wrap{flex:1}.sort-controls select{min-width:0}.sort-direction{padding:0 8px}}
