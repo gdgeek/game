@@ -142,7 +142,7 @@ class AdminTokenService extends Component
     }
     private function issuerValue(): string
     {
-        $issuer = $this->issuer ?? (getenv('ADMIN_AUTH_ISSUER') ?: (getenv('ADMIN_SCAN_LOGIN_ORIGIN') ?: 'https://checkin.voxel.cn'));
+        $issuer = $this->issuer ?? (getenv('ADMIN_AUTH_ISSUER') ?: (getenv('ADMIN_SCAN_LOGIN_ORIGIN') ?: 'https://c.4mr.cn'));
         if (!is_string($issuer) || $issuer === '' || strlen($issuer) > 255 || preg_match('/[\x00-\x20\x7f]/', $issuer)) {
             throw new HttpException(503, '管理认证服务暂时不可用，请稍后重试');
         }
