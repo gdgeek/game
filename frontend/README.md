@@ -20,7 +20,7 @@ npm run dev
 
 ## 自动分配正式后端
 
-生产站点为 `https://checkin.voxel.cn/`。参考 `gdgeek/vue3.7dgame.com`，容器启动时扫描 `APP_API_N_URL`，生成 Nginx `split_clients`、`map` 和故障切换配置。用户始终访问同源 `/api/admin-api/`，节点由代理自动选择；登录页和工作空间均没有后端选择器，也不在 localStorage 中记录节点。
+生产站点为 `https://c.4mr.cn/`。参考 `gdgeek/vue3.7dgame.com`，容器启动时扫描 `APP_API_N_URL`，生成 Nginx `split_clients`、`map` 和故障切换配置。用户始终访问同源 `/api/admin-api/`，节点由代理自动选择；登录页和工作空间均没有后端选择器，也不在 localStorage 中记录节点。
 
 现有上游仍为：
 

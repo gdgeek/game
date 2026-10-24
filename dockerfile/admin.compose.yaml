@@ -16,7 +16,7 @@ services:
       - traefik.enable=true
       - traefik.docker.network=proxy
       - traefik.http.routers.checkin_voxel_cn.entrypoints=websecure
-      - traefik.http.routers.checkin_voxel_cn.rule=Host(`checkin.voxel.cn`)
+      - traefik.http.routers.checkin_voxel_cn.rule=Host(`c.4mr.cn`)
       - traefik.http.routers.checkin_voxel_cn.tls=true
       - traefik.http.routers.checkin_voxel_cn.tls.certresolver=letsencrypt
       - traefik.http.routers.checkin_voxel_cn.middlewares=test-compress@file

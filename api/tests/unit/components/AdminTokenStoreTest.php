@@ -27,7 +27,7 @@ class AdminTokenStoreTest extends TestCase
         $keys=$this->redis->executeCommand('KEYS',[$this->prefix . '*']);
         if ($keys) { $this->redis->executeCommand('DEL',$keys); } $this->redis->close();
     }
-    private function record(): array { return ['issuer'=>'https://checkin.voxel.cn','identity'=>['source'=>'password','username'=>'test'],'expiresAt'=>time()+3600,'refreshHash'=>hash('sha256','first')]; }
+    private function record(): array { return ['issuer'=>'https://c.4mr.cn','identity'=>['source'=>'password','username'=>'test'],'expiresAt'=>time()+3600,'refreshHash'=>hash('sha256','first')]; }
     public function testIndependentStoresSeeTheSameRecordAndAtomicRevocation(): void {
         $sid=bin2hex(random_bytes(16));$record=$this->record();$this->store->create($sid,$record,time());
         $other=new AdminTokenStore(['redis'=>$this->redis,'keyPrefix'=>$this->prefix]);

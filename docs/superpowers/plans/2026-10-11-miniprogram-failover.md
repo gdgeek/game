@@ -4,7 +4,7 @@
 
 **Goal:** 启用小程序统一入口的 B0 主 / B1 备故障切换并验证实际登录。
 
-**Architecture:** 在现有静态 NGINX 镜像添加独立小程序代理配置，不变更 Web 固定后端 Session 路由。通过共同上游 Host/SNI 和共享 upstream zone 切换，读请求有限重试，写请求不重放；小程序只连接 checkin.voxel.cn/v2。
+**Architecture:** 在现有静态 NGINX 镜像添加独立小程序代理配置，不变更 Web 固定后端 Session 路由。通过共同上游 Host/SNI 和共享 upstream zone 切换，读请求有限重试，写请求不重放；小程序只连接 c.4mr.cn/v2。
 
 **Tech Stack:** NGINX 1.28、POSIX shell、Python unittest/TLS fixtures、Vue/uni-app/TypeScript/Vitest、Yii2。
 
@@ -25,8 +25,8 @@ Files: dockerfile/50-configure-miniprogram.sh (new), dockerfile/frontend-nginx.c
 
 Files: src/config/index.ts, .env.development, .env.production, src/api/scan-login.ts, config/scan tests and README in independent bujiaban-mp worktree.
 
-- [x] 添加先失败的测试断言默认和生产入口为 https://checkin.voxel.cn/v2，可信扫码 origin 包含 checkin.voxel.cn。
-- [x] 改默认与两环境 VITE_API_URL=https://checkin.voxel.cn/v2；可信名单保留现有三项并添加新入口。
+- [x] 添加先失败的测试断言默认和生产入口为 https://c.4mr.cn/v2，可信扫码 origin 包含 c.4mr.cn。
+- [x] 改默认与两环境 VITE_API_URL=https://c.4mr.cn/v2；可信名单保留现有三项并添加新入口。
 - [x] 不添加客户端写重试、不改变凭据存储或 COS；urlCheck 保持 true。
 - [x] 执行全部 Vitest、类型检查、lint 和 MP production build，等待独立审核。
 
@@ -37,7 +37,7 @@ Files: src/config/index.ts, .env.development, .env.production, src/api/scan-logi
 - [x] 独立审查两仓库满足设计，再审代码与测试；逐项解决发现的问题。
 - [ ] 依 ci-release 发布根 develop、main、publish，每次准确 HEAD CI 成功后推进；小程序独立 main CI 成功。
 - [ ] 打包前端 dist、Dockerfile、两个 entrypoint 与 template，Portainer F 构建新镜像并在 stack24 启用四个 APP_MP_API 变量，检查健康并验证 /mp-health、/v2 入口。
-- [ ] B0/B1 统一 ADMIN_SCAN_LOGIN_ORIGIN=https://checkin.voxel.cn 后核验规范 origin。
+- [ ] B0/B1 统一 ADMIN_SCAN_LOGIN_ORIGIN=https://c.4mr.cn 后核验规范 origin。
 - [ ] 微信开发者工具 urlCheck=true 下重新登录、关联设备读取、扫码 B0/B1 新真实票据；无错误后官方 CLI 上传独立新版本。
 - [ ] 记录实际部署/包状态、SHA、CI ID、验证证据及入口/共库/上游空游戏目录局限；清理仅本次生成临时工作树，归档管理工作树按实际需要。
 
