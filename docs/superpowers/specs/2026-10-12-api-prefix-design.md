@@ -13,7 +13,7 @@ User approved preserving backend paths: `/api/v2/devices` → `/v2/devices`, `/a
 
 ## Mini-program
 
-Set dev/prod/default API base to `https://checkin.voxel.cn/api/v2`. QR ticket origin remains the canonical root origin; new MP uses `/api/v2` when the trusted target is checkin.voxel.cn, and retains `/v2` for trusted direct backend targets. This avoids changing the QR protocol and keeps older uploaded packages functional. Do not add client retries or mix Web Session and Bearer.
+Set dev/prod/default API base to `https://c.4mr.cn/api/v2`. QR ticket origin remains the canonical root origin; new MP uses `/api/v2` when the trusted target is c.4mr.cn, and retains `/v2` for trusted direct backend targets. This avoids changing the QR protocol and keeps older uploaded packages functional. Do not add client retries or mix Web Session and Bearer.
 
 ## Release and acceptance
 

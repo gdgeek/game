@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement task-by-task. Steps use checkbox syntax for tracking.
 
-**Goal:** Route all business APIs through checkin.voxel.cn/api while preserving backend paths, authorization, Session isolation and safe B0/B1 failover.
+**Goal:** Route all business APIs through c.4mr.cn/api while preserving backend paths, authorization, Session isolation and safe B0/B1 failover.
 
 **Architecture:** Extend the existing two entrypoint renderers with a raw-URI prefix adapter and fixed Session aliases. Move Web and MP request bases to the prefixed routes, leaving legacy compatibility and QR origin protocol intact.
 
@@ -25,7 +25,7 @@ Files: dockerfile/40-configure-frontends.sh; dockerfile/50-configure-miniprogram
 Files Web: frontend/src/lib/api.ts; affected tests in frontend/src/lib. Files MP: .env.development; .env.production; src/config/index.ts; config tests; src/api/scan-login.ts; scan-login tests; README.md.
 
 - [x] Web tests expect production target `/api/backends/${backend}/admin-api`; confirm RED, change only production request base; keep demo `/admin-api` and runtime manifest unchanged. Run Web tests, typecheck and api build.
-- [x] MP config tests expect `https://checkin.voxel.cn/api/v2`; QR approval tests expect checkin target URLs under /api/v2 and direct origins under /v2; confirm RED, implement conditional trusted-origin API base and config changes. Keep canonical-origin QR validation and no client retries. Run MP tests/typecheck/lint/build.
+- [x] MP config tests expect `https://c.4mr.cn/api/v2`; QR approval tests expect checkin target URLs under /api/v2 and direct origins under /v2; confirm RED, implement conditional trusted-origin API base and config changes. Keep canonical-origin QR validation and no client retries. Run MP tests/typecheck/lint/build.
 - [x] Independent spec review then quality review of both repositories; fix any material issues and rerun affected checks.
 
 ### Task 3: Release and live acceptance

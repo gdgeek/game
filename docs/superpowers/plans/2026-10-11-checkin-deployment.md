@@ -1,6 +1,6 @@
-# checkin.voxel.cn 双后端前端部署
+# c.4mr.cn 双后端前端部署
 
-用户指定 Portainer `https://port.f.01xr.com`，最终域名 `checkin.voxel.cn`。两个正式后端分别是 `https://x.b0.01xr.com`、`https://x.b1.01xr.com`，页面须支持切换。反向代理参考 `gdgeek/vue3.7dgame.com`，界面参考 `gdgeek/bujiaban-mp`。
+用户指定 Portainer `https://port.f.01xr.com`，最终域名 `c.4mr.cn`。两个正式后端分别是 `https://x.b0.01xr.com`、`https://x.b1.01xr.com`，页面须支持切换。反向代理参考 `gdgeek/vue3.7dgame.com`，界面参考 `gdgeek/bujiaban-mp`。
 
 部署采用独立纯 Nginx 前端 Stack `checkin-console`，接入现有 `proxy` 网络和 Traefik `websecure` / `letsencrypt`。`/backends/b0/admin-api/`、`/backends/b1/admin-api/` 固定转发到对应后端，Cookie Path 分别隔离；保存请求禁止跨环境自动故障切换。
 

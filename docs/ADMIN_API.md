@@ -1,6 +1,6 @@
 # 设备管理 API
 
-Vue 3 管理端部署在 `checkin.voxel.cn`，浏览器统一通过同源 `/api/admin-api/` 访问 Nginx，用户无需选择后端。代理参考 `gdgeek/vue3.7dgame.com` 的编号上游、`split_clients` 和 `map` 方法自动分配请求。正式上游保留 B0 `https://x.b0.01xr.com` 和 B1 `https://x.b1.01xr.com`，两端校验同一 JWT，并共享管理登录的 Redis 令牌记录。设备来自现有 v2 `device` 表，设备游戏映射到 `setup.scene_id`，游戏列表来自各后端配置的 Y1 `/v1/server/checkin?expand=verse_id,name`。同一 `proxy` 网络内设置 `SCENE_SERVER_BASE_URL=http://y1-p:8080/`，由 PHP 自动拼接 `/v1/server`。
+Vue 3 管理端部署在 `c.4mr.cn`，浏览器统一通过同源 `/api/admin-api/` 访问 Nginx，用户无需选择后端。代理参考 `gdgeek/vue3.7dgame.com` 的编号上游、`split_clients` 和 `map` 方法自动分配请求。正式上游保留 B0 `https://x.b0.01xr.com` 和 B1 `https://x.b1.01xr.com`，两端校验同一 JWT，并共享管理登录的 Redis 令牌记录。设备来自现有 v2 `device` 表，设备游戏映射到 `setup.scene_id`，游戏列表来自各后端配置的 Y1 `/v1/server/checkin?expand=verse_id,name`。同一 `proxy` 网络内设置 `SCENE_SERVER_BASE_URL=http://y1-p:8080/`，由 PHP 自动拼接 `/v1/server`。
 
 ## 登录与配置
 
@@ -33,11 +33,11 @@ php -r 'echo password_hash(rtrim(fgets(STDIN), "\r\n"), PASSWORD_DEFAULT), PHP_E
 
 | 变量 | 含义 |
 | --- | --- |
-| `ADMIN_SCAN_LOGIN_ORIGIN` | 统一管理站点的规范 HTTPS origin，本部署两端均为 `https://checkin.voxel.cn`；不包含路径、查询或用户凭据 |
+| `ADMIN_SCAN_LOGIN_ORIGIN` | 统一管理站点的规范 HTTPS origin，本部署两端均为 `https://c.4mr.cn`；不包含路径、查询或用户凭据 |
 
 未配置有效的规范 origin 时扫码登录关闭，`GET /admin-api/session` 的 `scanLoginEnabled` 为 false。**只有网页账号密码登录是全量管理员**，默认账号为 `dirui`；微信扫码固定返回 `role: device_manager`，只能读取及修改 `control.user_id` 关联的设备。微信用户的 `manager`、`root` 角色不能提升此权限。无关联设备可登录但返回空列表，撤销关联后下一次读写立即失去该设备权限，删除微信用户后会话失效。不设置微信管理员名单或配置界面。
 
-首次部署扫码功能前执行迁移 `m261011_120000_create_admin_scan_login_ticket_table`。先用 `php yii migrate/new` 核对待执行清单，并按既有数据库备份及发布流程执行 `php yii migrate --interactive=0`。共库节点只需迁移一次；自动代理的全部节点应使用相同的 `bujiaban-mp` AppID、JWT 签名验证材料、认证设置和规范扫码 origin。本部署规范 origin 为 `https://checkin.voxel.cn`，票据由共享数据库保存，创建浏览器凭据独立于登录令牌，由下面的随机 owner proof 绑定。
+首次部署扫码功能前执行迁移 `m261011_120000_create_admin_scan_login_ticket_table`。先用 `php yii migrate/new` 核对待执行清单，并按既有数据库备份及发布流程执行 `php yii migrate --interactive=0`。共库节点只需迁移一次；自动代理的全部节点应使用相同的 `bujiaban-mp` AppID、JWT 签名验证材料、认证设置和规范扫码 origin。本部署规范 origin 为 `https://c.4mr.cn`，票据由共享数据库保存，创建浏览器凭据独立于登录令牌，由下面的随机 owner proof 绑定。
 
 扫码版本的后端发布范围包括新增票据服务、迁移和 `v2/WebLoginController`，以及管理路由、`AdminAuthService`、v1 模块身份入口、v1/v2 User 与刷新控制器的认证修复；这些文件按同一版本发布，保持签发和认证的身份来源规则一致。Web 和独立小程序仓库分别构建发布。
 
@@ -166,7 +166,7 @@ php api/vendor/bin/phpunit --stderr --bootstrap api/tests/_bootstrap.php --filte
 
 ## 前端与正式后端部署
 
-`checkin.voxel.cn` 只运行静态 Vue 页面和 Nginx，不运行 PHP、不连接数据库。`dockerfile/FrontendDockerfile` 使用官方 Nginx Alpine 镜像，复制预构建的 `frontend/dist`、代理模板和启动脚本。`dockerfile/admin.compose.yaml` 仅连接现有 `proxy` 网络，通过 Traefik 的 `websecure` / `letsencrypt` 提供 HTTPS，不发布宿主机端口，不配置数据库凭据、Cookie key 或持久化卷。
+`c.4mr.cn` 只运行静态 Vue 页面和 Nginx，不运行 PHP、不连接数据库。`dockerfile/FrontendDockerfile` 使用官方 Nginx Alpine 镜像，复制预构建的 `frontend/dist`、代理模板和启动脚本。`dockerfile/admin.compose.yaml` 仅连接现有 `proxy` 网络，通过 Traefik 的 `websecure` / `letsencrypt` 提供 HTTPS，不发布宿主机端口，不配置数据库凭据、Cookie key 或持久化卷。
 
 GitHub Actions 使用 Node.js 24，在 `frontend/` 执行 `npm ci`、`npm test`、`npm run build -- --base=/`，测试和静态构建通过后发布前端镜像 `hkccr.ccs.tencentyun.com/gdgeek/checkin-frontend`。`develop`、`main`、`publish` 分支分别使用同名标签，只有 `publish` 发布 `latest`。按 `develop → main → publish` 逐阶段推进，每阶段测试、构建及前后端镜像推送全部成功后再提升下一分支。后端继续独立使用 `hkccr.ccs.tencentyun.com/gdgeek/wechat` 镜像。
 

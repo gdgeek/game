@@ -56,7 +56,7 @@ LUA;
     /** Atomically reserve one of the shared per-IP failed password attempts. */
     public function reservePasswordAttempt(string $ip, int $limit, int $windowSeconds, ?string $issuer = null): array
     {
-        $issuerHash = hash('sha256', $issuer ?? (getenv('ADMIN_AUTH_ISSUER') ?: (getenv('ADMIN_SCAN_LOGIN_ORIGIN') ?: 'https://checkin.voxel.cn')));
+        $issuerHash = hash('sha256', $issuer ?? (getenv('ADMIN_AUTH_ISSUER') ?: (getenv('ADMIN_SCAN_LOGIN_ORIGIN') ?: 'https://c.4mr.cn')));
         $key = $this->keyPrefix . 'issuer:' . $issuerHash . ':password-attempts:' . hash('sha256', $ip);
         $script = <<<'LUA'
 local count=tonumber(redis.call('GET',KEYS[1]) or '0')
@@ -73,7 +73,7 @@ LUA;
 
     public function clearPasswordAttempts(string $ip, ?string $issuer = null): void
     {
-        $issuerHash = hash('sha256', $issuer ?? (getenv('ADMIN_AUTH_ISSUER') ?: (getenv('ADMIN_SCAN_LOGIN_ORIGIN') ?: 'https://checkin.voxel.cn')));
+        $issuerHash = hash('sha256', $issuer ?? (getenv('ADMIN_AUTH_ISSUER') ?: (getenv('ADMIN_SCAN_LOGIN_ORIGIN') ?: 'https://c.4mr.cn')));
         $this->command('DEL', [$this->keyPrefix . 'issuer:' . $issuerHash . ':password-attempts:' . hash('sha256', $ip)]);
     }
 
@@ -110,7 +110,7 @@ LUA;
     private function sidKey(string $sid, ?string $issuer = null): string
     {
         if (!preg_match('/^[a-f0-9]{32}$/D', $sid)) { throw $this->unavailable(); }
-        return $this->keyPrefix . 'issuer:' . hash('sha256', $issuer ?? (getenv('ADMIN_AUTH_ISSUER') ?: (getenv('ADMIN_SCAN_LOGIN_ORIGIN') ?: 'https://checkin.voxel.cn'))) . ':sid:' . $sid;
+        return $this->keyPrefix . 'issuer:' . hash('sha256', $issuer ?? (getenv('ADMIN_AUTH_ISSUER') ?: (getenv('ADMIN_SCAN_LOGIN_ORIGIN') ?: 'https://c.4mr.cn'))) . ':sid:' . $sid;
     }
     private function decode($value): array
     {
